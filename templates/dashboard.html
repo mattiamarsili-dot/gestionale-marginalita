@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Gestionale Marginalità{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h4 class="fw-bold mb-0">Dashboard</h4>
+    <small class="text-muted">Riepilogo pratiche e marginalità</small>
+  </div>
+  <div class="d-flex align-items-center gap-2 flex-wrap">
+    <!-- Selettore periodo e mese di inizio -->
+    <form method="get" class="d-flex align-items-center gap-2 flex-wrap" id="form-periodo">
+      <select name="periodo" class="form-select form-select-sm" style="width:140px" onchange="this.form.submit()">
+        {% for p in periodi %}
+        <option value="{{ p }}" {% if p == periodo_sel %}selected{% endif %}>
+          {{ p | capitalize }}
+        </option>
+        {% endfor %}
+      </select>
+      <label class="form-label mb-0 text-muted small">da</label>
+      <select name="da" class="form-select form-select-sm" style="width:130px" onchange="this.form.submit()">
+        {% for m in mesi_disponibili %}
+        <option value="{{ m }}" {% if m == da_sel %}selected{% endif %}>
+          {{ m | replace('-', ' / ') }}
+        </option>
+        {% endfor %}
+      </select>
+    </form>
+    {% if drive_attivo %}
+    <button id="btn-sync-drive" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-cloud-download me-1"></i>Sincronizza Drive
+    </button>
+    {% endif %}
+    <a href="{{ url_for('nuova_pratica') }}" class="btn btn-primary btn-sm">
+      <i class="bi bi-plus-circle-fill me-1"></i>Nuova Pratica
+    </a>
+  </div>
+</div>
+
+<!-- Pannello risultati sincronizzazione Drive -->
+<div id="drive-panel" class="d-none mb-4"></div>
+
+<!-- Stat cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-2">
+    <div class="stat-card blue">
+      <div class="stat-label">Pratiche</div>
+      <div class="stat-value">{{ stats.num_pratiche }}</div>
+      <i class="bi bi-folder2-open stat-icon"></i>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="stat-card teal">
+      <div class="stat-label">Totale Ricavi</div>
+      <div class="stat-value">€ {{ "%.0f"|format(stats.totale_ricavi) }}</div>
+      <i class="bi bi-cash-stack stat-icon"></i>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="stat-card purple">
+      <div class="stat-label">Provvigioni</div>
+      <div class="stat-value">€ {{ "%.0f"|format(stats.totale_provvigioni) }}</div>
+      <i class="bi bi-person-check stat-icon"></i>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="stat-card green">
+      <div class="stat-label">MOL Totale</div>
+      <div class="stat-value">€ {{ "%.0f"|format(stats.mol_totale) }}</div>
+      <i class="bi bi-graph-up-arrow stat-icon"></i>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    {% set mc = stats.media_margine %}
+    {% if mc >= soglia_ok %}{% set card_color = "green" %}
+    {% elif mc >= soglia_warn %}{% set card_color = "orange" %}
+    {% else %}{% set card_color = "red" %}{% endif %}
+    <div class="stat-card {{ card_color }}">
+      <div class="stat-label">Margine Medio</div>
+      <div class="stat-value">{{ "%.1f"|format(mc) }}%</div>
+      <i class="bi bi-percent stat-icon"></i>
+    </div>
+  </div>
+</div>
+
+<!-- Tabella pratiche -->
+<div class="card">
+  <div class="card-header bg-white py-3">
+    <span class="fw-semibold"><i class="bi bi-list-ul me-2 text-primary"></i>Pratiche del periodo</span>
+  </div>
+  <div class="card-body p-0">
+    {% if pratiche %}
+    <div class="table-responsive">
+      <table class="table table-pratiche mb-0">
+        <thead>
+          <tr>
+            <th>Paziente</th>
+            <th>Data</th>
+            <th class="text-end">Ricavi ASL</th>
+            <th class="text-end">Costo Fornitori</th>
+            <th class="text-end">Provvigione</th>
+            <th class="text-end">Struttura 5%</th>
+            <th class="text-end">MOL</th>
+            <th class="text-center">Margine %</th>
+            <th class="text-center">Fatturata</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in pratiche %}
+          <tr {% if p.fatturata %}class="table-success bg-opacity-25"{% endif %}>
+            <td class="fw-semibold">{{ p.nome_paziente }}</td>
+            <td class="text-muted">{{ p.data_pratica }}</td>
+            <td class="text-end">€ {{ "%.2f"|format(p.ricavi) }}</td>
+            <td class="text-end">€ {{ "%.2f"|format(p.costo) }}</td>
+            <td class="text-end text-muted">
+              € {{ "%.2f"|format(p.provvigione) }}
+              <small class="text-muted d-block" style="font-size:.75em">{{ p.provvigione_pct | int }}%</small>
+            </td>
+            <td class="text-end text-muted">€ {{ "%.2f"|format(p.struttura) }}</td>
+            <td class="text-end fw-semibold {% if p.mol >= 0 %}text-success{% else %}text-danger{% endif %}">
+              € {{ "%.2f"|format(p.mol) }}
+            </td>
+            <td class="text-center">
+              {% set pct = p.margine_pct %}
+              <span class="badge-margine {% if pct >= soglia_ok %}margine-ok{% elif pct >= soglia_warn %}margine-warn{% else %}margine-bad{% endif %}">
+                {{ "%.1f"|format(pct) }}%
+              </span>
+            </td>
+            <td class="text-center">
+              {% if p.fatturata %}
+                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Sì</span>
+              {% else %}
+                <button type="button" class="btn btn-sm btn-outline-success"
+                  data-bs-toggle="modal" data-bs-target="#modalFattura"
+                  data-pratica-id="{{ p.id }}"
+                  data-paziente="{{ p.nome_paziente }}">
+                  <i class="bi bi-receipt"></i>
+                </button>
+              {% endif %}
+            </td>
+            <td>
+              <a href="{{ url_for('dettaglio_pratica', pratica_id=p.id) }}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-eye"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot class="table-light">
+          <tr>
+            <td colspan="2" class="fw-bold text-muted small">TOTALI PERIODO</td>
+            <td class="text-end fw-bold">€ {{ "%.2f"|format(stats.totale_ricavi) }}</td>
+            <td></td>
+            <td class="text-end fw-bold text-muted">€ {{ "%.2f"|format(stats.totale_provvigioni) }}</td>
+            <td></td>
+            <td class="text-end fw-bold {% if stats.mol_totale >= 0 %}text-success{% else %}text-danger{% endif %}">
+              € {{ "%.2f"|format(stats.mol_totale) }}
+            </td>
+            <td class="text-center">
+              {% set avg = stats.media_margine %}
+              <span class="badge-margine {% if avg >= soglia_ok %}margine-ok{% elif avg >= soglia_warn %}margine-warn{% else %}margine-bad{% endif %}">
+                {{ "%.1f"|format(avg) }}% media
+              </span>
+            </td>
+            <td colspan="2"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-inbox fs-1 d-block mb-2 opacity-25"></i>
+      Nessuna pratica per questo periodo.
+      <a href="{{ url_for('nuova_pratica') }}" class="d-block mt-2 text-primary">Inserisci la prima pratica →</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Modal conferma fatturazione -->
+<div class="modal fade" id="modalFattura" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="bi bi-receipt me-2 text-success"></i>Segna come fatturata</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-0">Segna la pratica di <strong id="modal-paziente"></strong> come fatturata oggi?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annulla</button>
+        <form id="form-fattura" method="post">
+          <input type="hidden" name="torna" value="{{ request.url }}">
+          <button type="submit" class="btn btn-success btn-sm">
+            <i class="bi bi-check-circle me-1"></i>Conferma
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Popola il modal con i dati della pratica selezionata
+document.getElementById('modalFattura').addEventListener('show.bs.modal', function(e) {
+  const btn = e.relatedTarget;
+  document.getElementById('modal-paziente').textContent = btn.dataset.paziente;
+  document.getElementById('form-fattura').action = '/pratica/' + btn.dataset.praticaId + '/fattura';
+});
+</script>
+{% if drive_attivo %}
+<script>
+document.getElementById('btn-sync-drive').addEventListener('click', async () => {
+  const btn   = document.getElementById('btn-sync-drive');
+  const panel = document.getElementById('drive-panel');
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Sincronizzazione...';
+  panel.classList.add('d-none');
+  panel.innerHTML = '';
+
+  try {
+    const res  = await fetch('/api/sync-drive');
+    const data = await res.json();
+
+    if (data.errore) {
+      panel.innerHTML = `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>${data.errore}</div>`;
+      panel.classList.remove('d-none');
+      return;
+    }
+
+    if (!data.nuovi.length) {
+      panel.innerHTML = `<div class="alert alert-info"><i class="bi bi-check-circle me-2"></i>Nessun PDF nuovo su Drive.</div>`;
+      panel.classList.remove('d-none');
+      return;
+    }
+
+    let righe = '';
+    data.nuovi.forEach(f => {
+      const importoBadge = f.suggerito
+        ? `<span class="badge bg-success fs-6">€ ${f.suggerito.toFixed(2)}</span>`
+        : `<span class="badge bg-secondary">non estratto</span>`;
+
+      const params = new URLSearchParams({
+        drive_file_id: f.drive_file_id,
+        nome_file:     f.nome_file,
+        importo:       f.suggerito ?? '',
+      });
+
+      righe += `
+        <tr>
+          <td><i class="bi bi-file-pdf text-danger me-2"></i>${f.nome_file}</td>
+          <td>${importoBadge}</td>
+          <td class="text-end">
+            <a href="/nuova?${params}" class="btn btn-sm btn-primary">
+              <i class="bi bi-plus-circle me-1"></i>Crea Pratica
+            </a>
+          </td>
+        </tr>`;
+    });
+
+    const n = data.nuovi.length;
+    panel.innerHTML = `
+      <div class="card">
+        <div class="card-header bg-white py-3 d-flex align-items-center justify-content-between">
+          <span class="fw-semibold">
+            <i class="bi bi-cloud-download me-2 text-primary"></i>
+            PDF su Drive — ${n} nuov${n === 1 ? 'o' : 'i'}
+          </span>
+          <button type="button" class="btn-close"
+            onclick="document.getElementById('drive-panel').classList.add('d-none')">
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <table class="table mb-0 align-middle">
+            <tbody>${righe}</tbody>
+          </table>
+        </div>
+      </div>`;
+    panel.classList.remove('d-none');
+
+  } catch (_) {
+    panel.innerHTML = `<div class="alert alert-danger"><i class="bi bi-wifi-off me-2"></i>Errore di connessione durante la sincronizzazione.</div>`;
+    panel.classList.remove('d-none');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-cloud-download me-1"></i>Sincronizza Drive';
+  }
+});
+</script>
+{% endif %}
+{% endblock %}

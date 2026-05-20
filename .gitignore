@@ -1,0 +1,30 @@
+# Ambiente virtuale
+venv/
+.venv/
+env/
+
+# Variabili d'ambiente (contengono credenziali)
+.env
+*.env
+
+# Database locale
+*.db
+*.sqlite
+
+# Google credentials locali
+*.json
+
+# Upload PDF locali
+uploads/
+
+# Log
+*.log
+server.log
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# macOS
+.DS_Store

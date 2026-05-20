@@ -1,0 +1,41 @@
+{% extends "base_public.html" %}
+{% block title %}Accesso — Gestionale Marginalità{% endblock %}
+
+{% block content %}
+<div class="min-vh-100 d-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, #1a3a5c 0%, #2563a8 100%);">
+  <div class="col-12 col-sm-8 col-md-5 col-lg-4 px-3">
+
+    <div class="text-center mb-4">
+      <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-white mb-3"
+           style="width:64px;height:64px;box-shadow:0 4px 20px rgba(0,0,0,.25)">
+        <i class="bi bi-bar-chart-fill text-primary" style="font-size:1.8rem"></i>
+      </div>
+      <h4 class="text-white fw-bold mb-1">Gestionale Marginalità</h4>
+      <p class="text-white-50 small">Inserisci il codice di accesso</p>
+    </div>
+
+    <div class="card shadow-lg border-0" style="border-radius:16px">
+      <div class="card-body p-4">
+        <form method="post">
+          {% if errore %}
+          <div class="alert alert-danger py-2 small mb-3">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ errore }}
+          </div>
+          {% endif %}
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold" for="codice">Codice di accesso</label>
+            <input type="password" name="codice" id="codice" class="form-control form-control-lg"
+                   placeholder="••••••••" autofocus autocomplete="current-password">
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100 btn-lg fw-semibold">
+            <i class="bi bi-box-arrow-in-right me-2"></i>Entra
+          </button>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

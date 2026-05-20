@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: gestionale-marginalita
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ACCESS_CODE
+        sync: false           # inserire manualmente nella dashboard Render
+      - key: DATABASE_URL
+        sync: false           # copiare da neon.tech
+      - key: DRIVE_FOLDER_ID
+        sync: false           # ID cartella Google Drive
+      - key: GOOGLE_CREDENTIALS_JSON
+        sync: false           # contenuto JSON service account (tutto su una riga)

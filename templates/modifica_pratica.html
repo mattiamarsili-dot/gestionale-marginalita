@@ -1,0 +1,424 @@
+{% extends "base.html" %}
+{% block title %}Modifica — {{ pratica.nome_paziente }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-xl-10">
+
+    <div class="d-flex align-items-center mb-4 gap-3">
+      <a href="{{ url_for('dettaglio_pratica', pratica_id=pratica.id) }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i>
+      </a>
+      <div>
+        <h4 class="fw-bold mb-0">Modifica Pratica</h4>
+        <small class="text-muted">{{ pratica.nome_paziente }} — #{{ pratica.id }}</small>
+      </div>
+    </div>
+
+    <form method="post" id="form-pratica"
+          action="{{ url_for('modifica_pratica', pratica_id=pratica.id) }}">
+      <div class="row g-4">
+
+        <!-- Colonna sinistra: dati pratica + fornitori -->
+        <div class="col-12 col-lg-7">
+
+          <div class="card mb-4">
+            <div class="card-header bg-primary text-white py-3">
+              <i class="bi bi-person-fill me-2"></i>Dati Pratica
+            </div>
+            <div class="card-body">
+              <div class="row g-3">
+                <div class="col-12 col-sm-6">
+                  <label class="form-label">Nome Paziente *</label>
+                  <input type="text" name="nome_paziente" class="form-control"
+                         value="{{ pratica.nome_paziente }}" required>
+                </div>
+                <div class="col-12 col-sm-6">
+                  <label class="form-label">Data Pratica *</label>
+                  <input type="date" name="data_pratica" class="form-control"
+                         value="{{ pratica.data_pratica }}" required>
+                </div>
+                <div class="col-12 col-sm-6">
+                  <label class="form-label">Importo ASL (netto IVA) *</label>
+                  <div class="input-group">
+                    <span class="input-group-text">€</span>
+                    <input type="number" name="importo_asl" id="importo_asl" class="form-control"
+                           value="{{ pratica.importo_asl }}" step="0.01" min="0" required>
+                  </div>
+                </div>
+                <div class="col-12 col-sm-6">
+                  <label class="form-label">Provvigione</label>
+                  <div class="d-flex gap-3 mt-1">
+                    <div class="form-check">
+                      <input class="form-check-input prov-radio" type="radio"
+                             name="provvigione_pct" id="prov-std" value="{{ provvigione_std }}"
+                             {% if pratica.provvigione_pct == provvigione_std %}checked{% endif %}>
+                      <label class="form-check-label" for="prov-std">
+                        Standard <strong>{{ (provvigione_std * 100) | int }}%</strong>
+                      </label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input prov-radio" type="radio"
+                             name="provvigione_pct" id="prov-rid" value="{{ provvigione_rid }}"
+                             {% if pratica.provvigione_pct == provvigione_rid %}checked{% endif %}>
+                      <label class="form-check-label" for="prov-rid">
+                        Ridotta <strong>{{ (provvigione_rid * 100) | int }}%</strong>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Note</label>
+                  <textarea name="note" class="form-control" rows="2"
+                            placeholder="Annotazioni libere...">{{ pratica.note or '' }}</textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fornitori -->
+          <div class="card">
+            <div class="card-header bg-primary text-white py-3 d-flex justify-content-between align-items-center">
+              <span><i class="bi bi-truck me-2"></i>Preventivi Fornitori</span>
+              <button type="button" class="btn btn-sm btn-light" id="btn-aggiungi-fornitore">
+                <i class="bi bi-plus-circle me-1"></i>Aggiungi
+              </button>
+            </div>
+            <div class="card-body">
+              <div id="fornitori-container"></div>
+              <div id="fornitori-empty" class="text-center text-muted py-3" style="display:none">
+                <i class="bi bi-inbox opacity-25 fs-3 d-block"></i>
+                Nessun fornitore aggiunto
+              </div>
+              <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+                <span class="text-muted small">Totale costo fornitori</span>
+                <span class="fw-bold" id="totale-fornitori">€ 0,00</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Colonna destra: riepilogo margine -->
+        <div class="col-12 col-lg-5">
+          <div class="card sticky-top" style="top: 80px">
+            <div class="card-header bg-primary text-white py-3">
+              <i class="bi bi-calculator me-2"></i>Analisi Margine
+            </div>
+            <div class="card-body">
+              <div id="riepilogo-margine">
+                <div class="riga-calc">
+                  <span>Ricavi (ASL)</span>
+                  <span id="r-ricavi" class="fw-semibold">€ 0,00</span>
+                </div>
+                <div class="riga-calc text-danger">
+                  <span>Costo fornitori</span>
+                  <span id="r-costo">— € 0,00</span>
+                </div>
+                <div class="riga-calc text-muted">
+                  <span id="label-provvigione">Provvigione</span>
+                  <span id="r-provvigione">— € 0,00</span>
+                </div>
+                <div class="riga-calc text-muted">
+                  <span id="label-struttura">Struttura 5%</span>
+                  <span id="r-struttura">— € 0,00</span>
+                </div>
+                <div class="riga-calc totale mt-1 pt-1">
+                  <span>MOL</span>
+                  <span id="r-mol">€ 0,00</span>
+                </div>
+              </div>
+
+              <div class="mt-3">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <span class="small text-muted">Margine %</span>
+                  <span id="r-margine-pct" class="fw-bold fs-4">0,0%</span>
+                </div>
+                <div class="progress-margine">
+                  <div id="r-barra" class="progress-bar bg-success" style="width:0%"></div>
+                </div>
+              </div>
+
+              <div id="alert-margine" class="alert mt-3 d-none py-2 small"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="d-flex justify-content-end gap-2 mt-4">
+        <a href="{{ url_for('dettaglio_pratica', pratica_id=pratica.id) }}"
+           class="btn btn-outline-secondary">Annulla</a>
+        <button type="submit" class="btn btn-primary px-4">
+          <i class="bi bi-save-fill me-1"></i>Salva Modifiche
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<!-- Modal selezione candidato PDF -->
+<div class="modal fade" id="modalPdf" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-file-pdf me-2"></i>Importo estratto dal PDF</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-2">Seleziona il totale corretto o inseriscilo manualmente:</p>
+        <div id="pdf-candidati"></div>
+        <div class="mt-3">
+          <label class="form-label small">Importo confermato (netto IVA)</label>
+          <div class="input-group">
+            <span class="input-group-text">€</span>
+            <input type="number" id="pdf-importo-confermato" class="form-control" step="0.01" min="0">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+        <button type="button" class="btn btn-primary" id="btn-conferma-pdf">Usa questo importo</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Configurazione ───────────────────────────────────────────────────────────
+let CFG = { provvigione_pct: 16, struttura_pct: 5, margine_soglia_ok: 20, margine_soglia_warn: 10 };
+(async () => {
+  try {
+    const res = await fetch('/api/config');
+    CFG = await res.json();
+    document.getElementById('label-struttura').textContent = `Struttura ${CFG.struttura_pct}%`;
+  } catch (_) {}
+})();
+
+// ── Variabili globali ────────────────────────────────────────────────────────
+let rigaCount = 0;
+let pdfTargetRow = null;
+const modalPdf = new bootstrap.Modal(document.getElementById('modalPdf'));
+
+function fmt(n) {
+  return '€ ' + n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+// ── Calcolo margine ──────────────────────────────────────────────────────────
+let _margineTimer = null;
+function aggiornaMargineDebounced() {
+  clearTimeout(_margineTimer);
+  _margineTimer = setTimeout(aggiornaMargine, 150);
+}
+
+async function aggiornaMargine() {
+  const asl = parseFloat(document.getElementById('importo_asl').value) || 0;
+  let costo = 0;
+  document.querySelectorAll('.input-importo-fornitore').forEach(el => {
+    costo += parseFloat(el.value) || 0;
+  });
+
+  const provPct = parseFloat(
+    document.querySelector('input[name="provvigione_pct"]:checked')?.value || '0.16'
+  );
+  document.getElementById('label-provvigione').textContent =
+    `Provvigione ${Math.round(provPct * 100)}%`;
+
+  document.getElementById('totale-fornitori').textContent = fmt(costo);
+  document.getElementById('r-ricavi').textContent = fmt(asl);
+  document.getElementById('r-costo').textContent = '— ' + fmt(costo);
+
+  if (asl === 0) {
+    ['r-provvigione','r-struttura','r-mol'].forEach(id =>
+      document.getElementById(id).textContent = '— € 0,00'
+    );
+    document.getElementById('r-margine-pct').textContent = '0,0%';
+    document.getElementById('r-barra').style.width = '0%';
+    document.getElementById('alert-margine').classList.add('d-none');
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/calcola-margine?asl=${asl}&costo=${costo}&provvigione_pct=${provPct}`);
+    const d = await res.json();
+
+    document.getElementById('r-provvigione').textContent = '— ' + fmt(d.provvigione);
+    document.getElementById('r-struttura').textContent   = '— ' + fmt(d.struttura);
+
+    const molEl = document.getElementById('r-mol');
+    molEl.textContent = fmt(d.mol);
+    molEl.className = d.mol >= 0 ? 'text-success fw-bold' : 'text-danger fw-bold';
+
+    const pct    = d.margine_pct;
+    const pctEl  = document.getElementById('r-margine-pct');
+    const barra  = document.getElementById('r-barra');
+    pctEl.textContent = pct.toFixed(1).replace('.', ',') + '%';
+    barra.style.width = Math.min(Math.max(pct, 0), 100) + '%';
+
+    if (pct >= CFG.margine_soglia_ok) {
+      pctEl.className = 'fw-bold fs-4 text-success';
+      barra.className = 'progress-bar bg-success';
+    } else if (pct >= CFG.margine_soglia_warn) {
+      pctEl.className = 'fw-bold fs-4 text-warning';
+      barra.className = 'progress-bar bg-warning';
+    } else {
+      pctEl.className = 'fw-bold fs-4 text-danger';
+      barra.className = 'progress-bar bg-danger';
+    }
+
+    const alertEl = document.getElementById('alert-margine');
+    alertEl.classList.remove('d-none');
+    if (pct >= CFG.margine_soglia_ok) {
+      alertEl.className = 'alert alert-success mt-3 py-2 small';
+      alertEl.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Margine nella soglia.';
+    } else if (pct >= CFG.margine_soglia_warn) {
+      alertEl.className = 'alert alert-warning mt-3 py-2 small';
+      alertEl.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-1"></i> Margine sotto il ${CFG.margine_soglia_ok}%.`;
+    } else {
+      alertEl.className = 'alert alert-danger mt-3 py-2 small';
+      alertEl.innerHTML = '<i class="bi bi-x-circle-fill me-1"></i> Margine critico!';
+    }
+  } catch (_) {}
+}
+
+// ── Gestione righe fornitore ─────────────────────────────────────────────────
+function aggiungiRigaFornitore(nome = '', importo = '', pdfPath = '', driveFileId = '') {
+  rigaCount++;
+  const id = 'row-' + rigaCount;
+  const container = document.getElementById('fornitori-container');
+  document.getElementById('fornitori-empty').style.display = 'none';
+
+  const driveBadge = driveFileId
+    ? `<span class="badge bg-primary-subtle text-primary ms-1" style="font-size:.7em">
+         <i class="bi bi-cloud-fill me-1"></i>Drive
+       </span>`
+    : '';
+
+  const div = document.createElement('div');
+  div.className = 'fornitore-row';
+  div.id = id;
+  div.innerHTML = `
+    <div class="row g-2 align-items-center">
+      <div class="col-12 col-sm-5">
+        <div class="d-flex align-items-center gap-1">
+          <input type="text" name="fornitore_nome[]" class="form-control form-control-sm"
+                 placeholder="Nome fornitore" value="${nome}" required>
+          ${driveBadge}
+        </div>
+      </div>
+      <div class="col-8 col-sm-5">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text">€</span>
+          <input type="number" name="fornitore_importo[]"
+                 class="form-control input-importo-fornitore"
+                 placeholder="0.00" step="0.01" min="0" value="${importo}" required>
+        </div>
+      </div>
+      <div class="col-4 col-sm-2 d-flex gap-1 justify-content-end">
+        <label class="btn btn-sm btn-outline-secondary" title="Carica PDF preventivo">
+          <i class="bi bi-file-pdf"></i>
+          <input type="file" accept=".pdf" class="d-none pdf-upload-input" data-row="${id}">
+        </label>
+        <button type="button" class="btn-remove-fornitore" data-row="${id}" title="Rimuovi">
+          <i class="bi bi-x-circle"></i>
+        </button>
+      </div>
+    </div>
+    <input type="hidden" name="fornitore_pdf[]"      class="input-pdf-path" value="${pdfPath}">
+    <input type="hidden" name="fornitore_drive_id[]" class="input-drive-id" value="${driveFileId}">
+    <div class="pdf-status mt-1 small text-muted d-none"></div>
+  `;
+  container.appendChild(div);
+
+  div.querySelector('.input-importo-fornitore').addEventListener('input', aggiornaMargineDebounced);
+  div.querySelector('.btn-remove-fornitore').addEventListener('click', () => {
+    div.remove();
+    aggiornaMargineDebounced();
+    if (!document.querySelector('.fornitore-row'))
+      document.getElementById('fornitori-empty').style.display = '';
+  });
+  div.querySelector('.pdf-upload-input').addEventListener('change', handlePdfUpload);
+}
+
+// ── Upload PDF ───────────────────────────────────────────────────────────────
+async function handlePdfUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const rowId = e.target.dataset.row;
+  const row   = document.getElementById(rowId);
+  const status = row.querySelector('.pdf-status');
+  status.classList.remove('d-none');
+  status.textContent = '⏳ Estrazione in corso...';
+
+  const formData = new FormData();
+  formData.append('pdf', file);
+  try {
+    const res  = await fetch('/api/estrai-pdf', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (data.errore && !data.candidati?.length) {
+      status.textContent = '⚠️ ' + data.errore + '. Inserisci manualmente.';
+      return;
+    }
+    if (data.filepath) row.querySelector('.input-pdf-path').value = data.filepath;
+    status.textContent = data.suggerito
+      ? `✓ Trovato: € ${data.suggerito.toFixed(2)} — Verifica nel popup`
+      : '⚠️ Nessun totale trovato automaticamente.';
+    pdfTargetRow = row;
+    const candidatiDiv = document.getElementById('pdf-candidati');
+    candidatiDiv.innerHTML = '';
+    if (data.candidati?.length) {
+      data.candidati.forEach((c, i) => {
+        const badge = c.fonte === 'tabella'
+          ? '<span class="badge bg-primary ms-1" style="font-size:.7em">tabella</span>' : '';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-outline-primary btn-sm mb-1 w-100 text-start' + (i === 0 ? ' active' : '');
+        btn.innerHTML = `<strong>€ ${c.importo.toFixed(2)}</strong>${badge} <small class="text-muted ms-2">${c.label}</small>`;
+        btn.addEventListener('click', () => {
+          document.getElementById('pdf-importo-confermato').value = c.importo.toFixed(2);
+          candidatiDiv.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        });
+        candidatiDiv.appendChild(btn);
+      });
+      document.getElementById('pdf-importo-confermato').value =
+        data.suggerito ? data.suggerito.toFixed(2) : '';
+    }
+    modalPdf.show();
+  } catch (_) {
+    status.textContent = '⚠️ Errore durante l\'estrazione.';
+  }
+}
+
+document.getElementById('btn-conferma-pdf').addEventListener('click', () => {
+  const val = parseFloat(document.getElementById('pdf-importo-confermato').value);
+  if (pdfTargetRow && !isNaN(val)) {
+    pdfTargetRow.querySelector('.input-importo-fornitore').value = val.toFixed(2);
+    pdfTargetRow.querySelector('.pdf-status').textContent = `✓ Importo impostato: € ${val.toFixed(2)}`;
+    aggiornaMargineDebounced();
+  }
+  modalPdf.hide();
+});
+
+document.getElementById('btn-aggiungi-fornitore').addEventListener('click', () => aggiungiRigaFornitore());
+document.getElementById('importo_asl').addEventListener('input', aggiornaMargineDebounced);
+document.querySelectorAll('.prov-radio').forEach(r =>
+  r.addEventListener('change', aggiornaMargineDebounced)
+);
+
+// ── Pre-carica fornitori esistenti ───────────────────────────────────────────
+const PREVENTIVI = {{ preventivi_json | safe }};
+if (PREVENTIVI.length) {
+  PREVENTIVI.forEach(p =>
+    aggiungiRigaFornitore(p.nome_fornitore, p.importo, p.file_pdf || '', p.drive_file_id || '')
+  );
+} else {
+  aggiungiRigaFornitore();
+  document.getElementById('fornitori-empty').style.display = '';
+}
+aggiornaMargine();
+</script>
+{% endblock %}

@@ -1,0 +1,500 @@
+import calendar
+import json
+import os
+from datetime import datetime, date
+from flask import (
+    Flask, render_template, request, redirect,
+    url_for, jsonify, session,
+)
+from werkzeug.utils import secure_filename
+
+from config import (
+    SECRET_KEY, ACCESS_CODE,
+    UPLOAD_FOLDER, MAX_UPLOAD_MB,
+    PROVVIGIONE_PCT, PROVVIGIONE_PCT_RIDOTTA, STRUTTURA_PCT,
+    MARGINE_SOGLIA_OK, MARGINE_SOGLIA_WARN,
+)
+from database import (
+    init_db, migrate_db, get_db, calcola_margine,
+    _PH, _DATE_FILTER, _MONTH_FORMAT, _FATTURATA_TRUE, last_inserted_id,
+)
+from pdf_extractor import estrai_totale_pdf
+from drive_sync import drive_configurato
+
+# ── Periodi predefiniti ────────────────────────────────────────────────────────
+
+_DURATA_MESI = {
+    "mensile": 1,
+    "bimestrale": 2,
+    "trimestrale": 3,
+    "semestrale": 6,
+    "annuale": 12,
+}
+
+
+def _calcola_range(da_str: str, periodo: str) -> tuple[str, str]:
+    """Restituisce (data_da_str, data_al_str) YYYY-MM-DD per il periodo scelto."""
+    try:
+        anno, m = (int(x) for x in da_str.split("-"))
+    except Exception:
+        today = date.today()
+        anno, m = today.year, today.month
+
+    mesi = _DURATA_MESI.get(periodo, 1)
+    m0 = m - 1                          # 0-based
+    end_m0 = m0 + mesi - 1
+    mese_al = end_m0 % 12 + 1
+    anno_al = anno + end_m0 // 12
+    gg_al = calendar.monthrange(anno_al, mese_al)[1]
+
+    return (
+        f"{anno:04d}-{m:02d}-01",
+        f"{anno_al:04d}-{mese_al:02d}-{gg_al:02d}",
+    )
+
+app = Flask(__name__)
+app.secret_key = SECRET_KEY
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
+
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Inizializza DB all'avvio (funziona sia con `python app.py` che con gunicorn)
+init_db()
+migrate_db()
+
+ALLOWED_EXTENSIONS = {"pdf"}
+
+
+def _allowed_file(filename: str) -> bool:
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+# ── Autenticazione ────────────────────────────────────────────────────────────
+
+ROUTE_PUBBLICHE = {"login", "logout", "static"}
+
+@app.before_request
+def controlla_accesso():
+    if not ACCESS_CODE:
+        return None
+    if request.endpoint in ROUTE_PUBBLICHE:
+        return None
+    if not session.get("autenticato"):
+        return redirect(url_for("login"))
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    errore = None
+    if request.method == "POST":
+        codice = request.form.get("codice", "").strip()
+        if codice == ACCESS_CODE:
+            session["autenticato"] = True
+            session.permanent = True
+            return redirect(url_for("dashboard"))
+        errore = "Codice non valido. Riprova."
+    return render_template("login.html", errore=errore)
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+
+# ── Dashboard ─────────────────────────────────────────────────────────────────
+
+@app.route("/")
+def dashboard():
+    periodo = request.args.get("periodo", "mensile")
+    if periodo not in _DURATA_MESI:
+        periodo = "mensile"
+
+    # Retrocompatibilità con il vecchio parametro ?mese=
+    da = request.args.get("da") or request.args.get("mese", datetime.now().strftime("%Y-%m"))
+
+    data_da, data_al = _calcola_range(da, periodo)
+
+    sql = f"""
+        SELECT p.*,
+               COALESCE(SUM(pr.importo), 0) AS costo_totale
+        FROM pratiche p
+        LEFT JOIN preventivi pr ON pr.pratica_id = p.id
+        WHERE p.data_pratica >= {_PH} AND p.data_pratica <= {_PH}
+        GROUP BY p.id
+        ORDER BY p.data_pratica DESC
+    """
+
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(sql, (data_da, data_al))
+        pratiche = cur.fetchall()
+
+        cur.execute(
+            f"SELECT DISTINCT {_MONTH_FORMAT} AS ym "
+            "FROM pratiche ORDER BY ym DESC LIMIT 36"
+        )
+        mesi_disponibili = [r["ym"] for r in cur.fetchall()]
+
+    if da not in mesi_disponibili:
+        mesi_disponibili.insert(0, da)
+
+    stats = {
+        "num_pratiche": 0,
+        "totale_ricavi": 0.0,
+        "media_margine": 0.0,
+        "mol_totale": 0.0,
+        "totale_provvigioni": 0.0,
+    }
+    righe = []
+
+    for pr in pratiche:
+        m_dati = calcola_margine(pr["importo_asl"], pr["costo_totale"], pr["provvigione_pct"])
+        stats["num_pratiche"]        += 1
+        stats["totale_ricavi"]       += pr["importo_asl"]
+        stats["mol_totale"]          += m_dati["mol"]
+        stats["totale_provvigioni"]  += m_dati["provvigione"]
+        righe.append({**dict(pr), **m_dati})
+
+    if stats["totale_ricavi"] > 0:
+        stats["media_margine"] = stats["mol_totale"] / stats["totale_ricavi"] * 100
+
+    return render_template(
+        "dashboard.html",
+        pratiche=righe,
+        stats=stats,
+        da_sel=da,
+        periodo_sel=periodo,
+        periodi=list(_DURATA_MESI.keys()),
+        mesi_disponibili=mesi_disponibili,
+        soglia_ok=MARGINE_SOGLIA_OK,
+        soglia_warn=MARGINE_SOGLIA_WARN,
+        drive_attivo=drive_configurato(),
+        provvigione_std=PROVVIGIONE_PCT * 100,
+        provvigione_rid=PROVVIGIONE_PCT_RIDOTTA * 100,
+    )
+
+
+# ── Nuova pratica ─────────────────────────────────────────────────────────────
+
+@app.route("/nuova", methods=["GET", "POST"])
+def nuova_pratica():
+    if request.method == "POST":
+        nome_paziente = request.form["nome_paziente"].strip()
+        data_pratica  = request.form["data_pratica"]
+        importo_asl   = float(request.form["importo_asl"])
+        note          = request.form.get("note", "").strip()
+
+        provvigione_pct = float(request.form.get("provvigione_pct", PROVVIGIONE_PCT))
+        fornitori  = request.form.getlist("fornitore_nome[]")
+        importi    = request.form.getlist("fornitore_importo[]")
+        file_pdfs  = request.form.getlist("fornitore_pdf[]")
+        drive_ids  = request.form.getlist("fornitore_drive_id[]")
+
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                f"INSERT INTO pratiche (nome_paziente, data_pratica, importo_asl, provvigione_pct, note) "
+                f"VALUES ({_PH}, {_PH}, {_PH}, {_PH}, {_PH})",
+                (nome_paziente, data_pratica, importo_asl, provvigione_pct, note),
+            )
+            pratica_id = last_inserted_id(cur)
+
+            for i, (nome_f, imp_f) in enumerate(zip(fornitori, importi)):
+                nome_f = nome_f.strip()
+                if not nome_f or not imp_f:
+                    continue
+                pdf_path  = file_pdfs[i]  if i < len(file_pdfs)  else None
+                drive_id  = drive_ids[i]  if i < len(drive_ids)  else None
+                cur.execute(
+                    f"INSERT INTO preventivi "
+                    f"(pratica_id, nome_fornitore, importo, file_pdf, drive_file_id) "
+                    f"VALUES ({_PH}, {_PH}, {_PH}, {_PH}, {_PH})",
+                    (pratica_id, nome_f, float(imp_f), pdf_path or None, drive_id or None),
+                )
+
+        return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id))
+
+    return render_template("nuova_pratica.html", oggi=datetime.now().strftime("%Y-%m-%d"))
+
+
+# ── Dettaglio pratica ─────────────────────────────────────────────────────────
+
+@app.route("/pratica/<int:pratica_id>")
+def dettaglio_pratica(pratica_id):
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT * FROM pratiche WHERE id = {_PH}", (pratica_id,))
+        pratica = cur.fetchone()
+        if not pratica:
+            return "Pratica non trovata", 404
+        cur.execute(f"SELECT * FROM preventivi WHERE pratica_id = {_PH}", (pratica_id,))
+        preventivi = cur.fetchall()
+
+    costo_totale = sum(p["importo"] for p in preventivi)
+    margine = calcola_margine(
+        pratica["importo_asl"], costo_totale, pratica["provvigione_pct"]
+    )
+    return render_template(
+        "dettaglio_pratica.html",
+        pratica=pratica,
+        preventivi=preventivi,
+        margine=margine,
+        soglia_ok=MARGINE_SOGLIA_OK,
+        soglia_warn=MARGINE_SOGLIA_WARN,
+    )
+
+
+# ── Modifica pratica ──────────────────────────────────────────────────────────
+
+@app.route("/pratica/<int:pratica_id>/modifica", methods=["GET", "POST"])
+def modifica_pratica(pratica_id):
+    if request.method == "POST":
+        nome_paziente   = request.form["nome_paziente"].strip()
+        data_pratica    = request.form["data_pratica"]
+        importo_asl     = float(request.form["importo_asl"])
+        provvigione_pct = float(request.form.get("provvigione_pct", PROVVIGIONE_PCT))
+        note            = request.form.get("note", "").strip()
+
+        fornitori = request.form.getlist("fornitore_nome[]")
+        importi   = request.form.getlist("fornitore_importo[]")
+        file_pdfs = request.form.getlist("fornitore_pdf[]")
+        drive_ids = request.form.getlist("fornitore_drive_id[]")
+
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                f"UPDATE pratiche SET nome_paziente={_PH}, data_pratica={_PH}, "
+                f"importo_asl={_PH}, provvigione_pct={_PH}, note={_PH} WHERE id={_PH}",
+                (nome_paziente, data_pratica, importo_asl, provvigione_pct, note, pratica_id),
+            )
+            cur.execute(f"DELETE FROM preventivi WHERE pratica_id={_PH}", (pratica_id,))
+            for i, (nome_f, imp_f) in enumerate(zip(fornitori, importi)):
+                nome_f = nome_f.strip()
+                if not nome_f or not imp_f:
+                    continue
+                pdf_path = file_pdfs[i] if i < len(file_pdfs) else None
+                drive_id = drive_ids[i] if i < len(drive_ids) else None
+                cur.execute(
+                    f"INSERT INTO preventivi "
+                    f"(pratica_id, nome_fornitore, importo, file_pdf, drive_file_id) "
+                    f"VALUES ({_PH}, {_PH}, {_PH}, {_PH}, {_PH})",
+                    (pratica_id, nome_f, float(imp_f), pdf_path or None, drive_id or None),
+                )
+
+        return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id))
+
+    # GET — carica dati esistenti
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT * FROM pratiche WHERE id = {_PH}", (pratica_id,))
+        pratica = cur.fetchone()
+        if not pratica:
+            return "Pratica non trovata", 404
+        cur.execute(f"SELECT * FROM preventivi WHERE pratica_id = {_PH}", (pratica_id,))
+        preventivi = cur.fetchall()
+
+    preventivi_json = json.dumps([{
+        "nome_fornitore": p["nome_fornitore"],
+        "importo":        p["importo"],
+        "file_pdf":       p["file_pdf"] or "",
+        "drive_file_id":  p["drive_file_id"] or "",
+    } for p in preventivi])
+
+    return render_template(
+        "modifica_pratica.html",
+        pratica=pratica,
+        preventivi=preventivi,
+        preventivi_json=preventivi_json,
+        provvigione_std=PROVVIGIONE_PCT,
+        provvigione_rid=PROVVIGIONE_PCT_RIDOTTA,
+    )
+
+
+# ── Segna/deseleziona fatturata ───────────────────────────────────────────────
+
+@app.route("/pratica/<int:pratica_id>/fattura", methods=["POST"])
+def fattura_pratica(pratica_id):
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT fatturata FROM pratiche WHERE id = {_PH}", (pratica_id,))
+        row = cur.fetchone()
+        if not row:
+            return "Pratica non trovata", 404
+
+        attuale = row["fatturata"]
+        if attuale:
+            cur.execute(
+                f"UPDATE pratiche SET fatturata = 0, data_fatturazione = NULL WHERE id = {_PH}",
+                (pratica_id,),
+            )
+        else:
+            oggi = date.today().isoformat()
+            cur.execute(
+                f"UPDATE pratiche SET fatturata = 1, data_fatturazione = {_PH} WHERE id = {_PH}",
+                (oggi, pratica_id),
+            )
+
+    torna = request.form.get("torna", url_for("dashboard"))
+    return redirect(torna)
+
+
+# ── Lista fatturati ───────────────────────────────────────────────────────────
+
+@app.route("/fatturati")
+def fatturati():
+    sql = f"""
+        SELECT p.*,
+               COALESCE(SUM(pr.importo), 0) AS costo_totale
+        FROM pratiche p
+        LEFT JOIN preventivi pr ON pr.pratica_id = p.id
+        WHERE p.fatturata = {_FATTURATA_TRUE}
+        GROUP BY p.id
+        ORDER BY p.data_fatturazione DESC, p.data_pratica DESC
+    """
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(sql)
+        pratiche_raw = cur.fetchall()
+
+    righe = []
+    for pr in pratiche_raw:
+        m_dati = calcola_margine(pr["importo_asl"], pr["costo_totale"], pr["provvigione_pct"])
+        righe.append({**dict(pr), **m_dati})
+
+    # Raggruppa per mese di fatturazione
+    mesi: dict = {}
+    for p in righe:
+        mese_k = (p.get("data_fatturazione") or p["data_pratica"])[:7]
+        mesi.setdefault(mese_k, {"pratiche": [], "totale_ricavi": 0.0, "totale_provvigioni": 0.0, "mol_totale": 0.0})
+        mesi[mese_k]["pratiche"].append(p)
+        mesi[mese_k]["totale_ricavi"]      += p["ricavi"]
+        mesi[mese_k]["totale_provvigioni"] += p["provvigione"]
+        mesi[mese_k]["mol_totale"]         += p["mol"]
+
+    gruppi = [{"mese": k, **v} for k, v in sorted(mesi.items(), reverse=True)]
+
+    return render_template(
+        "fatturati.html",
+        gruppi=gruppi,
+        soglia_ok=MARGINE_SOGLIA_OK,
+        soglia_warn=MARGINE_SOGLIA_WARN,
+    )
+
+
+# ── Elimina pratica ───────────────────────────────────────────────────────────
+
+@app.route("/pratica/<int:pratica_id>/elimina", methods=["POST"])
+def elimina_pratica(pratica_id):
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"DELETE FROM preventivi WHERE pratica_id = {_PH}", (pratica_id,))
+        cur.execute(f"DELETE FROM pratiche WHERE id = {_PH}", (pratica_id,))
+    return redirect(url_for("dashboard"))
+
+
+# ── API: estrai totale da PDF ─────────────────────────────────────────────────
+
+@app.route("/api/estrai-pdf", methods=["POST"])
+def api_estrai_pdf():
+    if "pdf" not in request.files:
+        return jsonify({"errore": "Nessun file"}), 400
+    file = request.files["pdf"]
+    if not file or not _allowed_file(file.filename):
+        return jsonify({"errore": "File non valido (solo PDF)"}), 400
+
+    filename = secure_filename(file.filename)
+    filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+    file.save(filepath)
+
+    risultato = estrai_totale_pdf(filepath)
+    if not risultato.get("errore") and os.path.exists(filepath):
+        risultato["filepath"] = os.path.join(UPLOAD_FOLDER, filename)
+
+    return jsonify(risultato)
+
+
+# ── API: sincronizza Drive ────────────────────────────────────────────────────
+
+@app.route("/api/sync-drive")
+def api_sync_drive():
+    if not drive_configurato():
+        return jsonify({"errore": "Google Drive non configurato"}), 503
+
+    from drive_sync import lista_pdf_drive, scarica_pdf_temp
+
+    # ID già importati: non vanno riproposti
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT DISTINCT drive_file_id FROM preventivi WHERE drive_file_id IS NOT NULL"
+        )
+        importati = {r["drive_file_id"] for r in cur.fetchall()}
+
+    try:
+        nuovi = lista_pdf_drive(importati)
+    except Exception as e:
+        return jsonify({"errore": str(e)}), 500
+
+    risultati = []
+    for f in nuovi[:20]:  # max 20 per chiamata
+        tmp_path = None
+        try:
+            tmp_path = scarica_pdf_temp(f["id"])
+            estratto = estrai_totale_pdf(tmp_path)
+            risultati.append({
+                "drive_file_id": f["id"],
+                "nome_file":     f["name"],
+                "suggerito":     estratto.get("suggerito"),
+                "candidati":     estratto.get("candidati", []),
+                "errore":        estratto.get("errore"),
+            })
+        except Exception as e:
+            risultati.append({
+                "drive_file_id": f["id"],
+                "nome_file":     f["name"],
+                "suggerito":     None,
+                "candidati":     [],
+                "errore":        str(e),
+            })
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                try:
+                    os.remove(tmp_path)
+                except OSError:
+                    pass
+
+    return jsonify({"nuovi": risultati, "totale_drive": len(nuovi)})
+
+
+# ── API: calcola margine ──────────────────────────────────────────────────────
+
+@app.route("/api/calcola-margine")
+def api_calcola_margine():
+    try:
+        asl          = float(request.args.get("asl", 0))
+        costo        = float(request.args.get("costo", 0))
+        prov_pct     = float(request.args.get("provvigione_pct", PROVVIGIONE_PCT))
+    except (ValueError, TypeError):
+        return jsonify({"errore": "Valori non validi"}), 400
+    return jsonify(calcola_margine(asl, costo, prov_pct))
+
+
+# ── API: costanti di configurazione ──────────────────────────────────────────
+
+@app.route("/api/config")
+def api_config():
+    return jsonify({
+        "provvigione_pct":         PROVVIGIONE_PCT * 100,
+        "provvigione_pct_ridotta": PROVVIGIONE_PCT_RIDOTTA * 100,
+        "struttura_pct":           STRUTTURA_PCT * 100,
+        "margine_soglia_ok":       MARGINE_SOGLIA_OK,
+        "margine_soglia_warn":     MARGINE_SOGLIA_WARN,
+    })
+
+
+# ── Avvio ─────────────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    print("\n✓ Gestionale Marginalità avviato")
+    print("  Apri il browser su: http://localhost:5001\n")
+    app.run(debug=True, port=5001)

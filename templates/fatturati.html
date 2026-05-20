@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Fatturati — Gestionale Marginalità{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h4 class="fw-bold mb-0"><i class="bi bi-receipt me-2 text-success"></i>Pratiche Fatturate</h4>
+    <small class="text-muted">Elenco pratiche segnate come fatturate, raggruppate per mese</small>
+  </div>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Dashboard
+  </a>
+</div>
+
+{% if gruppi %}
+  {% for g in gruppi %}
+  <div class="card mb-4">
+    <div class="card-header bg-success bg-opacity-10 py-3 d-flex align-items-center justify-content-between">
+      <span class="fw-semibold text-success">
+        <i class="bi bi-calendar-check me-2"></i>
+        {% set parti = g.mese.split('-') %}
+        {% set mesi_it = ['', 'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
+                          'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'] %}
+        {{ mesi_it[parti[1] | int] }} {{ parti[0] }}
+      </span>
+      <div class="d-flex gap-3 small text-muted">
+        <span><strong class="text-dark">{{ g.pratiche | length }}</strong> pratiche</span>
+        <span>Ricavi: <strong class="text-dark">€ {{ "%.2f"|format(g.totale_ricavi) }}</strong></span>
+        <span>Provvigioni: <strong class="text-primary">€ {{ "%.2f"|format(g.totale_provvigioni) }}</strong></span>
+        <span>MOL: <strong class="{% if g.mol_totale >= 0 %}text-success{% else %}text-danger{% endif %}">€ {{ "%.2f"|format(g.mol_totale) }}</strong></span>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-pratiche mb-0">
+          <thead>
+            <tr>
+              <th>Paziente</th>
+              <th>Data pratica</th>
+              <th>Data fattura</th>
+              <th class="text-end">Ricavi ASL</th>
+              <th class="text-end">Provvigione</th>
+              <th class="text-end">MOL</th>
+              <th class="text-center">Margine %</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in g.pratiche %}
+            <tr>
+              <td class="fw-semibold">{{ p.nome_paziente }}</td>
+              <td class="text-muted">{{ p.data_pratica }}</td>
+              <td class="text-muted">{{ p.data_fatturazione or '—' }}</td>
+              <td class="text-end">€ {{ "%.2f"|format(p.ricavi) }}</td>
+              <td class="text-end text-muted">
+                € {{ "%.2f"|format(p.provvigione) }}
+                <small class="d-block" style="font-size:.75em">{{ p.provvigione_pct | int }}%</small>
+              </td>
+              <td class="text-end fw-semibold {% if p.mol >= 0 %}text-success{% else %}text-danger{% endif %}">
+                € {{ "%.2f"|format(p.mol) }}
+              </td>
+              <td class="text-center">
+                {% set pct = p.margine_pct %}
+                <span class="badge-margine {% if pct >= soglia_ok %}margine-ok{% elif pct >= soglia_warn %}margine-warn{% else %}margine-bad{% endif %}">
+                  {{ "%.1f"|format(pct) }}%
+                </span>
+              </td>
+              <td class="text-end">
+                <a href="{{ url_for('dettaglio_pratica', pratica_id=p.id) }}" class="btn btn-sm btn-outline-primary me-1">
+                  <i class="bi bi-eye"></i>
+                </a>
+                <form method="post" action="{{ url_for('fattura_pratica', pratica_id=p.id) }}" class="d-inline"
+                  onsubmit="return confirm('Rimuovere il segno \'fatturata\' da questa pratica?')">
+                  <input type="hidden" name="torna" value="{{ url_for('fatturati') }}">
+                  <button type="submit" class="btn btn-sm btn-outline-secondary" title="Rimuovi fatturata">
+                    <i class="bi bi-x-circle"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+<div class="card">
+  <div class="card-body text-center py-5 text-muted">
+    <i class="bi bi-receipt fs-1 d-block mb-2 opacity-25"></i>
+    Nessuna pratica fatturata ancora.
+    <p class="mt-2 small">Usa il pulsante <i class="bi bi-receipt"></i> nella dashboard per segnare una pratica come fatturata.</p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

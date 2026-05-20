@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}{{ pratica.nome_paziente }} — Gestionale Marginalità{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-xl-9">
+
+    <div class="d-flex align-items-center mb-4 gap-3">
+      <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i>
+      </a>
+      <div class="flex-grow-1">
+        <h4 class="fw-bold mb-0">{{ pratica.nome_paziente }}</h4>
+        <small class="text-muted">Pratica #{{ pratica.id }} — {{ pratica.data_pratica }}</small>
+      </div>
+      <a href="{{ url_for('modifica_pratica', pratica_id=pratica.id) }}"
+         class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-pencil me-1"></i>Modifica
+      </a>
+      <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalElimina">
+        <i class="bi bi-trash me-1"></i>Elimina
+      </button>
+    </div>
+
+    <div class="row g-4">
+
+      <!-- Sinistra: dati + fornitori -->
+      <div class="col-12 col-lg-7">
+
+        <div class="card mb-4">
+          <div class="card-header bg-primary text-white py-3">
+            <i class="bi bi-person-fill me-2"></i>Dati Pratica
+          </div>
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-6">
+                <div class="dettaglio-label">Paziente</div>
+                <div class="dettaglio-val">{{ pratica.nome_paziente }}</div>
+              </div>
+              <div class="col-6">
+                <div class="dettaglio-label">Data</div>
+                <div class="dettaglio-val">{{ pratica.data_pratica }}</div>
+              </div>
+              <div class="col-6">
+                <div class="dettaglio-label">Importo ASL (netto IVA)</div>
+                <div class="dettaglio-val fw-bold text-primary">€ {{ "%.2f"|format(pratica.importo_asl) }}</div>
+              </div>
+              {% if pratica.note %}
+              <div class="col-12">
+                <div class="dettaglio-label">Note</div>
+                <div class="dettaglio-val text-muted">{{ pratica.note }}</div>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header bg-primary text-white py-3">
+            <i class="bi bi-truck me-2"></i>Preventivi Fornitori
+          </div>
+          <div class="card-body p-0">
+            {% if preventivi %}
+            <table class="table mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Fornitore</th>
+                  <th class="text-end">Importo (netto IVA)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for pv in preventivi %}
+                <tr>
+                  <td>{{ pv.nome_fornitore }}</td>
+                  <td class="text-end fw-semibold">€ {{ "%.2f"|format(pv.importo) }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot class="table-light">
+                <tr>
+                  <td class="fw-bold text-muted small">TOTALE COSTO</td>
+                  <td class="text-end fw-bold">€ {{ "%.2f"|format(margine.costo) }}</td>
+                </tr>
+              </tfoot>
+            </table>
+            {% else %}
+            <div class="text-center text-muted py-4">Nessun preventivo registrato</div>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Destra: analisi margine -->
+      <div class="col-12 col-lg-5">
+        <div class="card">
+          <div class="card-header bg-primary text-white py-3">
+            <i class="bi bi-calculator me-2"></i>Analisi Margine
+          </div>
+          <div class="card-body">
+            <div id="riepilogo-margine">
+              <div class="riga-calc">
+                <span>Ricavi (ASL)</span>
+                <span class="fw-semibold">€ {{ "%.2f"|format(margine.ricavi) }}</span>
+              </div>
+              <div class="riga-calc text-danger">
+                <span>Costo fornitori</span>
+                <span>— € {{ "%.2f"|format(margine.costo) }}</span>
+              </div>
+              <div class="riga-calc text-muted">
+                <span>Provvigione {{ margine.provvigione_pct | int }}%</span>
+                <span>— € {{ "%.2f"|format(margine.provvigione) }}</span>
+              </div>
+              <div class="riga-calc text-muted">
+                <span>Struttura 5%</span>
+                <span>— € {{ "%.2f"|format(margine.struttura) }}</span>
+              </div>
+              <div class="riga-calc totale mt-1 pt-1">
+                <span>MOL</span>
+                <span class="{% if margine.mol >= 0 %}text-success{% else %}text-danger{% endif %}">
+                  € {{ "%.2f"|format(margine.mol) }}
+                </span>
+              </div>
+            </div>
+
+            <div class="mt-4 text-center">
+              {% set pct = margine.margine_pct %}
+              <div class="fs-1 fw-bold {% if pct >= soglia_ok %}text-success{% elif pct >= soglia_warn %}text-warning{% else %}text-danger{% endif %}">
+                {{ "%.1f"|format(pct) }}%
+              </div>
+              <div class="text-muted small mb-2">Margine totale</div>
+              <div class="progress-margine">
+                {% set w = [[pct, 100] | min, 0] | max %}
+                <div class="progress-bar {% if pct >= soglia_ok %}bg-success{% elif pct >= soglia_warn %}bg-warning{% else %}bg-danger{% endif %}"
+                     style="width: {{ w }}%"></div>
+              </div>
+              <div class="d-flex justify-content-end mt-1">
+                <small class="text-muted">Soglia: <strong>{{ soglia_ok | int }}%</strong></small>
+              </div>
+            </div>
+
+            <div class="mt-3">
+              {% if pct >= soglia_ok %}
+              <div class="alert alert-success py-2 small mb-0">
+                <i class="bi bi-check-circle-fill me-1"></i> Pratica sostenibile.
+              </div>
+              {% elif pct >= soglia_warn %}
+              <div class="alert alert-warning py-2 small mb-0">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i> Margine sotto soglia minima.
+              </div>
+              {% else %}
+              <div class="alert alert-danger py-2 small mb-0">
+                <i class="bi bi-x-circle-fill me-1"></i> Margine critico!
+              </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Modal conferma eliminazione -->
+<div class="modal fade" id="modalElimina" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h6 class="modal-title"><i class="bi bi-trash me-2"></i>Elimina pratica</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body small">
+        Sei sicuro di voler eliminare la pratica di <strong>{{ pratica.nome_paziente }}</strong>?
+        L'operazione è irreversibile.
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+        <form method="post" action="{{ url_for('elimina_pratica', pratica_id=pratica.id) }}">
+          <button type="submit" class="btn btn-sm btn-danger">Elimina</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
