@@ -2,6 +2,7 @@ services:
   - type: web
     name: gestionale-marginalita
     env: python
+    pythonVersion: "3.11.9"
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:
