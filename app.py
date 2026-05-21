@@ -60,8 +60,13 @@ app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Inizializza DB all'avvio (funziona sia con `python app.py` che con gunicorn)
-init_db()
-migrate_db()
+try:
+    init_db()
+    migrate_db()
+except Exception as _db_err:
+    import sys, traceback
+    print("ERRORE AVVIO DB:", _db_err, file=sys.stderr)
+    traceback.print_exc(file=sys.stderr)
 
 ALLOWED_EXTENSIONS = {"pdf"}
 
