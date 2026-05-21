@@ -32,10 +32,9 @@ _FATTURATA_TRUE: str = "TRUE" if _IS_POSTGRES else "1"
 @contextmanager
 def get_db():
     if _IS_POSTGRES:
-        import psycopg2
-        import psycopg2.extras
-        conn = psycopg2.connect(DATABASE_URL)
-        conn.cursor_factory = psycopg2.extras.RealDictCursor
+        import psycopg
+        from psycopg.rows import dict_row
+        conn = psycopg.connect(DATABASE_URL, row_factory=dict_row)
     else:
         conn = sqlite3.connect(SQLITE_PATH)
         conn.row_factory = sqlite3.Row
