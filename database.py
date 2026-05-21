@@ -151,7 +151,7 @@ def last_inserted_id(cur) -> int:
     """Restituisce l'id dell'ultimo INSERT (dialetto SQLite / PostgreSQL)."""
     if _IS_POSTGRES:
         cur.execute("SELECT lastval()")
-        return cur.fetchone()[0]
+        return cur.fetchone()["lastval"]
     return cur.lastrowid
 
 # ── Query helpers ─────────────────────────────────────────────────────────────

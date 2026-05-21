@@ -52,7 +52,7 @@
                     <div class="form-check">
                       <input class="form-check-input prov-radio" type="radio"
                              name="provvigione_pct" id="prov-std" value="{{ provvigione_std }}"
-                             {% if pratica.provvigione_pct == provvigione_std %}checked{% endif %}>
+                             {% if (pratica.provvigione_pct * 10000) | round | int == (provvigione_std * 10000) | round | int %}checked{% endif %}>
                       <label class="form-check-label" for="prov-std">
                         Standard <strong>{{ (provvigione_std * 100) | int }}%</strong>
                       </label>
@@ -60,7 +60,7 @@
                     <div class="form-check">
                       <input class="form-check-input prov-radio" type="radio"
                              name="provvigione_pct" id="prov-rid" value="{{ provvigione_rid }}"
-                             {% if pratica.provvigione_pct == provvigione_rid %}checked{% endif %}>
+                             {% if (pratica.provvigione_pct * 10000) | round | int == (provvigione_rid * 10000) | round | int %}checked{% endif %}>
                       <label class="form-check-label" for="prov-rid">
                         Ridotta <strong>{{ (provvigione_rid * 100) | int }}%</strong>
                       </label>

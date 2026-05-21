@@ -326,17 +326,17 @@ def fattura_pratica(pratica_id):
         if not row:
             return "Pratica non trovata", 404
 
-        attuale = row["fatturata"]
+        attuale = bool(row["fatturata"])
         if attuale:
             cur.execute(
-                f"UPDATE pratiche SET fatturata = 0, data_fatturazione = NULL WHERE id = {_PH}",
-                (pratica_id,),
+                f"UPDATE pratiche SET fatturata = {_PH}, data_fatturazione = NULL WHERE id = {_PH}",
+                (False, pratica_id),
             )
         else:
             oggi = date.today().isoformat()
             cur.execute(
-                f"UPDATE pratiche SET fatturata = 1, data_fatturazione = {_PH} WHERE id = {_PH}",
-                (oggi, pratica_id),
+                f"UPDATE pratiche SET fatturata = {_PH}, data_fatturazione = {_PH} WHERE id = {_PH}",
+                (True, oggi, pratica_id),
             )
 
     torna = request.form.get("torna", url_for("dashboard"))
