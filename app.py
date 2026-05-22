@@ -369,7 +369,7 @@ def fatturati():
     # Raggruppa per mese di fatturazione
     mesi: dict = {}
     for p in righe:
-        mese_k = (p.get("data_fatturazione") or p["data_pratica"])[:7]
+        mese_k = str(p.get("data_fatturazione") or p["data_pratica"])[:7]
         mesi.setdefault(mese_k, {"pratiche": [], "totale_ricavi": 0.0, "totale_provvigioni": 0.0, "mol_totale": 0.0})
         mesi[mese_k]["pratiche"].append(p)
         mesi[mese_k]["totale_ricavi"]      += p["ricavi"]
