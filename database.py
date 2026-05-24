@@ -56,6 +56,7 @@ _SQLITE_SCHEMA = """
         nome_paziente    TEXT NOT NULL,
         data_pratica     DATE NOT NULL,
         importo_asl      REAL NOT NULL,
+        importo_privato  REAL NOT NULL DEFAULT 0,
         provvigione_pct  REAL NOT NULL DEFAULT 0.16,
         note             TEXT,
         fatturata        INTEGER NOT NULL DEFAULT 0,
@@ -83,6 +84,7 @@ _POSTGRES_SCHEMA = """
         nome_paziente    TEXT NOT NULL,
         data_pratica     DATE NOT NULL,
         importo_asl      REAL NOT NULL,
+        importo_privato  REAL NOT NULL DEFAULT 0,
         provvigione_pct  REAL NOT NULL DEFAULT 0.16,
         note             TEXT,
         fatturata        BOOLEAN NOT NULL DEFAULT FALSE,
@@ -133,12 +135,16 @@ def migrate_db():
             cur.execute(
                 "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS data_fatturazione DATE"
             )
+            cur.execute(
+                "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS importo_privato REAL NOT NULL DEFAULT 0"
+            )
         else:
             for ddl in [
                 "ALTER TABLE preventivi ADD COLUMN drive_file_id TEXT",
                 "ALTER TABLE pratiche ADD COLUMN provvigione_pct REAL DEFAULT 0.16",
                 "ALTER TABLE pratiche ADD COLUMN fatturata INTEGER NOT NULL DEFAULT 0",
                 "ALTER TABLE pratiche ADD COLUMN data_fatturazione DATE",
+                "ALTER TABLE pratiche ADD COLUMN importo_privato REAL NOT NULL DEFAULT 0",
             ]:
                 try:
                     cur.execute(ddl)
@@ -169,18 +175,22 @@ def calcola_margine(
     importo_asl: float,
     costo_totale: float,
     provvigione_pct: float = PROVVIGIONE_PCT,
+    importo_privato: float = 0.0,
 ) -> dict:
-    provvigione = importo_asl * provvigione_pct
-    struttura   = importo_asl * STRUTTURA_PCT
-    mol         = importo_asl - costo_totale - provvigione - struttura
-    margine_pct = (mol / importo_asl * 100) if importo_asl > 0 else 0
+    ricavi_totali = importo_asl + importo_privato
+    provvigione   = importo_asl * provvigione_pct   # provvigione solo su ASL
+    struttura     = importo_asl * STRUTTURA_PCT      # struttura solo su ASL
+    mol           = ricavi_totali - costo_totale - provvigione - struttura
+    margine_pct   = (mol / ricavi_totali * 100) if ricavi_totali > 0 else 0
     return {
-        "ricavi":          importo_asl,
-        "costo":           costo_totale,
-        "provvigione":     provvigione,
-        "provvigione_pct": provvigione_pct * 100,
-        "struttura":       struttura,
-        "struttura_pct":   STRUTTURA_PCT * 100,
-        "mol":             mol,
-        "margine_pct":     margine_pct,
+        "ricavi":           importo_asl,
+        "importo_privato":  importo_privato,
+        "ricavi_totali":    ricavi_totali,
+        "costo":            costo_totale,
+        "provvigione":      provvigione,
+        "provvigione_pct":  provvigione_pct * 100,
+        "struttura":        struttura,
+        "struttura_pct":    STRUTTURA_PCT * 100,
+        "mol":              mol,
+        "margine_pct":      margine_pct,
     }

@@ -101,7 +101,7 @@
           <tr>
             <th class="sortable" data-col="0" style="cursor:pointer">Paziente <i class="bi bi-arrow-down-up text-muted small"></i></th>
             <th class="sortable" data-col="1" style="cursor:pointer">Data <i class="bi bi-arrow-down-up text-muted small"></i></th>
-            <th class="text-end sortable" data-col="2" style="cursor:pointer">Ricavi ASL <i class="bi bi-arrow-down-up text-muted small"></i></th>
+            <th class="text-end sortable" data-col="2" style="cursor:pointer">Ricavi <i class="bi bi-arrow-down-up text-muted small"></i></th>
             <th class="text-end sortable" data-col="3" style="cursor:pointer">Costo Fornitori <i class="bi bi-arrow-down-up text-muted small"></i></th>
             <th class="text-end">Provvigione</th>
             <th class="text-end">Struttura 5%</th>
@@ -124,7 +124,28 @@
                 {{ p.data_pratica }} <i class="bi bi-pencil-fill" style="font-size:.65em;opacity:.4"></i>
               </button>
             </td>
-            <td class="text-end">€ {{ "%.2f"|format(p.ricavi) }}</td>
+            <td class="text-end">
+              € {{ "%.2f"|format(p.ricavi_totali if p.ricavi_totali is defined else p.ricavi) }}
+              {% if p.importo_privato and p.importo_privato > 0 %}
+              <button type="button" class="d-block ms-auto badge bg-info text-dark border-0 mt-1"
+                style="cursor:pointer;font-size:.7em"
+                data-bs-toggle="modal" data-bs-target="#modalPrivato"
+                data-pratica-id="{{ p.id }}"
+                data-paziente="{{ p.nome_paziente }}"
+                data-importo="{{ p.importo_privato }}">
+                +€ {{ "%.2f"|format(p.importo_privato) }} priv.
+              </button>
+              {% else %}
+              <button type="button" class="d-block ms-auto badge bg-light text-muted border-0 mt-1"
+                style="cursor:pointer;font-size:.7em;opacity:.5"
+                data-bs-toggle="modal" data-bs-target="#modalPrivato"
+                data-pratica-id="{{ p.id }}"
+                data-paziente="{{ p.nome_paziente }}"
+                data-importo="0">
+                + privato
+              </button>
+              {% endif %}
+            </td>
             <td class="text-end">€ {{ "%.2f"|format(p.costo) }}</td>
             <td class="text-end text-muted">
               € {{ "%.2f"|format(p.provvigione) }}
@@ -221,6 +242,37 @@
     </div>
   </div>
 </div>
+<!-- Modal importo privato -->
+<div class="modal fade" id="modalPrivato" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="bi bi-person-wallet me-2 text-info"></i>Quota privata paziente</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-2 small text-muted">Pratica: <strong id="modal-priv-paziente"></strong></p>
+        <div class="input-group input-group-sm">
+          <span class="input-group-text">€</span>
+          <input type="number" id="modal-priv-importo" class="form-control"
+                 placeholder="0.00" step="0.01" min="0">
+        </div>
+        <small class="text-muted d-block mt-1">Lascia 0 per rimuovere la quota privata.</small>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annulla</button>
+        <form id="form-privato" method="post">
+          <input type="hidden" name="torna" value="{{ request.url }}">
+          <input type="hidden" name="importo_privato" id="hidden-priv-importo">
+          <button type="submit" class="btn btn-info btn-sm text-dark">
+            <i class="bi bi-check-circle me-1"></i>Salva
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Modal modifica data ordine -->
 <div class="modal fade" id="modalDataOrdine" tabindex="-1">
   <div class="modal-dialog modal-sm">
@@ -276,6 +328,19 @@
 
 {% block scripts %}
 <script>
+// Modal importo privato
+document.getElementById('modalPrivato').addEventListener('show.bs.modal', function(e) {
+  const btn = e.relatedTarget;
+  document.getElementById('modal-priv-paziente').textContent = btn.dataset.paziente;
+  const imp = btn.dataset.importo || '0';
+  document.getElementById('modal-priv-importo').value = parseFloat(imp) || '';
+  document.getElementById('hidden-priv-importo').value = imp;
+  document.getElementById('form-privato').action = '/pratica/' + btn.dataset.praticaId + '/importo-privato';
+});
+document.getElementById('modal-priv-importo').addEventListener('input', function() {
+  document.getElementById('hidden-priv-importo').value = this.value || '0';
+});
+
 // Modal modifica data ordine
 document.getElementById('modalDataOrdine').addEventListener('show.bs.modal', function(e) {
   const btn = e.relatedTarget;

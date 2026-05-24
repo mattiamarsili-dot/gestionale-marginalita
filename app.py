@@ -153,9 +153,9 @@ def dashboard():
     righe = []
 
     for pr in pratiche:
-        m_dati = calcola_margine(pr["importo_asl"], pr["costo_totale"], pr["provvigione_pct"])
+        m_dati = calcola_margine(pr["importo_asl"], pr["costo_totale"], pr["provvigione_pct"], pr.get("importo_privato") or 0)
         stats["num_pratiche"]        += 1
-        stats["totale_ricavi"]       += pr["importo_asl"]
+        stats["totale_ricavi"]       += m_dati["ricavi_totali"]
         stats["mol_totale"]          += m_dati["mol"]
         stats["totale_provvigioni"]  += m_dati["provvigione"]
         righe.append({**dict(pr), **m_dati})
@@ -186,8 +186,9 @@ def nuova_pratica():
     if request.method == "POST":
         nome_paziente = request.form["nome_paziente"].strip()
         data_pratica  = request.form["data_pratica"]
-        importo_asl   = float(request.form["importo_asl"])
-        note          = request.form.get("note", "").strip()
+        importo_asl     = float(request.form["importo_asl"])
+        importo_privato = float(request.form.get("importo_privato") or 0)
+        note            = request.form.get("note", "").strip()
 
         provvigione_pct = float(request.form.get("provvigione_pct", PROVVIGIONE_PCT))
         fornitori  = request.form.getlist("fornitore_nome[]")
@@ -198,9 +199,9 @@ def nuova_pratica():
         with get_db() as conn:
             cur = conn.cursor()
             cur.execute(
-                f"INSERT INTO pratiche (nome_paziente, data_pratica, importo_asl, provvigione_pct, note) "
-                f"VALUES ({_PH}, {_PH}, {_PH}, {_PH}, {_PH})",
-                (nome_paziente, data_pratica, importo_asl, provvigione_pct, note),
+                f"INSERT INTO pratiche (nome_paziente, data_pratica, importo_asl, importo_privato, provvigione_pct, note) "
+                f"VALUES ({_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH})",
+                (nome_paziente, data_pratica, importo_asl, importo_privato, provvigione_pct, note),
             )
             pratica_id = last_inserted_id(cur)
 
@@ -237,7 +238,8 @@ def dettaglio_pratica(pratica_id):
 
     costo_totale = sum(p["importo"] for p in preventivi)
     margine = calcola_margine(
-        pratica["importo_asl"], costo_totale, pratica["provvigione_pct"]
+        pratica["importo_asl"], costo_totale, pratica["provvigione_pct"],
+        pratica.get("importo_privato") or 0
     )
     return render_template(
         "dettaglio_pratica.html",
@@ -257,6 +259,7 @@ def modifica_pratica(pratica_id):
         nome_paziente   = request.form["nome_paziente"].strip()
         data_pratica    = request.form["data_pratica"]
         importo_asl     = float(request.form["importo_asl"])
+        importo_privato = float(request.form.get("importo_privato") or 0)
         provvigione_pct = float(request.form.get("provvigione_pct", PROVVIGIONE_PCT))
         note            = request.form.get("note", "").strip()
 
@@ -269,8 +272,8 @@ def modifica_pratica(pratica_id):
             cur = conn.cursor()
             cur.execute(
                 f"UPDATE pratiche SET nome_paziente={_PH}, data_pratica={_PH}, "
-                f"importo_asl={_PH}, provvigione_pct={_PH}, note={_PH} WHERE id={_PH}",
-                (nome_paziente, data_pratica, importo_asl, provvigione_pct, note, pratica_id),
+                f"importo_asl={_PH}, importo_privato={_PH}, provvigione_pct={_PH}, note={_PH} WHERE id={_PH}",
+                (nome_paziente, data_pratica, importo_asl, importo_privato, provvigione_pct, note, pratica_id),
             )
             cur.execute(f"DELETE FROM preventivi WHERE pratica_id={_PH}", (pratica_id,))
             for i, (nome_f, imp_f) in enumerate(zip(fornitori, importi)):
@@ -374,6 +377,24 @@ def aggiorna_data_fattura(pratica_id):
         cur.execute(
             f"UPDATE pratiche SET data_fatturazione = {_PH} WHERE id = {_PH}",
             (nuova_data, pratica_id),
+        )
+    torna = request.form.get("torna", url_for("dashboard"))
+    return redirect(torna)
+
+
+# ── Aggiorna importo privato ──────────────────────────────────────────────────
+
+@app.route("/pratica/<int:pratica_id>/importo-privato", methods=["POST"])
+def aggiorna_importo_privato(pratica_id):
+    try:
+        importo = float(request.form.get("importo_privato") or 0)
+    except ValueError:
+        importo = 0.0
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"UPDATE pratiche SET importo_privato = {_PH} WHERE id = {_PH}",
+            (importo, pratica_id),
         )
     torna = request.form.get("torna", url_for("dashboard"))
     return redirect(torna)
@@ -515,9 +536,10 @@ def api_calcola_margine():
         asl          = float(request.args.get("asl", 0))
         costo        = float(request.args.get("costo", 0))
         prov_pct     = float(request.args.get("provvigione_pct", PROVVIGIONE_PCT))
+        privato      = float(request.args.get("privato", 0))
     except (ValueError, TypeError):
         return jsonify({"errore": "Valori non validi"}), 400
-    return jsonify(calcola_margine(asl, costo, prov_pct))
+    return jsonify(calcola_margine(asl, costo, prov_pct, privato))
 
 
 # ── API: costanti di configurazione ──────────────────────────────────────────
