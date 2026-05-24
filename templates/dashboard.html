@@ -85,8 +85,13 @@
 
 <!-- Tabella pratiche -->
 <div class="card">
-  <div class="card-header bg-white py-3">
+  <div class="card-header bg-white py-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
     <span class="fw-semibold"><i class="bi bi-list-ul me-2 text-primary"></i>Pratiche del periodo</span>
+    <div class="input-group input-group-sm" style="max-width:240px">
+      <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+      <input type="text" id="cerca-paziente" class="form-control border-start-0"
+             placeholder="Cerca paziente…" autocomplete="off">
+    </div>
   </div>
   <div class="card-body p-0">
     {% if pratiche %}
@@ -205,6 +210,15 @@
 
 {% block scripts %}
 <script>
+// Ricerca paziente nella tabella
+document.getElementById('cerca-paziente').addEventListener('input', function() {
+  const q = this.value.toLowerCase().trim();
+  document.querySelectorAll('table.table-pratiche tbody tr').forEach(function(row) {
+    const nome = row.querySelector('td')?.textContent.toLowerCase() || '';
+    row.style.display = (!q || nome.includes(q)) ? '' : 'none';
+  });
+});
+
 // Popola il modal con i dati della pratica selezionata
 document.getElementById('modalFattura').addEventListener('show.bs.modal', function(e) {
   const btn = e.relatedTarget;
