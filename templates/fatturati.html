@@ -50,7 +50,16 @@
             <tr>
               <td class="fw-semibold">{{ p.nome_paziente }}</td>
               <td class="text-muted">{{ p.data_pratica }}</td>
-              <td class="text-muted">{{ p.data_fatturazione or '—' }}</td>
+              <td class="text-muted" style="white-space:nowrap">
+                <button type="button" class="btn btn-link btn-sm p-0 text-muted text-decoration-none"
+                  data-bs-toggle="modal" data-bs-target="#modalDataFattura"
+                  data-pratica-id="{{ p.id }}"
+                  data-paziente="{{ p.nome_paziente }}"
+                  data-data="{{ p.data_fatturazione or '' }}">
+                  {{ p.data_fatturazione or '—' }}
+                  <i class="bi bi-pencil-fill" style="font-size:.65em;opacity:.4"></i>
+                </button>
+              </td>
               <td class="text-end">€ {{ "%.2f"|format(p.ricavi) }}</td>
               <td class="text-end text-muted">
                 € {{ "%.2f"|format(p.provvigione) }}
@@ -94,4 +103,46 @@
   </div>
 </div>
 {% endif %}
+
+<!-- Modal modifica data fatturazione -->
+<div class="modal fade" id="modalDataFattura" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="bi bi-calendar-check me-2 text-success"></i>Data fatturazione</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-2 small text-muted">Pratica: <strong id="modal-df-paziente"></strong></p>
+        <input type="date" id="modal-df-data" class="form-control form-control-sm">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annulla</button>
+        <form id="form-data-fattura" method="post">
+          <input type="hidden" name="torna" value="{{ request.url }}">
+          <input type="hidden" name="data_fatturazione" id="hidden-df-data">
+          <button type="submit" class="btn btn-success btn-sm">
+            <i class="bi bi-check-circle me-1"></i>Salva
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('modalDataFattura').addEventListener('show.bs.modal', function(e) {
+  const btn = e.relatedTarget;
+  document.getElementById('modal-df-paziente').textContent = btn.dataset.paziente;
+  const data = btn.dataset.data || '';
+  document.getElementById('modal-df-data').value = data;
+  document.getElementById('hidden-df-data').value = data;
+  document.getElementById('form-data-fattura').action = '/pratica/' + btn.dataset.praticaId + '/data-fattura';
+});
+document.getElementById('modal-df-data').addEventListener('change', function() {
+  document.getElementById('hidden-df-data').value = this.value;
+});
+</script>
 {% endblock %}
