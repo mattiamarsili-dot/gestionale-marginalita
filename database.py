@@ -204,21 +204,28 @@ def provvigione_corrente(conn) -> tuple[float, float]:
     La soglia usa solo importo_asl (non privato) come da regole di business.
     """
     import datetime
-    anno = str(datetime.date.today().year)
+    oggi = datetime.date.today()
+    anno_start = f"{oggi.year}-01-01"
+    anno_end   = f"{oggi.year}-12-31"
     cur = conn.cursor()
     if _IS_POSTGRES:
         cur.execute(
-            "SELECT COALESCE(SUM(importo_asl), 0) FROM pratiche "
-            "WHERE fatturata = TRUE AND EXTRACT(YEAR FROM data_fatturazione) = %s",
-            (anno,)
+            "SELECT COALESCE(SUM(importo_asl), 0) AS totale FROM pratiche "
+            "WHERE fatturata = TRUE "
+            "AND data_fatturazione IS NOT NULL "
+            "AND data_fatturazione BETWEEN %s AND %s",
+            (anno_start, anno_end)
         )
     else:
         cur.execute(
-            "SELECT COALESCE(SUM(importo_asl), 0) FROM pratiche "
-            "WHERE fatturata = 1 AND strftime('%Y', data_fatturazione) = ?",
-            (anno,)
+            "SELECT COALESCE(SUM(importo_asl), 0) AS totale FROM pratiche "
+            "WHERE fatturata = 1 "
+            "AND data_fatturazione IS NOT NULL "
+            "AND data_fatturazione BETWEEN ? AND ?",
+            (anno_start, anno_end)
         )
-    totale_asl = float(cur.fetchone()[0] or 0)
+    row = cur.fetchone()
+    totale_asl = float(row["totale"] if row else 0)
 
     if totale_asl >= SOGLIA_PROV_18:
         aliquota = PROVVIGIONE_PCT_18
