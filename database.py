@@ -1,7 +1,8 @@
 import sqlite3
 from contextlib import contextmanager
 from config import (
-    PROVVIGIONE_PCT, STRUTTURA_PCT,
+    PROVVIGIONE_PCT, PROVVIGIONE_PCT_17, PROVVIGIONE_PCT_18,
+    STRUTTURA_PCT, SOGLIA_PROV_17, SOGLIA_PROV_18,
     DATABASE_URL, SQLITE_PATH,
 )
 
@@ -178,8 +179,8 @@ def calcola_margine(
     importo_privato: float = 0.0,
 ) -> dict:
     ricavi_totali = importo_asl + importo_privato
-    provvigione   = importo_asl * provvigione_pct   # provvigione solo su ASL
-    struttura     = importo_asl * STRUTTURA_PCT      # struttura solo su ASL
+    provvigione   = ricavi_totali * provvigione_pct  # provvigione su totale ASL+privato
+    struttura     = ricavi_totali * STRUTTURA_PCT     # struttura su totale ASL+privato
     mol           = ricavi_totali - costo_totale - provvigione - struttura
     margine_pct   = (mol / ricavi_totali * 100) if ricavi_totali > 0 else 0
     return {
@@ -194,3 +195,35 @@ def calcola_margine(
         "mol":              mol,
         "margine_pct":      margine_pct,
     }
+
+
+def provvigione_corrente(conn) -> tuple[float, float]:
+    """
+    Calcola il fatturato ASL annuo (anno corrente, pratiche fatturate)
+    e restituisce (totale_asl_annuo, aliquota_corrente).
+    La soglia usa solo importo_asl (non privato) come da regole di business.
+    """
+    import datetime
+    anno = str(datetime.date.today().year)
+    cur = conn.cursor()
+    if _IS_POSTGRES:
+        cur.execute(
+            "SELECT COALESCE(SUM(importo_asl), 0) FROM pratiche "
+            "WHERE fatturata = TRUE AND EXTRACT(YEAR FROM data_fatturazione) = %s",
+            (anno,)
+        )
+    else:
+        cur.execute(
+            "SELECT COALESCE(SUM(importo_asl), 0) FROM pratiche "
+            "WHERE fatturata = 1 AND strftime('%Y', data_fatturazione) = ?",
+            (anno,)
+        )
+    totale_asl = float(cur.fetchone()[0] or 0)
+
+    if totale_asl >= SOGLIA_PROV_18:
+        aliquota = PROVVIGIONE_PCT_18
+    elif totale_asl >= SOGLIA_PROV_17:
+        aliquota = PROVVIGIONE_PCT_17
+    else:
+        aliquota = PROVVIGIONE_PCT
+    return totale_asl, aliquota

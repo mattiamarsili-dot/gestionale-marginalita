@@ -40,6 +40,39 @@
 <!-- Pannello risultati sincronizzazione Drive -->
 <div id="drive-panel" class="d-none mb-4"></div>
 
+<!-- Banner provvigione annuale -->
+{% set pct_raggiunta = (fatturato_annuo_asl / soglia_18 * 100) | round(1) %}
+{% if prov_corrente == 18 %}
+  {% set banner_color = "danger" %}{% set banner_icon = "bi-trophy-fill" %}
+  {% set banner_text = "Tier 18% attivo" %}
+{% elif prov_corrente == 17 %}
+  {% set banner_color = "warning" %}{% set banner_icon = "bi-graph-up-arrow" %}
+  {% set banner_text = "Tier 17% attivo" %}
+{% else %}
+  {% set banner_color = "secondary" %}{% set banner_icon = "bi-bar-chart-fill" %}
+  {% set banner_text = "Tier 16% base" %}
+{% endif %}
+<div class="card mb-4 border-{{ banner_color }} border-opacity-50">
+  <div class="card-body py-2 px-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi {{ banner_icon }} text-{{ banner_color }}"></i>
+      <span class="fw-semibold text-{{ banner_color }}">Provvigione corrente: {{ prov_corrente | int }}%</span>
+      <span class="text-muted small">— Fatturato ASL anno: <strong>€ {{ "%.0f"|format(fatturato_annuo_asl) }}</strong></span>
+    </div>
+    <div class="d-flex align-items-center gap-2" style="min-width:220px">
+      <div class="progress flex-grow-1" style="height:8px" title="Soglia 350.000 €">
+        <div class="progress-bar bg-{{ banner_color }}"
+             style="width:{{ [pct_raggiunta, 100] | min }}%"></div>
+      </div>
+      <small class="text-muted text-nowrap">
+        {% if prov_corrente < 17 %}→ 17% a € {{ "%.0f"|format(soglia_17 - fatturato_annuo_asl) }}
+        {% elif prov_corrente < 18 %}→ 18% a € {{ "%.0f"|format(soglia_18 - fatturato_annuo_asl) }}
+        {% else %}Massimo raggiunto{% endif %}
+      </small>
+    </div>
+  </div>
+</div>
+
 <!-- Stat cards -->
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-2">

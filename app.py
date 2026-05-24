@@ -12,10 +12,11 @@ from config import (
     SECRET_KEY, ACCESS_CODE,
     UPLOAD_FOLDER, MAX_UPLOAD_MB,
     PROVVIGIONE_PCT, PROVVIGIONE_PCT_RIDOTTA, STRUTTURA_PCT,
+    PROVVIGIONE_PCT_17, PROVVIGIONE_PCT_18, SOGLIA_PROV_17, SOGLIA_PROV_18,
     MARGINE_SOGLIA_OK, MARGINE_SOGLIA_WARN,
 )
 from database import (
-    init_db, migrate_db, get_db, calcola_margine,
+    init_db, migrate_db, get_db, calcola_margine, provvigione_corrente,
     _PH, _DATE_FILTER, _MONTH_FORMAT, _FATTURATA_TRUE, last_inserted_id,
 )
 from pdf_extractor import estrai_totale_pdf
@@ -163,6 +164,10 @@ def dashboard():
     if stats["totale_ricavi"] > 0:
         stats["media_margine"] = stats["mol_totale"] / stats["totale_ricavi"] * 100
 
+    # Totale annuo fatturato (gen-dic anno corrente) per soglie provvigione
+    with get_db() as conn:
+        fatturato_annuo_asl, prov_corrente = provvigione_corrente(conn)
+
     return render_template(
         "dashboard.html",
         pratiche=righe,
@@ -176,6 +181,10 @@ def dashboard():
         drive_attivo=drive_configurato(),
         provvigione_std=PROVVIGIONE_PCT * 100,
         provvigione_rid=PROVVIGIONE_PCT_RIDOTTA * 100,
+        fatturato_annuo_asl=fatturato_annuo_asl,
+        prov_corrente=prov_corrente * 100,
+        soglia_17=SOGLIA_PROV_17,
+        soglia_18=SOGLIA_PROV_18,
     )
 
 
@@ -220,7 +229,13 @@ def nuova_pratica():
 
         return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id))
 
-    return render_template("nuova_pratica.html", oggi=datetime.now().strftime("%Y-%m-%d"))
+    with get_db() as conn:
+        _, prov_default = provvigione_corrente(conn)
+    return render_template(
+        "nuova_pratica.html",
+        oggi=datetime.now().strftime("%Y-%m-%d"),
+        prov_default=prov_default,
+    )
 
 
 # ── Dettaglio pratica ─────────────────────────────────────────────────────────

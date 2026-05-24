@@ -54,19 +54,21 @@
                 </div>
                 <div class="col-12 col-sm-6">
                   <label class="form-label">Provvigione</label>
-                  <div class="d-flex gap-3 mt-1">
+                  <div class="d-flex gap-3 mt-1 flex-wrap">
                     <div class="form-check">
                       <input class="form-check-input prov-radio" type="radio"
-                             name="provvigione_pct" id="prov-std" value="0.16" checked>
+                             name="provvigione_pct" id="prov-std" value="{{ prov_default }}"
+                             {% if prov_default != 0.12 %}checked{% endif %}>
                       <label class="form-check-label" for="prov-std">
-                        Standard <strong>16%</strong>
+                        Standard <strong>{{ (prov_default * 100) | int }}%</strong>
                       </label>
                     </div>
                     <div class="form-check">
                       <input class="form-check-input prov-radio" type="radio"
-                             name="provvigione_pct" id="prov-rid" value="0.12">
+                             name="provvigione_pct" id="prov-rid" value="0.12"
+                             {% if prov_default == 0.12 %}checked{% endif %}>
                       <label class="form-check-label" for="prov-rid">
-                        Ridotta <strong>12%</strong>
+                        Nemo <strong>12%</strong>
                       </label>
                     </div>
                   </div>
