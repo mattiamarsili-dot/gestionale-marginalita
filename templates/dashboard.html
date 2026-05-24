@@ -99,14 +99,14 @@
       <table class="table table-pratiche mb-0">
         <thead>
           <tr>
-            <th>Paziente</th>
-            <th>Data</th>
-            <th class="text-end">Ricavi ASL</th>
-            <th class="text-end">Costo Fornitori</th>
+            <th class="sortable" data-col="0" style="cursor:pointer">Paziente <i class="bi bi-arrow-down-up text-muted small"></i></th>
+            <th class="sortable" data-col="1" style="cursor:pointer">Data <i class="bi bi-arrow-down-up text-muted small"></i></th>
+            <th class="text-end sortable" data-col="2" style="cursor:pointer">Ricavi ASL <i class="bi bi-arrow-down-up text-muted small"></i></th>
+            <th class="text-end sortable" data-col="3" style="cursor:pointer">Costo Fornitori <i class="bi bi-arrow-down-up text-muted small"></i></th>
             <th class="text-end">Provvigione</th>
             <th class="text-end">Struttura 5%</th>
-            <th class="text-end">MOL</th>
-            <th class="text-center">Margine %</th>
+            <th class="text-end sortable" data-col="6" style="cursor:pointer">MOL <i class="bi bi-arrow-down-up text-muted small"></i></th>
+            <th class="text-center sortable" data-col="7" style="cursor:pointer">Margine % <i class="bi bi-arrow-down-up text-muted small"></i></th>
             <th class="text-center">Fatturata</th>
             <th></th>
           </tr>
@@ -115,7 +115,15 @@
           {% for p in pratiche %}
           <tr {% if p.fatturata %}class="table-success bg-opacity-25"{% endif %}>
             <td class="fw-semibold">{{ p.nome_paziente }}</td>
-            <td class="text-muted">{{ p.data_pratica }}</td>
+            <td class="text-muted" style="white-space:nowrap">
+              <button type="button" class="btn btn-link btn-sm p-0 text-muted text-decoration-none"
+                data-bs-toggle="modal" data-bs-target="#modalDataOrdine"
+                data-pratica-id="{{ p.id }}"
+                data-paziente="{{ p.nome_paziente }}"
+                data-data="{{ p.data_pratica or '' }}">
+                {{ p.data_pratica }} <i class="bi bi-pencil-fill" style="font-size:.65em;opacity:.4"></i>
+              </button>
+            </td>
             <td class="text-end">€ {{ "%.2f"|format(p.ricavi) }}</td>
             <td class="text-end">€ {{ "%.2f"|format(p.costo) }}</td>
             <td class="text-end text-muted">
@@ -213,6 +221,32 @@
     </div>
   </div>
 </div>
+<!-- Modal modifica data ordine -->
+<div class="modal fade" id="modalDataOrdine" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="bi bi-calendar3 me-2 text-primary"></i>Data ordine</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-2 small text-muted">Pratica: <strong id="modal-do-paziente"></strong></p>
+        <input type="date" id="modal-do-data" class="form-control form-control-sm">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annulla</button>
+        <form id="form-data-ordine" method="post">
+          <input type="hidden" name="torna" value="{{ request.url }}">
+          <input type="hidden" name="data_pratica" id="hidden-do-data">
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="bi bi-check-circle me-1"></i>Salva
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Modal modifica data fatturazione -->
 <div class="modal fade" id="modalDataFattura" tabindex="-1">
   <div class="modal-dialog modal-sm">
@@ -242,6 +276,45 @@
 
 {% block scripts %}
 <script>
+// Modal modifica data ordine
+document.getElementById('modalDataOrdine').addEventListener('show.bs.modal', function(e) {
+  const btn = e.relatedTarget;
+  document.getElementById('modal-do-paziente').textContent = btn.dataset.paziente;
+  const data = btn.dataset.data || '';
+  document.getElementById('modal-do-data').value = data;
+  document.getElementById('hidden-do-data').value = data;
+  document.getElementById('form-data-ordine').action = '/pratica/' + btn.dataset.praticaId + '/data-ordine';
+});
+document.getElementById('modal-do-data').addEventListener('change', function() {
+  document.getElementById('hidden-do-data').value = this.value;
+});
+
+// Ordinamento colonne
+(function() {
+  let sortCol = -1, sortAsc = true;
+  document.querySelectorAll('th.sortable').forEach(function(th) {
+    th.addEventListener('click', function() {
+      const col = parseInt(th.dataset.col);
+      sortAsc = (sortCol === col) ? !sortAsc : true;
+      sortCol = col;
+      const tbody = document.querySelector('table.table-pratiche tbody');
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      rows.sort(function(a, b) {
+        const aText = (a.cells[col]?.textContent || '').trim().replace(/[€\s]/g, '');
+        const bText = (b.cells[col]?.textContent || '').trim().replace(/[€\s]/g, '');
+        const aVal = isNaN(parseFloat(aText)) ? aText : parseFloat(aText);
+        const bVal = isNaN(parseFloat(bText)) ? bText : parseFloat(bText);
+        return sortAsc ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
+      });
+      rows.forEach(function(r) { tbody.appendChild(r); });
+      document.querySelectorAll('th.sortable i').forEach(function(i) {
+        i.className = 'bi bi-arrow-down-up text-muted small';
+      });
+      th.querySelector('i').className = 'bi bi-arrow-' + (sortAsc ? 'up' : 'down') + ' text-primary small';
+    });
+  });
+})();
+
 // Modal modifica data fatturazione
 document.getElementById('modalDataFattura').addEventListener('show.bs.modal', function(e) {
   const btn = e.relatedTarget;
