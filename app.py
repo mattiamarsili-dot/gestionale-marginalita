@@ -343,6 +343,24 @@ def fattura_pratica(pratica_id):
     return redirect(torna)
 
 
+# ── Aggiorna data fatturazione ────────────────────────────────────────────────
+
+@app.route("/pratica/<int:pratica_id>/data-fattura", methods=["POST"])
+def aggiorna_data_fattura(pratica_id):
+    nuova_data = request.form.get("data_fatturazione", "").strip()
+    if not nuova_data:
+        torna = request.form.get("torna", url_for("dashboard"))
+        return redirect(torna)
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"UPDATE pratiche SET data_fatturazione = {_PH} WHERE id = {_PH}",
+            (nuova_data, pratica_id),
+        )
+    torna = request.form.get("torna", url_for("dashboard"))
+    return redirect(torna)
+
+
 # ── Lista fatturati ───────────────────────────────────────────────────────────
 
 @app.route("/fatturati")

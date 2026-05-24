@@ -134,7 +134,14 @@
             </td>
             <td class="text-center">
               {% if p.fatturata %}
-                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Sì</span>
+                <button type="button" class="badge bg-success border-0"
+                  style="cursor:pointer"
+                  data-bs-toggle="modal" data-bs-target="#modalDataFattura"
+                  data-pratica-id="{{ p.id }}"
+                  data-paziente="{{ p.nome_paziente }}"
+                  data-data="{{ p.data_fatturazione or '' }}">
+                  <i class="bi bi-check-circle me-1"></i>{{ p.data_fatturazione or 'Sì' }}
+                </button>
               {% else %}
                 <button type="button" class="btn btn-sm btn-outline-success"
                   data-bs-toggle="modal" data-bs-target="#modalFattura"
@@ -206,10 +213,48 @@
     </div>
   </div>
 </div>
+<!-- Modal modifica data fatturazione -->
+<div class="modal fade" id="modalDataFattura" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="bi bi-calendar-check me-2 text-success"></i>Data fatturazione</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-2 small text-muted">Pratica: <strong id="modal-df-paziente"></strong></p>
+        <input type="date" id="modal-df-data" class="form-control form-control-sm">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annulla</button>
+        <form id="form-data-fattura" method="post">
+          <input type="hidden" name="torna" value="{{ request.url }}">
+          <input type="hidden" name="data_fatturazione" id="hidden-df-data">
+          <button type="submit" class="btn btn-success btn-sm">
+            <i class="bi bi-check-circle me-1"></i>Salva
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+// Modal modifica data fatturazione
+document.getElementById('modalDataFattura').addEventListener('show.bs.modal', function(e) {
+  const btn = e.relatedTarget;
+  document.getElementById('modal-df-paziente').textContent = btn.dataset.paziente;
+  const data = btn.dataset.data || '';
+  document.getElementById('modal-df-data').value = data;
+  document.getElementById('hidden-df-data').value = data;
+  document.getElementById('form-data-fattura').action = '/pratica/' + btn.dataset.praticaId + '/data-fattura';
+});
+document.getElementById('modal-df-data').addEventListener('change', function() {
+  document.getElementById('hidden-df-data').value = this.value;
+});
+
 // Ricerca paziente nella tabella
 document.getElementById('cerca-paziente').addEventListener('input', function() {
   const q = this.value.toLowerCase().trim();
