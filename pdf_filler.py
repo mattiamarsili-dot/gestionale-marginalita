@@ -142,8 +142,11 @@ def build_field_map(template_id: str, pratica: dict, cliente: dict, righe: list 
             "preventivo_assistito": _nome_completo(cliente),
             "preventivo_nato_luogo": (cliente.get("luogo_nascita") or "").strip(),
             "preventivo_nato_data": _fmt_data(cliente.get("data_nascita")),
-            "preventivo_residente_via": _via_completa(cliente),
-            "preventivo_residente_citta": _citta_completa(cliente),
+            # ATTENZIONE: nel template Sapio i due campi sono invertiti rispetto al
+            # nome → il campo *_citta è la riga "RESIDENTE IN:" (in alto, l'indirizzo),
+            # *_via è la riga sottostante (il comune). Riempiamo di conseguenza.
+            "preventivo_residente_citta": _via_completa(cliente),   # riga "RESIDENTE IN:" = indirizzo
+            "preventivo_residente_via": _citta_completa(cliente),    # riga sotto = comune (prov)
             "preventivo_asl": _asl(pratica, cliente),
             "preventivo_data": _fmt_data(pratica.get("data_pratica")),
             "preventivo_numero": (pratica.get("numero_pratica") or "").strip(),
