@@ -65,6 +65,12 @@ def _fmt_euro(n) -> str:
     return s.replace(",", "_").replace(".", ",").replace("_", ".")  # → 1.234,56
 
 
+def _euro(n) -> str:
+    """Importo con simbolo € in coda: '1.234,56 €'. Vuoto → ''."""
+    s = _fmt_euro(n)
+    return f"{s} €" if s else ""
+
+
 def _fmt_qta(n) -> str:
     """Quantità: intero se senza decimali, altrimenti con la virgola."""
     try:
@@ -72,6 +78,19 @@ def _fmt_qta(n) -> str:
     except (TypeError, ValueError):
         return ""
     return str(int(v)) if v == int(v) else _fmt_euro(v)
+
+
+def numero_preventivo(pratica: dict) -> str:
+    """
+    Numero preventivo. Se impostato a mano sulla pratica lo usa, altrimenti lo
+    genera nel formato 'AM{gg}{mm}.{aa}' sulla data di compilazione (oggi).
+    Es. compilato il 09/06/2026 → 'AM0906.26'.
+    """
+    n = (pratica.get("numero_pratica") or "").strip()
+    if n:
+        return n
+    oggi = date.today()
+    return f"AM{oggi.day:02d}{oggi.month:02d}.{oggi.strftime('%y')}"
 
 
 def _nome_completo(cliente: dict) -> str:
@@ -147,9 +166,10 @@ def build_field_map(template_id: str, pratica: dict, cliente: dict, righe: list 
             # *_via è la riga sottostante (il comune). Riempiamo di conseguenza.
             "preventivo_residente_citta": _via_completa(cliente),   # riga "RESIDENTE IN:" = indirizzo
             "preventivo_residente_via": _citta_completa(cliente),    # riga sotto = comune (prov)
+            "preventivo_telefono": (cliente.get("telefono") or "").strip(),
             "preventivo_asl": _asl(pratica, cliente),
-            "preventivo_data": _fmt_data(pratica.get("data_pratica")),
-            "preventivo_numero": (pratica.get("numero_pratica") or "").strip(),
+            "preventivo_data": oggi,                                 # data di compilazione del modulo
+            "preventivo_numero": numero_preventivo(pratica),
             "preventivo_ref_struttura": (pratica.get("medico_struttura") or "").strip(),
         }
 
@@ -166,18 +186,52 @@ def build_field_map(template_id: str, pratica: dict, cliente: dict, righe: list 
             fm[f"{pref}_iso"] = (r.get("codice_iso") or "").strip()
             fm[desc_field] = (r.get("descrizione") or "").strip()
             fm[f"{pref}_qta"] = _fmt_qta(qta)
-            fm[f"{pref}_prezzo_unitario"] = _fmt_euro(prezzo)
-            fm[f"{pref}_prezzo_totale"] = _fmt_euro(totale)
+            fm[f"{pref}_prezzo_unitario"] = _euro(prezzo)
+            fm[f"{pref}_prezzo_totale"] = _euro(totale)
 
         iva_pct = pratica.get("iva_percentuale")
         iva_pct = 4.0 if iva_pct in (None, "") else float(iva_pct)
         iva = imponibile * iva_pct / 100.0
-        fm["preventivo_totale_imponibile"] = _fmt_euro(imponibile)
-        fm["preventivo_iva"] = _fmt_euro(iva)
-        fm["preventivo_totale_lordo"] = _fmt_euro(imponibile + iva)
+        fm["preventivo_totale_imponibile"] = _euro(imponibile)
+        fm["preventivo_iva"] = _euro(iva)
+        fm["preventivo_totale_lordo"] = _euro(imponibile + iva)
         return fm
 
     raise ValueError(f"Template sconosciuto: {template_id}")
+
+
+# ── Stile dei campi (font e allineamento) ─────────────────────────────────────
+
+# Campi (per sottostringa nel nome) da centrare orizzontalmente: importi e q.tà
+_CENTER_HINTS = ("prezzo_unitario", "prezzo_totale", "_qta", "totale_imponibile",
+                 "preventivo_iva", "totale_lordo")
+
+
+def _restyle_form_fields(writer, filled_names: set, center_hints=(), font_size: int = 11):
+    """
+    Migliora la resa dei campi compilati:
+    - font a dimensione fissa più leggibile (default 11pt nel /DA)
+    - allineamento orizzontale centrato (/Q=1) per i campi indicati in center_hints
+    - rimuove l'appearance stream esistente (/AP) così il viewer la rigenera con
+      il nuovo stile (insieme a NeedAppearances)
+    """
+    import re
+    from pypdf.generic import NameObject, NumberObject, TextStringObject
+
+    for page in writer.pages:
+        for a in (page.get("/Annots") or []):
+            o = a.get_object()
+            nm = str(o.get("/T") or "")
+            if not nm or nm not in filled_names:
+                continue
+            da = o.get("/DA")
+            if da:
+                new_da = re.sub(r"(/[A-Za-z0-9]+)\s+[\d.]+\s+Tf", rf"\1 {font_size} Tf", str(da))
+                o[NameObject("/DA")] = TextStringObject(new_da)
+            if any(h in nm for h in center_hints):
+                o[NameObject("/Q")] = NumberObject(1)
+            if "/AP" in o:
+                del o[NameObject("/AP")]
 
 
 # ── Generazione PDF ───────────────────────────────────────────────────────────
@@ -202,7 +256,10 @@ def compila_pdf(template_id: str, pratica: dict, cliente: dict, righe: list = No
     for page in writer.pages:
         writer.update_page_form_field_values(page, field_map)
 
-    # NeedAppearances: forza i viewer a renderizzare i valori inseriti
+    # Migliora font (auto-size) e centra gli importi sui campi appena compilati
+    _restyle_form_fields(writer, set(field_map.keys()), center_hints=_CENTER_HINTS)
+
+    # NeedAppearances: forza i viewer a rigenerare l'aspetto con il nuovo stile
     try:
         writer.set_need_appearances_writer(True)
     except Exception:
@@ -216,7 +273,7 @@ def compila_pdf(template_id: str, pratica: dict, cliente: dict, righe: list = No
 def nome_file_consigliato(template_id: str, pratica: dict, cliente: dict) -> str:
     """Es. 'AM0105.26 - ROSSI MARIO - Autocertificazione ASL RM3.pdf'."""
     tpl = PDF_TEMPLATES.get(template_id, {})
-    numero = (pratica or {}).get("numero_pratica") or f"pratica-{(pratica or {}).get('id', '')}"
+    numero = numero_preventivo(pratica or {}) or f"pratica-{(pratica or {}).get('id', '')}"
     nome = _nome_completo(cliente or {}).upper() or "CLIENTE"
     label = tpl.get("label", template_id)
     base = f"{numero} - {nome} - {label}".strip(" -")
