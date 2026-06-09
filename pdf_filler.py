@@ -80,17 +80,20 @@ def _fmt_qta(n) -> str:
     return str(int(v)) if v == int(v) else _fmt_euro(v)
 
 
-def numero_preventivo(pratica: dict) -> str:
+def numero_preventivo(pratica: dict, cliente: dict = None) -> str:
     """
-    Numero preventivo. Se impostato a mano sulla pratica lo usa, altrimenti lo
-    genera nel formato 'AM{gg}{mm}.{aa}' sulla data di compilazione (oggi).
-    Es. compilato il 09/06/2026 → 'AM0906.26'.
+    Numero preventivo. Se impostato a mano sulla pratica lo usa così com'è,
+    altrimenti lo genera nel formato 'AM{gg}{mm}.{aa}.{ASL}' sulla data di
+    compilazione (oggi), con la sigla ASL senza spazi.
+    Es. compilato il 09/06/2026, ASL 'RM 2' → 'AM0906.26.RM2'.
     """
     n = (pratica.get("numero_pratica") or "").strip()
     if n:
         return n
     oggi = date.today()
-    return f"AM{oggi.day:02d}{oggi.month:02d}.{oggi.strftime('%y')}"
+    base = f"AM{oggi.day:02d}{oggi.month:02d}.{oggi.strftime('%y')}"
+    asl = "".join(_asl(pratica, cliente or {}).split()).upper()  # 'RM 2' → 'RM2'
+    return f"{base}.{asl}" if asl else base
 
 
 def _nome_completo(cliente: dict) -> str:
@@ -169,7 +172,7 @@ def build_field_map(template_id: str, pratica: dict, cliente: dict, righe: list 
             "preventivo_telefono": (cliente.get("telefono") or "").strip(),
             "preventivo_asl": _asl(pratica, cliente),
             "preventivo_data": oggi,                                 # data di compilazione del modulo
-            "preventivo_numero": numero_preventivo(pratica),
+            "preventivo_numero": numero_preventivo(pratica, cliente),
             "preventivo_ref_struttura": (pratica.get("medico_struttura") or "").strip(),
         }
 
@@ -273,7 +276,7 @@ def compila_pdf(template_id: str, pratica: dict, cliente: dict, righe: list = No
 def nome_file_consigliato(template_id: str, pratica: dict, cliente: dict) -> str:
     """Es. 'AM0105.26 - ROSSI MARIO - Autocertificazione ASL RM3.pdf'."""
     tpl = PDF_TEMPLATES.get(template_id, {})
-    numero = numero_preventivo(pratica or {}) or f"pratica-{(pratica or {}).get('id', '')}"
+    numero = numero_preventivo(pratica or {}, cliente) or f"pratica-{(pratica or {}).get('id', '')}"
     nome = _nome_completo(cliente or {}).upper() or "CLIENTE"
     label = tpl.get("label", template_id)
     base = f"{numero} - {nome} - {label}".strip(" -")
