@@ -32,10 +32,19 @@ PDF_TEMPLATES = {
         "stato": "ok",  # anagrafica + righe ausili + totali
         "richiede_cliente": True,
     },
+    "prescrizione-gen": {
+        "label": "Prescrizione presidi (Allegato 3)",
+        "file": "Prescrizione Gen.pdf",
+        "stato": "ok",  # anagrafica + righe ausili + significato terapeutico
+        "richiede_cliente": True,
+    },
 }
 
-# Numero massimo di righe ausili stampabili sul preventivo Sapio
+# Numero massimo di righe ausili stampabili
 _SAPIO_MAX_RIGHE = 16
+_PRESCR_MAX_RIGHE = 15        # righe 0..14 sul modulo Allegato 3
+_PRESCR_SIGN_RIGHE = 6        # righe del significato terapeutico
+_PRESCR_SIGN_WIDTH = 95       # caratteri per riga del significato terapeutico
 
 
 # ── Formattazione valori ──────────────────────────────────────────────────────
@@ -94,6 +103,15 @@ def numero_preventivo(pratica: dict, cliente: dict = None) -> str:
     base = f"AM{oggi.day:02d}{oggi.month:02d}.{oggi.strftime('%y')}"
     asl = "".join(_asl(pratica, cliente or {}).split()).upper()  # 'RM 2' → 'RM2'
     return f"{base}.{asl}" if asl else base
+
+
+def _wrap_lines(text: str, width: int, maxlines: int) -> list:
+    """Spezza un testo lungo in righe da ~width caratteri, max maxlines."""
+    import textwrap
+    text = (text or "").strip()
+    if not text:
+        return []
+    return textwrap.wrap(text, width=width)[:maxlines]
 
 
 def _nome_completo(cliente: dict) -> str:
@@ -198,6 +216,31 @@ def build_field_map(template_id: str, pratica: dict, cliente: dict, righe: list 
         fm["preventivo_totale_imponibile"] = _euro(imponibile)
         fm["preventivo_iva"] = _euro(iva)
         fm["preventivo_totale_lordo"] = _euro(imponibile + iva)
+        return fm
+
+    if template_id == "prescrizione-gen":
+        fm = {
+            "Cognome": (cliente.get("cognome") or "").strip(),
+            "Nome": (cliente.get("nome") or "").strip(),
+            "Data Nascita": _fmt_data(cliente.get("data_nascita")),
+            "Luogo Nasc": (cliente.get("luogo_nascita") or "").strip(),
+            "Resid. via": _via_completa(cliente),
+            "Comune Res": (cliente.get("residenza_citta") or "").strip(),
+            "Provinc": (cliente.get("provincia") or "").strip(),
+            "C.F": (cliente.get("codice_fiscale") or "").strip(),
+            "Telefono": (cliente.get("telefono") or "").strip(),
+            "Patologia": (pratica.get("diagnosi") or "").strip(),
+        }
+        # Righe ausili (0..14). La riga 0 ha il campo ISO con nome annidato extra.
+        for i, r in enumerate(righe[:_PRESCR_MAX_RIGHE]):
+            iso_field = "Cod. ISO.0.0.0.0" if i == 0 else f"Cod. ISO.{i}.0"
+            fm[f"Q.tà.{i}.0"] = _fmt_qta(r.get("qta") or 0)
+            fm[f"Descrizione LEA.{i}.0"] = (r.get("descrizione") or "").strip()
+            fm[iso_field] = (r.get("codice_iso") or "").strip()
+        # Significato terapeutico: testo lungo spezzato su max 6 righe
+        for i, riga in enumerate(_wrap_lines(pratica.get("sign_terapeutico"),
+                                             _PRESCR_SIGN_WIDTH, _PRESCR_SIGN_RIGHE)):
+            fm[f"Signf. Terapeutico.{i}.0"] = riga
         return fm
 
     raise ValueError(f"Template sconosciuto: {template_id}")
