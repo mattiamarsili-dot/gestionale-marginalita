@@ -1,0 +1,889 @@
+[
+  {
+    "id": "PS-0001",
+    "label": "Ortesi varie (singoli articoli)",
+    "categoria": "Ortesi",
+    "righe": [
+      {
+        "codice_iso": "06.12.06.027",
+        "descrizione": "Ortesi dinamica gamba piede a valva alta",
+        "qta": 1,
+        "prezzo_unitario": 540.0
+      },
+      {
+        "codice_iso": "06.12.15.003",
+        "descrizione": "Ortesi di posizione per anca doccia rigida bilaterale",
+        "qta": 1,
+        "prezzo_unitario": 620.0
+      },
+      {
+        "codice_iso": "06.06.13.012",
+        "descrizione": "Ortesi funzionale Avambraccio - Mano - Dita",
+        "qta": 1,
+        "prezzo_unitario": 390.0
+      },
+      {
+        "codice_iso": "06.03.18.033",
+        "descrizione": "Busto statico equilibrato",
+        "qta": 1,
+        "prezzo_unitario": 1050.0
+      },
+      {
+        "codice_iso": "06.03.91.724",
+        "descrizione": "Presa scapolo omerale: Rigida lunga",
+        "qta": 2,
+        "prezzo_unitario": 132.6
+      },
+      {
+        "codice_iso": "06.12.92.639",
+        "descrizione": "Supporto Addominale",
+        "qta": 1,
+        "prezzo_unitario": 289.0
+      },
+      {
+        "codice_iso": "06.06.91.106",
+        "descrizione": "Tenditore",
+        "qta": 1,
+        "prezzo_unitario": 125.0
+      },
+      {
+        "codice_iso": "06.12.91.218",
+        "descrizione": "Tenditore arto inferiore",
+        "qta": 1,
+        "prezzo_unitario": 87.0
+      }
+    ]
+  },
+  {
+    "id": "PS-0002",
+    "label": "Carrozzina Superleggera Pieghevole + posturale",
+    "categoria": "Carrozzine manuali",
+    "righe": [
+      {
+        "codice_iso": "12.22.03.012",
+        "descrizione": "Carrozzina A Telaio Pieghevole Superleggera",
+        "qta": 1,
+        "prezzo_unitario": 1850.0
+      },
+      {
+        "codice_iso": "18.09.39.006",
+        "descrizione": "Modulo Posturale Per Il Bacino",
+        "qta": 1,
+        "prezzo_unitario": 789.0
+      },
+      {
+        "codice_iso": "18.09.39.009",
+        "descrizione": "Modulo Posturale Per Il Tronco",
+        "qta": 1,
+        "prezzo_unitario": 1256.0
+      },
+      {
+        "codice_iso": "18.09.91.015",
+        "descrizione": "Cinghia A 45° Sul Bacino",
+        "qta": 1,
+        "prezzo_unitario": 105.0
+      },
+      {
+        "codice_iso": "18.09.91.042",
+        "descrizione": "Cinturini Fermapiede (Coppia)",
+        "qta": 1,
+        "prezzo_unitario": 18.0
+      },
+      {
+        "codice_iso": "18.09.91.045",
+        "descrizione": "Fermatallone (Coppia) Aggiuntivo Carrozzine",
+        "qta": 1,
+        "prezzo_unitario": 30.0
+      },
+      {
+        "codice_iso": "18.09.39.003",
+        "descrizione": "Modulo Posturale Per Il Capo",
+        "qta": 1,
+        "prezzo_unitario": 360.0
+      },
+      {
+        "codice_iso": "18.09.91.003",
+        "descrizione": "Divaricatore Imbottito Regolabile",
+        "qta": 1,
+        "prezzo_unitario": 90.0
+      },
+      {
+        "codice_iso": "18.09.91.006",
+        "descrizione": "Regolazione Laterale Del Divaricatore",
+        "qta": 1,
+        "prezzo_unitario": 40.0
+      },
+      {
+        "codice_iso": "18.09.91.012",
+        "descrizione": "Cinghia Pettorale Imbottita",
+        "qta": 1,
+        "prezzo_unitario": 135.0
+      },
+      {
+        "codice_iso": "18.09.91.051",
+        "descrizione": "Tavolino Con Incavo",
+        "qta": 1,
+        "prezzo_unitario": 190.0
+      }
+    ]
+  },
+  {
+    "id": "PS-0003",
+    "label": "Carrozzina Superleggera Rigida + posturale",
+    "categoria": "Carrozzine manuali",
+    "righe": [
+      {
+        "codice_iso": "12.22.03.009",
+        "descrizione": "Carrozzina A Telaio Rigido Superleggera",
+        "qta": 1,
+        "prezzo_unitario": 1850.0
+      },
+      {
+        "codice_iso": "18.09.39.006",
+        "descrizione": "Modulo Posturale Per Il Bacino",
+        "qta": 1,
+        "prezzo_unitario": 789.0
+      },
+      {
+        "codice_iso": "18.09.39.009",
+        "descrizione": "Modulo Posturale Per Il Tronco",
+        "qta": 1,
+        "prezzo_unitario": 1256.0
+      },
+      {
+        "codice_iso": "18.09.91.015",
+        "descrizione": "Cinghia A 45° Sul Bacino",
+        "qta": 1,
+        "prezzo_unitario": 105.0
+      },
+      {
+        "codice_iso": "18.09.91.042",
+        "descrizione": "Cinturini Fermapiede (Coppia)",
+        "qta": 1,
+        "prezzo_unitario": 18.0
+      },
+      {
+        "codice_iso": "18.09.91.045",
+        "descrizione": "Fermatallone (Coppia) Aggiuntivo Carrozzine",
+        "qta": 1,
+        "prezzo_unitario": 30.0
+      },
+      {
+        "codice_iso": "18.09.39.003",
+        "descrizione": "Modulo Posturale Per Il Capo",
+        "qta": 1,
+        "prezzo_unitario": 360.0
+      },
+      {
+        "codice_iso": "18.09.91.003",
+        "descrizione": "Divaricatore Imbottito Regolabile",
+        "qta": 1,
+        "prezzo_unitario": 90.0
+      },
+      {
+        "codice_iso": "18.09.91.006",
+        "descrizione": "Regolazione Laterale Del Divaricatore",
+        "qta": 1,
+        "prezzo_unitario": 40.0
+      },
+      {
+        "codice_iso": "18.09.91.012",
+        "descrizione": "Cinghia Pettorale Imbottita",
+        "qta": 1,
+        "prezzo_unitario": 135.0
+      },
+      {
+        "codice_iso": "18.09.91.051",
+        "descrizione": "Tavolino Con Incavo",
+        "qta": 1,
+        "prezzo_unitario": 190.0
+      }
+    ]
+  },
+  {
+    "id": "PS-0004",
+    "label": "Carrozzina Leggera + posturale base",
+    "categoria": "Carrozzine manuali",
+    "righe": [
+      {
+        "codice_iso": "12.22.03.006",
+        "descrizione": "Carrozzina Leggera",
+        "qta": 1,
+        "prezzo_unitario": 450.0
+      },
+      {
+        "codice_iso": "18.09.39.006",
+        "descrizione": "Modulo Posturale Per Il Bacino",
+        "qta": 1,
+        "prezzo_unitario": 789.0
+      },
+      {
+        "codice_iso": "18.09.39.009",
+        "descrizione": "Modulo Posturale Per Il Tronco",
+        "qta": 1,
+        "prezzo_unitario": 1256.0
+      },
+      {
+        "codice_iso": "18.09.91.015",
+        "descrizione": "Cinghia A 45° Sul Bacino",
+        "qta": 1,
+        "prezzo_unitario": 105.0
+      }
+    ]
+  },
+  {
+    "id": "PS-0005",
+    "label": "Postura Modulare completa",
+    "categoria": "Sistemi posturali",
+    "righe": [
+      {
+        "codice_iso": "18.09.21.012",
+        "descrizione": "Modulo Posturale Per Bacino",
+        "qta": 1,
+        "prezzo_unitario": 980.0
+      },
+      {
+        "codice_iso": "18.09.21.015",
+        "descrizione": "Modulo Posturale Per Tronco",
+        "qta": 1,
+        "prezzo_unitario": 980.0
+      },
+      {
+        "codice_iso": "18.09.21.021",
+        "descrizione": "Modulo Posturale Per Arto Inferiore (Singolo)",
+        "qta": 2,
+        "prezzo_unitario": 290.0
+      },
+      {
+        "codice_iso": "18.09.21.024",
+        "descrizione": "Modulo Posturale Per Arto Superiore (Singolo)",
+        "qta": 2,
+        "prezzo_unitario": 235.0
+      },
+      {
+        "codice_iso": "18.09.90.951",
+        "descrizione": "Assemblaggio Carrozzina Manuale",
+        "qta": 1,
+        "prezzo_unitario": 149.8
+      }
+    ]
+  },
+  {
+    "id": "PS-0006",
+    "label": "Basculante con postura modulare",
+    "categoria": "Bascule e recliner",
+    "righe": [
+      {
+        "codice_iso": "12.27.04.003",
+        "descrizione": "Base Di Mobilità Basculante Per Sistemi Di Postura",
+        "qta": 1,
+        "prezzo_unitario": 1700.0
+      },
+      {
+        "codice_iso": "12.27.91.021",
+        "descrizione": "Schienale Regolabile",
+        "qta": 1,
+        "prezzo_unitario": 335.0
+      },
+      {
+        "codice_iso": "12.27.91.024",
+        "descrizione": "Sedile Rigido, Per Base Di Mobilità",
+        "qta": 1,
+        "prezzo_unitario": 167.0
+      },
+      {
+        "codice_iso": "12.27.91.030",
+        "descrizione": "Cinghia a 45° Sul Bacino",
+        "qta": 1,
+        "prezzo_unitario": 130.0
+      },
+      {
+        "codice_iso": "12.27.91.036",
+        "descrizione": "Appoggiatesta Regolabile",
+        "qta": 1,
+        "prezzo_unitario": 455.6
+      },
+      {
+        "codice_iso": "18.09.21.012",
+        "descrizione": "Modulo Posturale Per Bacino",
+        "qta": 1,
+        "prezzo_unitario": 980.0
+      },
+      {
+        "codice_iso": "18.09.21.015",
+        "descrizione": "Modulo Posturale Per Tronco",
+        "qta": 1,
+        "prezzo_unitario": 980.0
+      },
+      {
+        "codice_iso": "18.09.21.021",
+        "descrizione": "Modulo Posturale Per Arto Inferiore (Singolo)",
+        "qta": 2,
+        "prezzo_unitario": 290.0
+      },
+      {
+        "codice_iso": "18.09.21.024",
+        "descrizione": "Modulo Posturale Per Arto Superiore (Singolo)",
+        "qta": 2,
+        "prezzo_unitario": 235.0
+      },
+      {
+        "codice_iso": "18.09.90.948",
+        "descrizione": "Assemblaggio Base Di Mobilità Basculante",
+        "qta": 1,
+        "prezzo_unitario": 110.0
+      }
+    ]
+  },
+  {
+    "id": "PS-0007",
+    "label": "Basculante Pediatrica",
+    "categoria": "Bascule e recliner",
+    "righe": [
+      {
+        "codice_iso": "12.27.04.006",
+        "descrizione": "Base Di Mobilità Basculante Per Esterni (Età Evolutiva)",
+        "qta": 1,
+        "prezzo_unitario": 1700.0
+      },
+      {
+        "codice_iso": "12.27.91.021",
+        "descrizione": "Schienale Regolabile",
+        "qta": 1,
+        "prezzo_unitario": 335.0
+      },
+      {
+        "codice_iso": "12.27.91.024",
+        "descrizione": "Sedile Rigido, Per Base Di Mobilità",
+        "qta": 1,
+        "prezzo_unitario": 167.0
+      },
+      {
+        "codice_iso": "12.27.91.030",
+        "descrizione": "Cinghia a 45° Sul Bacino",
+        "qta": 1,
+        "prezzo_unitario": 130.0
+      },
+      {
+        "codice_iso": "12.27.91.033",
+        "descrizione": "Cinghia a Bretellaggio",
+        "qta": 1,
+        "prezzo_unitario": 130.0
+      },
+      {
+        "codice_iso": "12.27.91.036",
+        "descrizione": "Appoggiatesta Regolabile",
+        "qta": 1,
+        "prezzo_unitario": 455.6
+      },
+      {
+        "codice_iso": "12.27.91.039",
+        "descrizione": "Appoggiagambe a Lat",
+        "qta": 1,
+        "prezzo_unitario": 175.0
+      },
+      {
+        "codice_iso": "12.27.91.051",
+        "descrizione": "Tavolino Con Incavo",
+        "qta": 1,
+        "prezzo_unitario": 280.0
+      },
+      {
+        "codice_iso": "18.09.21.012",
+        "descrizione": "Modulo Posturale Per Bacino",
+        "qta": 1,
+        "prezzo_unitario": 980.0
+      },
+      {
+        "codice_iso": "18.09.21.015",
+        "descrizione": "Modulo Posturale Per Tronco",
+        "qta": 1,
+        "prezzo_unitario": 980.0
+      },
+      {
+        "codice_iso": "18.09.21.021",
+        "descrizione": "Modulo Posturale Per Arto Inferiore (Singolo)",
+        "qta": 2,
+        "prezzo_unitario": 290.0
+      },
+      {
+        "codice_iso": "18.09.21.024",
+        "descrizione": "Modulo Posturale Per Arto Superiore (Singolo)",
+        "qta": 2,
+        "prezzo_unitario": 235.0
+      },
+      {
+        "codice_iso": "18.09.90.948",
+        "descrizione": "Assemblaggio Base Di Mobilità Basculante",
+        "qta": 1,
+        "prezzo_unitario": 110.0
+      }
+    ]
+  },
+  {
+    "id": "PS-0008",
+    "label": "Postura Pediatrica (basculante + moduli)",
+    "categoria": "Bascule e recliner",
+    "righe": [
+      {
+        "codice_iso": "12.27.04.003",
+        "descrizione": "Base Di Mobilità Basculante Per Sistemi Di Postura",
+        "qta": 1,
+        "prezzo_unitario": 1700.0
+      },
+      {
+        "codice_iso": "12.27.91.036",
+        "descrizione": "Appoggiatesta Regolabile",
+        "qta": 1,
+        "prezzo_unitario": 455.6
+      },
+      {
+        "codice_iso": "18.09.39.012",
+        "descrizione": "Modulo Posturale Per Il Tronco/Bacino",
+        "qta": 1,
+        "prezzo_unitario": 2045.0
+      },
+      {
+        "codice_iso": "18.09.91.003",
+        "descrizione": "Divaricatore Imbottito Regolabile",
+        "qta": 1,
+        "prezzo_unitario": 90.0
+      },
+      {
+        "codice_iso": "18.09.91.006",
+        "descrizione": "Regolazione Laterale Del Divaricatore",
+        "qta": 1,
+        "prezzo_unitario": 40.0
+      },
+      {
+        "codice_iso": "18.09.91.012",
+        "descrizione": "Cinghia Pettorale Imbottita",
+        "qta": 1,
+        "prezzo_unitario": 135.0
+      },
+      {
+        "codice_iso": "18.09.91.015",
+        "descrizione": "Cinghia A 45° Sul Bacino",
+        "qta": 1,
+        "prezzo_unitario": 105.0
+      },
+      {
+        "codice_iso": "18.09.91.051",
+        "descrizione": "Tavolino Con Incavo",
+        "qta": 1,
+        "prezzo_unitario": 190.0
+      },
+      {
+        "codice_iso": "18.09.21.021",
+        "descrizione": "Modulo Posturale Per Arto Inferiore (Singolo)",
+        "qta": 1,
+        "prezzo_unitario": 290.0
+      },
+      {
+        "codice_iso": "18.09.21.024",
+        "descrizione": "Modulo Posturale Per Arto Superiore (Singolo)",
+        "qta": 1,
+        "prezzo_unitario": 235.0
+      }
+    ]
+  },
+  {
+    "id": "PS-0009",
+    "label": "Elettronica 6 ruote base",
+    "categoria": "Carrozzine elettroniche",
+    "righe": [
+      {
+        "codice_iso": "12.36.06.018",
+        "descrizione": "Carrozzina Elettrica A Sei Ruote",
+        "qta": 1,
+        "prezzo_unitario": 5030.0
+      },
+      {
+        "codice_iso": "18.09.39.006",
+        "descrizione": "Modulo Posturale Per Il Bacino",
+        "qta": 1,
+        "prezzo_unitario": 789.0
+      },
+      {
+        "codice_iso": "18.09.39.009",
+        "descrizione": "Modulo Posturale Per Il Tronco",
+        "qta": 1,
+        "prezzo_unitario": 1256.0
+      },
+      {
+        "codice_iso": "12.23.91.009",
+        "descrizione": "Basculamento Motorizzato",
+        "qta": 1,
+        "prezzo_unitario": 370.0
+      },
+      {
+        "codice_iso": "12.23.91.018",
+        "descrizione": "Regolazione Servoassistita Dello Schienale",
+        "qta": 1,
+        "prezzo_unitario": 320.0
+      },
+      {
+        "codice_iso": "12.23.91.024",
+        "descrizione": "Pelotte Toracali",
+        "qta": 1,
+        "prezzo_unitario": 280.0
+      },
+      {
+        "codice_iso": "12.23.91.033",
+        "descrizione": "Appoggiatesta",
+        "qta": 1,
+        "prezzo_unitario": 360.0
+      },
+      {
+        "codice_iso": "18.09.91.003",
+        "descrizione": "Divaricatore Imbottito Regolabile",
+        "qta": 1,
+        "prezzo_unitario": 90.0
+      },
+      {
+        "codice_iso": "18.09.91.006",
+        "descrizione": "Regolazione Laterale Del Divaricatore",
+        "qta": 1,
+        "prezzo_unitario": 40.0
+      },
+      {
+        "codice_iso": "18.09.91.012",
+        "descrizione": "Cinghia Pettorale Imbottita",
+        "qta": 1,
+        "prezzo_unitario": 135.0
+      },
+      {
+        "codice_iso": "18.09.91.015",
+        "descrizione": "Cinghia A 45° Sul Bacino",
+        "qta": 1,
+        "prezzo_unitario": 105.0
+      },
+      {
+        "codice_iso": "18.09.21.021",
+        "descrizione": "Modulo Posturale Per Arto Inferiore (Singolo)",
+        "qta": 2,
+        "prezzo_unitario": 290.0
+      },
+      {
+        "codice_iso": "18.09.21.024",
+        "descrizione": "Modulo Posturale Per Arto Superiore (Singolo)",
+        "qta": 2,
+        "prezzo_unitario": 235.0
+      },
+      {
+        "codice_iso": "18.09.90.954",
+        "descrizione": "Assemblaggio Carrozzina Elettronica",
+        "qta": 1,
+        "prezzo_unitario": 149.8
+      }
+    ]
+  },
+  {
+    "id": "PS-0010",
+    "label": "Elettronica 6 ruote — elevazione + schienale motorizzato",
+    "categoria": "Carrozzine elettroniche",
+    "righe": [
+      {
+        "codice_iso": "12.36.06.018",
+        "descrizione": "Carrozzina Elettrica A Sei Ruote",
+        "qta": 1,
+        "prezzo_unitario": 5030.0
+      },
+      {
+        "codice_iso": "12.23.91.009",
+        "descrizione": "Basculamento Motorizzato",
+        "qta": 1,
+        "prezzo_unitario": 370.0
+      },
+      {
+        "codice_iso": "12.23.91.012",
+        "descrizione": "Elevazione Motorizzata",
+        "qta": 1,
+        "prezzo_unitario": 1470.0
+      },
+      {
+        "codice_iso": "12.23.91.021",
+        "descrizione": "Regolazione Motorizzata Dello Schienale",
+        "qta": 1,
+        "prezzo_unitario": 608.0
+      },
+      {
+        "codice_iso": "18.09.39.006",
+        "descrizione": "Modulo Posturale Per Il Bacino",
+        "qta": 1,
+        "prezzo_unitario": 789.0
+      },
+      {
+        "codice_iso": "18.09.39.009",
+        "descrizione": "Modulo Posturale Per Il Tronco",
+        "qta": 1,
+        "prezzo_unitario": 1256.0
+      },
+      {
+        "codice_iso": "18.09.90.954",
+        "descrizione": "Assemblaggio Carrozzina Elettronica",
+        "qta": 1,
+        "prezzo_unitario": 149.8
+      }
+    ]
+  },
+  {
+    "id": "PS-0011",
+    "label": "Elettronica Esterni base",
+    "categoria": "Carrozzine elettroniche",
+    "righe": [
+      {
+        "codice_iso": "12.36.06.015",
+        "descrizione": "Carrozzina Elettrica Uso Esterno",
+        "qta": 1,
+        "prezzo_unitario": 4230.0
+      },
+      {
+        "codice_iso": "12.23.91.009",
+        "descrizione": "Basculamento Motorizzato",
+        "qta": 1,
+        "prezzo_unitario": 370.0
+      },
+      {
+        "codice_iso": "12.23.91.018",
+        "descrizione": "Regolazione Servoassistita Dello Schienale",
+        "qta": 1,
+        "prezzo_unitario": 320.0
+      },
+      {
+        "codice_iso": "12.23.91.024",
+        "descrizione": "Pelotte Toracali",
+        "qta": 1,
+        "prezzo_unitario": 280.0
+      },
+      {
+        "codice_iso": "12.23.91.033",
+        "descrizione": "Appoggiatesta",
+        "qta": 1,
+        "prezzo_unitario": 360.0
+      },
+      {
+        "codice_iso": "18.09.39.006",
+        "descrizione": "Modulo Posturale Per Il Bacino",
+        "qta": 1,
+        "prezzo_unitario": 789.0
+      },
+      {
+        "codice_iso": "18.09.39.009",
+        "descrizione": "Modulo Posturale Per Il Tronco",
+        "qta": 1,
+        "prezzo_unitario": 1256.0
+      },
+      {
+        "codice_iso": "18.09.91.003",
+        "descrizione": "Divaricatore Imbottito Regolabile",
+        "qta": 1,
+        "prezzo_unitario": 90.0
+      },
+      {
+        "codice_iso": "18.09.91.006",
+        "descrizione": "Regolazione Laterale Del Divaricatore",
+        "qta": 1,
+        "prezzo_unitario": 40.0
+      },
+      {
+        "codice_iso": "18.09.91.012",
+        "descrizione": "Cinghia Pettorale Imbottita",
+        "qta": 1,
+        "prezzo_unitario": 135.0
+      },
+      {
+        "codice_iso": "18.09.91.015",
+        "descrizione": "Cinghia A 45° Sul Bacino",
+        "qta": 1,
+        "prezzo_unitario": 105.0
+      },
+      {
+        "codice_iso": "18.09.21.021",
+        "descrizione": "Modulo Posturale Per Arto Inferiore (Singolo)",
+        "qta": 2,
+        "prezzo_unitario": 290.0
+      },
+      {
+        "codice_iso": "18.09.21.024",
+        "descrizione": "Modulo Posturale Per Arto Superiore (Singolo)",
+        "qta": 2,
+        "prezzo_unitario": 235.0
+      },
+      {
+        "codice_iso": "18.09.90.954",
+        "descrizione": "Assemblaggio Carrozzina Elettronica",
+        "qta": 1,
+        "prezzo_unitario": 149.8
+      }
+    ]
+  },
+  {
+    "id": "PS-0012",
+    "label": "Propulsori (assistenza alla propulsione)",
+    "categoria": "Propulsori",
+    "righe": [
+      {
+        "codice_iso": "12.24.09.006",
+        "descrizione": "Sistema Ausiliario Di Propulsione Con Sostituzione Delle Ruote",
+        "qta": 1,
+        "prezzo_unitario": 4900.0
+      },
+      {
+        "codice_iso": "12.24.09.006/B",
+        "descrizione": "Sistema Ausiliario Di Propulsione Per Accompagnatore",
+        "qta": 1,
+        "prezzo_unitario": 2100.0
+      },
+      {
+        "codice_iso": "12.24.09.015",
+        "descrizione": "Kit Di Motorizzazione Universale Per Carrozzine",
+        "qta": 1,
+        "prezzo_unitario": 2700.0
+      }
+    ]
+  },
+  {
+    "id": "PS-0013",
+    "label": "Letto articolato con accessori",
+    "categoria": "Ausili per la cura personale e domiciliari",
+    "righe": [
+      {
+        "codice_iso": "18.12.10.009",
+        "descrizione": "Letto articolato reg. elettrica, reg. elettrica dell'alt. ruote",
+        "qta": 1,
+        "prezzo_unitario": 773.2
+      },
+      {
+        "codice_iso": "18.12.27.003",
+        "descrizione": "Sponda universale per letto",
+        "qta": 1,
+        "prezzo_unitario": 85.0
+      },
+      {
+        "codice_iso": "18.12.91.003",
+        "descrizione": "Asta solleva-persona con base a terra",
+        "qta": 1,
+        "prezzo_unitario": 90.0
+      },
+      {
+        "codice_iso": "04.33.06.006",
+        "descrizione": "Materasso ventilato in espanso composito",
+        "qta": 1,
+        "prezzo_unitario": 170.0
+      },
+      {
+        "codice_iso": "04.33.06.021",
+        "descrizione": "Materasso a cessione d'aria (alta prevenzione)",
+        "qta": 1,
+        "prezzo_unitario": 690.0
+      }
+    ]
+  },
+  {
+    "id": "PS-0014",
+    "label": "Montascale (sedile o cingoli)",
+    "categoria": "Ausili per la mobilità in ambiente",
+    "righe": [
+      {
+        "codice_iso": "18.30.08.003",
+        "descrizione": "Montascale mobile a ruote, a sedile",
+        "qta": 1,
+        "prezzo_unitario": 1850.0
+      },
+      {
+        "codice_iso": "18.30.08.009",
+        "descrizione": "Montascale mobile a cingoli, per carrozzina",
+        "qta": 1,
+        "prezzo_unitario": 1850.0
+      }
+    ]
+  },
+  {
+    "id": "PS-0015",
+    "label": "Sollevatore mobile + imbracatura",
+    "categoria": "Ausili per la cura personale e domiciliari",
+    "righe": [
+      {
+        "codice_iso": "12.36.03.006",
+        "descrizione": "Sollevatore mobile ad imbracatura, elettrico",
+        "qta": 1,
+        "prezzo_unitario": 0
+      },
+      {
+        "codice_iso": "12.36.21.006",
+        "descrizione": "Imbracatura con supporto per il capo",
+        "qta": 1,
+        "prezzo_unitario": 0
+      }
+    ]
+  },
+  {
+    "id": "PS-0016",
+    "label": "Sedia WC / doccia",
+    "categoria": "Ausili per la cura personale e domiciliari",
+    "righe": [
+      {
+        "codice_iso": "09.12.03.012",
+        "descrizione": "Sedia a comoda doccia/water ad autospinta",
+        "qta": 1,
+        "prezzo_unitario": 319.6
+      },
+      {
+        "codice_iso": "09.12.03.006",
+        "descrizione": "Sedia comoda doccia/water accompagnatore",
+        "qta": 1,
+        "prezzo_unitario": 190.0
+      }
+    ]
+  },
+  {
+    "id": "PS-0017",
+    "label": "Sedia WC Basculante con accessori",
+    "categoria": "Ausili per la cura personale e domiciliari",
+    "righe": [
+      {
+        "codice_iso": "09.33.03.012",
+        "descrizione": "Sedia basculante per doccia con ruote",
+        "qta": 1,
+        "prezzo_unitario": 680.0
+      },
+      {
+        "codice_iso": "09.12.91.003",
+        "descrizione": "Regolazione dell'inclinazione dello schienale",
+        "qta": 1,
+        "prezzo_unitario": 75.6
+      },
+      {
+        "codice_iso": "09.12.91.006",
+        "descrizione": "Reg. inclinazione degli appoggiagambe (coppia)",
+        "qta": 1,
+        "prezzo_unitario": 75.6
+      },
+      {
+        "codice_iso": "09.12.91.009",
+        "descrizione": "Possibilità di piegare il telaio",
+        "qta": 1,
+        "prezzo_unitario": 96.63
+      },
+      {
+        "codice_iso": "09.12.91.012",
+        "descrizione": "Prolunga dello schienale",
+        "qta": 1,
+        "prezzo_unitario": 72.1
+      },
+      {
+        "codice_iso": "09.12.91.015",
+        "descrizione": "Cinghia a bretellaggio",
+        "qta": 1,
+        "prezzo_unitario": 14.11
+      },
+      {
+        "codice_iso": "09.12.91.018",
+        "descrizione": "Pelotte toracali (coppia)",
+        "qta": 1,
+        "prezzo_unitario": 43.97
+      }
+    ]
+  }
+]

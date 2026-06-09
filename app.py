@@ -22,6 +22,7 @@ from database import (
 from pdf_extractor import estrai_totale_pdf
 from drive_sync import drive_configurato
 from pdf_filler import PDF_TEMPLATES, compila_pdf, nome_file_consigliato
+from presets import preset_per_categoria, get_preset
 
 # ── Periodi predefiniti ────────────────────────────────────────────────────────
 
@@ -295,6 +296,7 @@ def dettaglio_pratica(pratica_id):
         tot_ausili=tot_ausili,
         margine=margine,
         moduli=moduli,
+        preset_categorie=preset_per_categoria(),
         soglia_ok=MARGINE_SOGLIA_OK,
         soglia_warn=MARGINE_SOGLIA_WARN,
     )
@@ -550,6 +552,29 @@ def aggiungi_riga(pratica_id):
                 f"VALUES ({_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH})",
                 (pratica_id, codice_iso, descrizione, qta, prezzo, ordine),
             )
+    return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) + "#ausili")
+
+
+@app.route("/pratica/<int:pratica_id>/preset", methods=["POST"])
+def applica_preset(pratica_id):
+    """Inserisce in blocco tutte le righe del preset selezionato."""
+    preset = get_preset(request.form.get("preset_id", ""))
+    if preset:
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                f"SELECT COALESCE(MAX(ordine), 0) AS o FROM righe_ausili WHERE pratica_id = {_PH}",
+                (pratica_id,),
+            )
+            ordine = cur.fetchone()["o"]
+            for r in preset.get("righe", []):
+                ordine += 1
+                cur.execute(
+                    f"INSERT INTO righe_ausili (pratica_id, codice_iso, descrizione, qta, prezzo_unitario, ordine) "
+                    f"VALUES ({_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH})",
+                    (pratica_id, r.get("codice_iso", ""), r.get("descrizione", ""),
+                     r.get("qta", 1), r.get("prezzo_unitario", 0), ordine),
+                )
     return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) + "#ausili")
 
 

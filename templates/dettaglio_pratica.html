@@ -214,11 +214,29 @@
 
     <!-- Righe ausili (LEA) -->
     <div class="card mt-4" id="ausili">
-      <div class="card-header bg-primary text-white py-3 d-flex align-items-center justify-content-between">
+      <div class="card-header bg-primary text-white py-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
         <span><i class="bi bi-list-check me-2"></i>Righe ausili (LEA)</span>
-        <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#formAggiungiRiga">
-          <i class="bi bi-plus-lg me-1"></i>Aggiungi riga
-        </button>
+        <div class="d-flex gap-2 flex-wrap">
+          <form method="post" action="{{ url_for('applica_preset', pratica_id=pratica.id) }}"
+                class="d-flex gap-1">
+            <select name="preset_id" class="form-select form-select-sm" style="max-width:280px" required>
+              <option value="" selected disabled>Inserisci set per categoria…</option>
+              {% for categoria, lista in preset_categorie.items() %}
+              <optgroup label="{{ categoria }}">
+                {% for p in lista %}
+                <option value="{{ p.id }}">{{ p.label }} ({{ p.righe|length }})</option>
+                {% endfor %}
+              </optgroup>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-sm btn-light text-nowrap" title="Inserisci il set di righe">
+              <i class="bi bi-box-arrow-in-down"></i>
+            </button>
+          </form>
+          <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#formAggiungiRiga">
+            <i class="bi bi-plus-lg me-1"></i>Riga singola
+          </button>
+        </div>
       </div>
 
       <div class="collapse" id="formAggiungiRiga">
