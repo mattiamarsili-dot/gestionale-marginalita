@@ -212,6 +212,89 @@
 
     </div>
 
+    <!-- Righe ausili (LEA) -->
+    <div class="card mt-4" id="ausili">
+      <div class="card-header bg-primary text-white py-3 d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-list-check me-2"></i>Righe ausili (LEA)</span>
+        <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#formAggiungiRiga">
+          <i class="bi bi-plus-lg me-1"></i>Aggiungi riga
+        </button>
+      </div>
+
+      <div class="collapse" id="formAggiungiRiga">
+        <div class="border-bottom px-3 py-3 bg-light">
+          <form method="post" action="{{ url_for('aggiungi_riga', pratica_id=pratica.id) }}" class="row g-2 align-items-end">
+            <div class="col-6 col-sm-2">
+              <label class="form-label form-label-sm mb-1">Cod. ISO</label>
+              <input type="text" name="codice_iso" class="form-control form-control-sm" placeholder="12.36.06.018">
+            </div>
+            <div class="col-12 col-sm-5">
+              <label class="form-label form-label-sm mb-1">Descrizione</label>
+              <input type="text" name="descrizione" class="form-control form-control-sm" placeholder="Descrizione ausilio">
+            </div>
+            <div class="col-3 col-sm-1">
+              <label class="form-label form-label-sm mb-1">Q.tà</label>
+              <input type="number" name="qta" step="1" min="0" value="1" class="form-control form-control-sm">
+            </div>
+            <div class="col-6 col-sm-2">
+              <label class="form-label form-label-sm mb-1">Prezzo unit. €</label>
+              <input type="number" name="prezzo_unitario" step="0.01" min="0" class="form-control form-control-sm" placeholder="0.00">
+            </div>
+            <div class="col-3 col-sm-2">
+              <button type="submit" class="btn btn-success btn-sm w-100"><i class="bi bi-check-lg"></i></button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card-body p-0">
+        {% if righe %}
+        <table class="table mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Cod. ISO</th>
+              <th>Descrizione</th>
+              <th class="text-center">Q.tà</th>
+              <th class="text-end">Prezzo unit.</th>
+              <th class="text-end">Totale</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in righe %}
+            <tr>
+              <td class="text-muted small">{{ r.codice_iso or '—' }}</td>
+              <td>{{ r.descrizione or '—' }}</td>
+              <td class="text-center">{{ (r.qta or 0) | int }}</td>
+              <td class="text-end">€ {{ "%.2f"|format(r.prezzo_unitario or 0) }}</td>
+              <td class="text-end fw-semibold">€ {{ "%.2f"|format((r.qta or 0) * (r.prezzo_unitario or 0)) }}</td>
+              <td class="text-end" style="width:40px">
+                <form method="post" action="{{ url_for('elimina_riga', riga_id=r.id) }}"
+                      onsubmit="return confirm('Rimuovere questa riga?')">
+                  <button type="submit" class="btn btn-link btn-sm p-0 text-danger" title="Rimuovi">
+                    <i class="bi bi-x-circle"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot class="table-light">
+            <tr>
+              <td colspan="4" class="text-end fw-bold text-muted small">IMPONIBILE AUSILI</td>
+              <td class="text-end fw-bold">€ {{ "%.2f"|format(tot_ausili) }}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+        {% else %}
+        <div class="text-center text-muted py-3 small">
+          Nessuna riga ausilio — usa <strong>Aggiungi riga</strong>. Servono per il preventivo e la prescrizione.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
     <!-- Moduli PDF -->
     <div class="card mt-4" id="moduli">
       <div class="card-header bg-dark text-white py-3 d-flex align-items-center justify-content-between">
@@ -234,9 +317,14 @@
               <input type="text" name="asl_destinataria" class="form-control form-control-sm"
                      value="{{ pratica.asl_destinataria or '' }}" placeholder="{{ cliente.asl if cliente else 'es. RM 2' }}">
             </div>
-            <div class="col-12 col-sm-4">
+            <div class="col-8 col-sm-3">
               <label class="form-label form-label-sm mb-1">Medico / struttura</label>
               <input type="text" name="medico_struttura" class="form-control form-control-sm" value="{{ pratica.medico_struttura or '' }}">
+            </div>
+            <div class="col-4 col-sm-1">
+              <label class="form-label form-label-sm mb-1">IVA %</label>
+              <input type="number" name="iva_percentuale" step="0.01" min="0" class="form-control form-control-sm"
+                     value="{{ pratica.iva_percentuale if pratica.iva_percentuale is not none else 4 }}">
             </div>
             <div class="col-12">
               <label class="form-label form-label-sm mb-1">Ausilio (oggetto richiesta)</label>

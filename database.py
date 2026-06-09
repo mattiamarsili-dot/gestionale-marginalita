@@ -92,6 +92,7 @@ _SQLITE_SCHEMA = """
         medico_struttura TEXT,
         diagnosi         TEXT,
         sign_terapeutico TEXT,
+        iva_percentuale  REAL NOT NULL DEFAULT 4,
         creato_il        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (cliente_id) REFERENCES clienti(id)
     );
@@ -106,8 +107,20 @@ _SQLITE_SCHEMA = """
         FOREIGN KEY (pratica_id) REFERENCES pratiche(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS righe_ausili (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        pratica_id      INTEGER NOT NULL,
+        codice_iso      TEXT,
+        descrizione     TEXT,
+        qta             REAL NOT NULL DEFAULT 1,
+        prezzo_unitario REAL NOT NULL DEFAULT 0,
+        ordine          INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (pratica_id) REFERENCES pratiche(id) ON DELETE CASCADE
+    );
+
     CREATE INDEX IF NOT EXISTS idx_pratiche_data      ON pratiche(data_pratica);
     CREATE INDEX IF NOT EXISTS idx_preventivi_pratica ON preventivi(pratica_id);
+    CREATE INDEX IF NOT EXISTS idx_righe_pratica      ON righe_ausili(pratica_id);
     CREATE INDEX IF NOT EXISTS idx_clienti_cognome    ON clienti(cognome);
     CREATE INDEX IF NOT EXISTS idx_clienti_cf         ON clienti(codice_fiscale);
 """
@@ -153,6 +166,7 @@ _POSTGRES_SCHEMA = """
         medico_struttura TEXT,
         diagnosi         TEXT,
         sign_terapeutico TEXT,
+        iva_percentuale  REAL NOT NULL DEFAULT 4,
         creato_il        TIMESTAMPTZ DEFAULT NOW()
     );
 
@@ -166,8 +180,20 @@ _POSTGRES_SCHEMA = """
         FOREIGN KEY (pratica_id) REFERENCES pratiche(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS righe_ausili (
+        id              SERIAL PRIMARY KEY,
+        pratica_id      INTEGER NOT NULL,
+        codice_iso      TEXT,
+        descrizione     TEXT,
+        qta             REAL NOT NULL DEFAULT 1,
+        prezzo_unitario REAL NOT NULL DEFAULT 0,
+        ordine          INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (pratica_id) REFERENCES pratiche(id) ON DELETE CASCADE
+    );
+
     CREATE INDEX IF NOT EXISTS idx_pratiche_data      ON pratiche(data_pratica);
     CREATE INDEX IF NOT EXISTS idx_preventivi_pratica ON preventivi(pratica_id);
+    CREATE INDEX IF NOT EXISTS idx_righe_pratica      ON righe_ausili(pratica_id);
     CREATE INDEX IF NOT EXISTS idx_clienti_cognome    ON clienti(cognome);
     CREATE INDEX IF NOT EXISTS idx_clienti_cf         ON clienti(codice_fiscale);
 """
@@ -210,6 +236,7 @@ def migrate_db():
             for col in [
                 "numero_pratica TEXT", "ausilio TEXT", "asl_destinataria TEXT",
                 "medico_struttura TEXT", "diagnosi TEXT", "sign_terapeutico TEXT",
+                "iva_percentuale REAL NOT NULL DEFAULT 4",
             ]:
                 cur.execute(f"ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS {col}")
         else:
@@ -226,6 +253,7 @@ def migrate_db():
                 "ALTER TABLE pratiche ADD COLUMN medico_struttura TEXT",
                 "ALTER TABLE pratiche ADD COLUMN diagnosi TEXT",
                 "ALTER TABLE pratiche ADD COLUMN sign_terapeutico TEXT",
+                "ALTER TABLE pratiche ADD COLUMN iva_percentuale REAL NOT NULL DEFAULT 4",
             ]:
                 try:
                     cur.execute(ddl)

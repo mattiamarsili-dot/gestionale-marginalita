@@ -269,11 +269,19 @@ def dettaglio_pratica(pratica_id):
             cur.execute(f"SELECT * FROM clienti WHERE id = {_PH}", (pratica["cliente_id"],))
             cliente = cur.fetchone()
 
+        cur.execute(
+            f"SELECT * FROM righe_ausili WHERE pratica_id = {_PH} ORDER BY ordine, id",
+            (pratica_id,),
+        )
+        righe = cur.fetchall()
+
     costo_totale = sum(p["importo"] for p in preventivi)
     margine = calcola_margine(
         pratica["importo_asl"], costo_totale, pratica["provvigione_pct"],
         pratica["importo_privato"] or 0
     )
+    # Totale imponibile righe ausili (per la sezione ausili / preventivo)
+    tot_ausili = sum((r["qta"] or 0) * (r["prezzo_unitario"] or 0) for r in righe)
     # Moduli PDF: ordinati, con etichetta e stato
     moduli = [
         {"id": tid, **meta} for tid, meta in PDF_TEMPLATES.items()
@@ -283,6 +291,8 @@ def dettaglio_pratica(pratica_id):
         pratica=pratica,
         cliente=cliente,
         preventivi=preventivi,
+        righe=righe,
+        tot_ausili=tot_ausili,
         margine=margine,
         moduli=moduli,
         soglia_ok=MARGINE_SOGLIA_OK,
@@ -513,12 +523,56 @@ def elimina_fornitore(preventivo_id):
     return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) if pratica_id else url_for("dashboard"))
 
 
+# ── Righe ausili (LEA) ────────────────────────────────────────────────────────
+
+@app.route("/pratica/<int:pratica_id>/riga/aggiungi", methods=["POST"])
+def aggiungi_riga(pratica_id):
+    codice_iso  = (request.form.get("codice_iso") or "").strip()
+    descrizione = (request.form.get("descrizione") or "").strip()
+    try:
+        qta = float(request.form.get("qta") or 1)
+    except ValueError:
+        qta = 1
+    try:
+        prezzo = float(request.form.get("prezzo_unitario") or 0)
+    except ValueError:
+        prezzo = 0
+    if codice_iso or descrizione:
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                f"SELECT COALESCE(MAX(ordine), 0) + 1 AS o FROM righe_ausili WHERE pratica_id = {_PH}",
+                (pratica_id,),
+            )
+            ordine = cur.fetchone()["o"]
+            cur.execute(
+                f"INSERT INTO righe_ausili (pratica_id, codice_iso, descrizione, qta, prezzo_unitario, ordine) "
+                f"VALUES ({_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH})",
+                (pratica_id, codice_iso, descrizione, qta, prezzo, ordine),
+            )
+    return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) + "#ausili")
+
+
+@app.route("/riga/<int:riga_id>/elimina", methods=["POST"])
+def elimina_riga(riga_id):
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT pratica_id FROM righe_ausili WHERE id = {_PH}", (riga_id,))
+        row = cur.fetchone()
+        pratica_id = row["pratica_id"] if row else None
+        cur.execute(f"DELETE FROM righe_ausili WHERE id = {_PH}", (riga_id,))
+    if pratica_id:
+        return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) + "#ausili")
+    return redirect(url_for("dashboard"))
+
+
 # ── Elimina pratica ───────────────────────────────────────────────────────────
 
 @app.route("/pratica/<int:pratica_id>/elimina", methods=["POST"])
 def elimina_pratica(pratica_id):
     with get_db() as conn:
         cur = conn.cursor()
+        cur.execute(f"DELETE FROM righe_ausili WHERE pratica_id = {_PH}", (pratica_id,))
         cur.execute(f"DELETE FROM preventivi WHERE pratica_id = {_PH}", (pratica_id,))
         cur.execute(f"DELETE FROM pratiche WHERE id = {_PH}", (pratica_id,))
     return redirect(url_for("dashboard"))
@@ -627,6 +681,7 @@ def api_config():
 
 # ── Dati per i moduli (campi clinici della pratica) ───────────────────────────
 
+# Campi testo dei moduli (iva_percentuale gestita a parte perché numerica)
 _PRATICA_MODULO_FIELDS = [
     "numero_pratica", "ausilio", "asl_destinataria", "medico_struttura",
     "diagnosi", "sign_terapeutico",
@@ -636,12 +691,16 @@ _PRATICA_MODULO_FIELDS = [
 @app.route("/pratica/<int:pratica_id>/dati-moduli", methods=["POST"])
 def aggiorna_dati_moduli(pratica_id):
     valori = [(request.form.get(c) or "").strip() for c in _PRATICA_MODULO_FIELDS]
+    try:
+        iva = float(request.form.get("iva_percentuale") or 4)
+    except ValueError:
+        iva = 4
     set_clause = ", ".join(f"{c} = {_PH}" for c in _PRATICA_MODULO_FIELDS)
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute(
-            f"UPDATE pratiche SET {set_clause} WHERE id = {_PH}",
-            tuple(valori) + (pratica_id,),
+            f"UPDATE pratiche SET {set_clause}, iva_percentuale = {_PH} WHERE id = {_PH}",
+            tuple(valori) + (iva, pratica_id),
         )
     return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) + "#moduli")
 
@@ -663,6 +722,11 @@ def genera_modulo(pratica_id, template_id):
         if pratica["cliente_id"]:
             cur.execute(f"SELECT * FROM clienti WHERE id = {_PH}", (pratica["cliente_id"],))
             cliente = cur.fetchone()
+        cur.execute(
+            f"SELECT * FROM righe_ausili WHERE pratica_id = {_PH} ORDER BY ordine, id",
+            (pratica_id,),
+        )
+        righe = [dict(r) for r in cur.fetchall()]
 
     pratica_d = dict(pratica)
     cliente_d = dict(cliente) if cliente else None
@@ -672,7 +736,7 @@ def genera_modulo(pratica_id, template_id):
         return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) + "#moduli")
 
     try:
-        pdf_bytes = compila_pdf(template_id, pratica_d, cliente_d)
+        pdf_bytes = compila_pdf(template_id, pratica_d, cliente_d, righe)
     except Exception as e:
         import sys, traceback
         print("ERRORE GENERAZIONE PDF:", e, file=sys.stderr)
