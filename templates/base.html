@@ -18,6 +18,9 @@
         <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
           <i class="bi bi-speedometer2 me-1"></i>Dashboard
         </a>
+        <a class="nav-link ms-2 {% if request.endpoint in ['clienti', 'cliente_nuovo', 'cliente_dettaglio', 'cliente_modifica'] %}active{% endif %}" href="{{ url_for('clienti') }}">
+          <i class="bi bi-people-fill me-1"></i>Clienti
+        </a>
         <a class="nav-link ms-2 {% if request.endpoint == 'fatturati' %}active{% endif %}" href="{{ url_for('fatturati') }}">
           <i class="bi bi-receipt me-1"></i>Fatturati
         </a>

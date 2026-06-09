@@ -29,8 +29,25 @@
             <div class="card-body">
               <div class="row g-3">
                 <div class="col-12 col-sm-6">
-                  <label class="form-label">Nome Paziente *</label>
-                  <input type="text" name="nome_paziente" class="form-control" placeholder="Es. Mario Rossi" required>
+                  <label class="form-label d-flex justify-content-between">
+                    <span>Cliente / Paziente *</span>
+                    <a href="{{ url_for('cliente_nuovo') }}" class="small text-decoration-none" target="_blank">
+                      <i class="bi bi-person-plus"></i> nuovo
+                    </a>
+                  </label>
+                  <div class="position-relative">
+                    <input type="text" name="nome_paziente" id="nome_paziente" autocomplete="off"
+                           class="form-control" placeholder="Cerca in anagrafica o digita un nome…"
+                           value="{% if cliente_sel %}{{ cliente_sel.cognome }}{% if cliente_sel.nome %} {{ cliente_sel.nome }}{% endif %}{% endif %}" required>
+                    <input type="hidden" name="cliente_id" id="cliente_id"
+                           value="{% if cliente_sel %}{{ cliente_sel.id }}{% endif %}">
+                    <div id="cliente-dropdown" class="list-group position-absolute w-100 shadow-sm d-none"
+                         style="z-index:1050; max-height:240px; overflow-y:auto;"></div>
+                  </div>
+                  <div id="cliente-collegato" class="form-text {% if not cliente_sel %}d-none{% endif %}">
+                    <i class="bi bi-link-45deg"></i> Collegato all'anagrafica
+                    <a href="#" id="scollega-cliente" class="text-muted ms-1">(scollega)</a>
+                  </div>
                 </div>
                 <div class="col-12 col-sm-6">
                   <label class="form-label">Data Pratica *</label>
@@ -438,6 +455,66 @@ document.getElementById('importo_asl').addEventListener('input', aggiornaMargine
 document.querySelectorAll('.prov-radio').forEach(r =>
   r.addEventListener('change', aggiornaMargineDebounced)
 );
+
+// ── Autocomplete cliente dall'anagrafica ─────────────────────────────────────
+(function () {
+  const input    = document.getElementById('nome_paziente');
+  const hidden   = document.getElementById('cliente_id');
+  const dropdown = document.getElementById('cliente-dropdown');
+  const collegato = document.getElementById('cliente-collegato');
+  let timer = null;
+
+  function nascondi() { dropdown.classList.add('d-none'); dropdown.innerHTML = ''; }
+
+  function mostraCollegamento(on) {
+    collegato.classList.toggle('d-none', !on);
+  }
+
+  async function cerca(q) {
+    try {
+      const res = await fetch('/api/clienti?q=' + encodeURIComponent(q));
+      const lista = await res.json();
+      if (!lista.length) { nascondi(); return; }
+      dropdown.innerHTML = '';
+      lista.forEach(c => {
+        const nome = c.cognome + (c.nome ? ' ' + c.nome : '');
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'list-group-item list-group-item-action py-2';
+        btn.innerHTML = `<span class="fw-semibold">${nome}</span>` +
+          (c.codice_fiscale ? ` <small class="text-muted ms-1">${c.codice_fiscale}</small>` : '');
+        btn.addEventListener('click', () => {
+          input.value = nome;
+          hidden.value = c.id;
+          mostraCollegamento(true);
+          nascondi();
+        });
+        dropdown.appendChild(btn);
+      });
+      dropdown.classList.remove('d-none');
+    } catch (_) { nascondi(); }
+  }
+
+  input.addEventListener('input', () => {
+    // Digitando manualmente si scollega l'eventuale cliente selezionato
+    if (hidden.value) { hidden.value = ''; mostraCollegamento(false); }
+    const q = input.value.trim();
+    clearTimeout(timer);
+    if (q.length < 2) { nascondi(); return; }
+    timer = setTimeout(() => cerca(q), 180);
+  });
+
+  document.getElementById('scollega-cliente').addEventListener('click', (e) => {
+    e.preventDefault();
+    hidden.value = '';
+    mostraCollegamento(false);
+    input.focus();
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!dropdown.contains(e.target) && e.target !== input) nascondi();
+  });
+})();
 
 // Pre-fill da redirect Drive (o riga vuota di default)
 (function () {

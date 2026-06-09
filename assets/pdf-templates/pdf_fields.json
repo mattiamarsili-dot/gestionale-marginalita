@@ -1,0 +1,2241 @@
+{
+  "Delega Generica.pdf": {
+    "file": "Delega Generica.pdf",
+    "pagine": 2,
+    "num_campi": 40,
+    "num_text": 40,
+    "campi": [
+      {
+        "nome": "Autocert_ausilio",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "autocert_asl",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "autocert_codice_fiscale",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "autocert_data",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "autocert_data_prescrizione",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "autocert_decorrenza_residenza_data",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "autocert_luogo_data",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "autocert_medico_struttura",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "autocert_nato_data",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "autocert_nato_luogo",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "autocert_numero_preventivo",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "autocert_recapiti",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "autocert_residente_citta",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "autocert_residente_via",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "autocert_sottoscritto",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm3_data_consenso",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm3_data_firma",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm3_dichiarante_nato_data",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm3_dichiarante_nato_luogo",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm3_dichiarante_nome",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm3_dichiarante_provincia",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm3_dichiarante_residente_comune",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm3_dichiarante_residente_via",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm3_documento_data_rilascio",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm3_documento_tipo_numero",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm3_oggetto_richiesta",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "feild10_1",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "feild11_1",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "feild12_1",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "feild13_1",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "feild14_1",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "feild1_1",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "feild2_1",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "feild3_1",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "feild4_1",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "feild5_1",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "feild6_1",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "feild7_1",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "feild8_1",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "feild9_1",
+        "tipo": "text",
+        "valore_default": ""
+      }
+    ]
+  },
+  "Delega RM2.pdf": {
+    "file": "Delega RM2.pdf",
+    "pagine": 2,
+    "num_campi": 18,
+    "num_text": 18,
+    "campi": [
+      {
+        "nome": "delega_rm2_data_firma",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm2_delegante_Medico_strttura",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm2_delegante_ausilio",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm2_delegante_cf",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm2_delegante_cognome_nome",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm2_delegante_data_prescrizione",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm2_delegante_documento_rilascio_data",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm2_delegante_documento_rilascio_luogo",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm2_delegante_documento_tipo_numero",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm2_delegante_nato_data",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm2_delegante_nato_luogo",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm2_delegante_residente_citta",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm2_delegante_residente_via",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm2_delegante_residenza_data",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm2_delegante_telefono_email",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm2_delegato_documento_rilascio_data",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm2_delegato_documento_rilascio_luogo",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm2_delegato_documento_tipo_numero",
+        "tipo": "text",
+        "valore_default": ""
+      }
+    ]
+  },
+  "Prescrizione Gen.pdf": {
+    "file": "Prescrizione Gen.pdf",
+    "pagine": 2,
+    "num_campi": 61,
+    "num_text": 61,
+    "campi": [
+      {
+        "nome": "C.F",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO.0.0.0.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO.1.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO.10.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO.11.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO.12.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO.13.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO.14.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO.2.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO.3.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO.4.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO.5.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO.6.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO.7.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO.8.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO.9.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cognome",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Comune Res",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Data Nascita",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.0.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.1.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.10.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.11.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.12.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.13.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.14.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.2.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.3.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.4.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.5.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.6.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.7.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.8.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.9.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Luogo Nasc",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Nome",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Patologia",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Provinc",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.0.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.1.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.10.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.11.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.12.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.13.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.14.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.2.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.3.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.4.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.5.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.6.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.7.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.8.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.9.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Resid. via",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Signf. Terapeutico.0.0",
+        "tipo": "text",
+        "valore_default": "Il presidio è prescritto in relazione alla grave compromissione motoria che impedisce la deambulazione autonoma"
+      },
+      {
+        "nome": "Signf. Terapeutico.1.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Signf. Terapeutico.2.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Signf. Terapeutico.3.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Signf. Terapeutico.4.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Signf. Terapeutico.5.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Telefono",
+        "tipo": "text",
+        "valore_default": ""
+      }
+    ]
+  },
+  "Prescrizione HBG.pdf": {
+    "file": "Prescrizione HBG.pdf",
+    "pagine": 1,
+    "num_campi": 56,
+    "num_text": 56,
+    "campi": [
+      {
+        "nome": "Text1prescrizione_hbg_riga01_iso  .0.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Text1prescrizione_hbg_riga01_iso  .1.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Text1prescrizione_hbg_riga01_iso  .10.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Text1prescrizione_hbg_riga01_iso  .11.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Text1prescrizione_hbg_riga01_iso  .12.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Text1prescrizione_hbg_riga01_iso  .13.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Text1prescrizione_hbg_riga01_iso  .14.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Text1prescrizione_hbg_riga01_iso  .15.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Text1prescrizione_hbg_riga01_iso  .2.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Text1prescrizione_hbg_riga01_iso  .3.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Text1prescrizione_hbg_riga01_iso  .4.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Text1prescrizione_hbg_riga01_iso  .5.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Text1prescrizione_hbg_riga01_iso  .6.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Text1prescrizione_hbg_riga01_iso  .7.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Text1prescrizione_hbg_riga01_iso  .8.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Text1prescrizione_hbg_riga01_iso  .9.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_cognome_nome",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_nato_data",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_nato_luogo",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_provincia",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_provincia_CAP",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_residente_citta",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_residente_via",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_riga01_qta.0.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_riga01_qta.1.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_riga01_qta.10.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_riga01_qta.11.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_riga01_qta.12.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_riga01_qta.13.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_riga01_qta.14.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_riga01_qta.15.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_riga01_qta.2.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_riga01_qta.3.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_riga01_qta.4.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_riga01_qta.5.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_riga01_qta.6.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_riga01_qta.7.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_riga01_qta.8.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_riga01_qta.9.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_sign_01.0.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_sign_01.1.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_sign_01.10.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_sign_01.11.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_sign_01.12.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_sign_01.13.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_sign_01.14.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_sign_01.15.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_sign_01.2.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_sign_01.3.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_sign_01.4.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_sign_01.5.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_sign_01.6.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_sign_01.7.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_sign_01.8.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_sign_01.9.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "prescrizione_hbg_telefono",
+        "tipo": "text",
+        "valore_default": ""
+      }
+    ]
+  },
+  "PrescrizioneSanta lucia.pdf": {
+    "file": "PrescrizioneSanta lucia.pdf",
+    "pagine": 2,
+    "num_campi": 51,
+    "num_text": 51,
+    "campi": [
+      {
+        "nome": "Cod. ISO 0.0.0.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO 0.0.1.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO 0.0.10.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO 0.0.11.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO 0.0.2.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO 0.0.3.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO 0.0.4.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO 0.0.5.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO 0.0.6.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO 0.0.7.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO 0.0.8.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cod. ISO 0.0.9.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.0.0.0.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.0.0.1.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.0.0.10.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.0.0.11.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.0.0.2.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.0.0.3.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.0.0.4.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.0.0.5.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.0.0.6.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.0.0.7.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.0.0.8.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione LEA.0.0.9.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q_tà.0.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q_tà.1.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q_tà.10.0.0.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q_tà.11.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q_tà.2.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q_tà.3.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q_tà.4.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q_tà.5.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q_tà.6.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q_tà.7.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q_tà.8.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q_tà.9.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Sign. Terapeutico.0.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Sign. Terapeutico.0.1",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Sign. Terapeutico.0.2",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Sign. Terapeutico.0.3",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Sign. Terapeutico.0.4",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Sign. Terapeutico.0.5",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Text1",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "field0_1",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "field1_1",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "field2_1",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "field3_1",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "field4_1",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "field5_1",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "field6_1",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "field7_1",
+        "tipo": "text",
+        "valore_default": ""
+      }
+    ]
+  },
+  "Preventivo.pdf": {
+    "file": "Preventivo.pdf",
+    "pagine": 1,
+    "num_campi": 93,
+    "num_text": 93,
+    "campi": [
+      {
+        "nome": "ASL appart",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cellulare",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Centro",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Città residenziali",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Codici ISO.0.0.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Codici ISO.0.1.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Codici ISO.0.10.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Codici ISO.0.11.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Codici ISO.0.12.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Codici ISO.0.13.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Codici ISO.0.14.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Codici ISO.0.15.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Codici ISO.0.2.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Codici ISO.0.3.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Codici ISO.0.4.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Codici ISO.0.5.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Codici ISO.0.6.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Codici ISO.0.7.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Codici ISO.0.8.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Codici ISO.0.9.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Cognome nome",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Data",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Data Nascita",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione.0.0.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione.0.1.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione.0.10.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione.0.11.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione.0.12.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione.0.13.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione.0.14.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione.0.15.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione.0.2.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione.0.3.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione.0.4.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione.0.5.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione.0.6.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione.0.7.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione.0.8.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Descrizione.0.9.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Ind. Residenza",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Iva",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Luogo Nascita",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "N. Preventivo",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Tot.0.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Tot.1.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Tot.10.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Tot.11.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Tot.12.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Tot.13.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Tot.14.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Tot.15.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Tot.2.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Tot.3.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Tot.4.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Tot.5.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Tot.6.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Tot.7.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Tot.8.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Tot.9.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Uni.0.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Uni.1.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Uni.10.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Uni.11.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Uni.12.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Uni.13.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Uni.14.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Uni.15.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Uni.2.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Uni.3.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Uni.4.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Uni.5.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Uni.6.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Uni.7.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Uni.8.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo Uni.9.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.0.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.1.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.10.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.11.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.12.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.13.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.14.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.15.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.2.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.3.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.4.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.5.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.6.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.7.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.8.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Q.tà.9.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Tot. Imponib",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Tot. Lordo",
+        "tipo": "text",
+        "valore_default": ""
+      }
+    ]
+  },
+  "autocert-asl-rm3.pdf": {
+    "file": "autocert-asl-rm3.pdf",
+    "pagine": 2,
+    "num_campi": 23,
+    "num_text": 23,
+    "campi": [
+      {
+        "nome": "autocert_asl",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "autocert_codice_fiscale",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "autocert_data_prescrizione",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "autocert_decorrenza_residenza_data",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "autocert_luogo_data",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "autocert_medico_struttura",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "autocert_nato_data",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "autocert_nato_luogo",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "autocert_recapiti",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "autocert_residente_citta",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "autocert_residente_via",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "autocert_sottoscritto",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm3_data_consenso",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm3_data_firma",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm3_dichiarante_nato_data",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm3_dichiarante_nato_luogo",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm3_dichiarante_nome",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm3_dichiarante_provincia",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm3_dichiarante_residente_comune",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm3_dichiarante_residente_via",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm3_documento_data_rilascio",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm3_documento_tipo_numero",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "delega_rm3_oggetto_richiesta",
+        "tipo": "text",
+        "valore_default": ""
+      }
+    ]
+  },
+  "preventivo-sapio-v1.pdf": {
+    "file": "preventivo-sapio-v1.pdf",
+    "pagine": 1,
+    "num_campi": 93,
+    "num_text": 93,
+    "campi": [
+      {
+        "nome": "preventivo_asl",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_assistito",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_data",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_iva",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_nato_data",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_nato_luogo",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_numero",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_ref_struttura",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_residente_citta",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_residente_via",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga01_descrizione.0.0",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga01_iso",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga01_prezzo_totale",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga01_prezzo_unitario",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga01_qta",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga02_descrizione",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga02_iso",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga02_prezzo_totale",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga02_prezzo_unitario",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga02_qta",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga03_descrizione",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga03_iso",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga03_prezzo_totale",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga03_prezzo_unitario",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga03_qta",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga04_descrizione",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga04_iso",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga04_prezzo_totale",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga04_prezzo_unitario",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga04_qta",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga05_descrizione",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga05_iso",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga05_prezzo_totale",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga05_prezzo_unitario",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga05_qta",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga06_descrizione",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga06_iso",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga06_prezzo_totale",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga06_prezzo_unitario",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga06_qta",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga07_descrizione",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga07_iso",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga07_prezzo_totale",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga07_prezzo_unitario",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga07_qta",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga08_descrizione",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga08_iso",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga08_prezzo_totale",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga08_prezzo_unitario",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga08_qta",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga09_descrizione",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga09_iso",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga09_prezzo_totale",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga09_prezzo_unitario",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga09_qta",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga10_descrizione",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga10_iso",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga10_prezzo_totale",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga10_prezzo_unitario",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga10_qta",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga11_descrizione",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga11_iso",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga11_prezzo_totale",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga11_prezzo_unitario",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga11_qta",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga12_descrizione",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga12_iso",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga12_prezzo_totale",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga12_prezzo_unitario",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga12_qta",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga13_descrizione",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga13_iso",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga13_prezzo_totale",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga13_prezzo_unitario",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga13_qta",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga14_descrizione",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga14_iso",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga14_prezzo_totale",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga14_prezzo_unitario",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga14_qta",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga15_descrizione",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga15_iso",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga15_prezzo_totale",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga15_prezzo_unitario",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga15_qta",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga16_descrizione",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga16_iso",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga16_prezzo_totale",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga16_prezzo_unitario",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_riga16_qta",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_telefono",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_totale_imponibile",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "preventivo_totale_lordo",
+        "tipo": "text",
+        "valore_default": ""
+      }
+    ]
+  }
+}

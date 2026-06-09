@@ -56,9 +56,39 @@
         </div>
 
         <div class="card">
-          <div class="card-header bg-primary text-white py-3">
-            <i class="bi bi-truck me-2"></i>Preventivi Fornitori
+          <div class="card-header bg-primary text-white py-3 d-flex align-items-center justify-content-between">
+            <span><i class="bi bi-truck me-2"></i>Costi Fornitori</span>
+            <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#formAggiungiFornitore" aria-expanded="false">
+              <i class="bi bi-plus-lg me-1"></i>Aggiungi
+            </button>
           </div>
+
+          <!-- form aggiunta rapida fornitore -->
+          <div class="collapse" id="formAggiungiFornitore">
+            <div class="border-bottom px-3 py-3 bg-light">
+              <form method="post" action="{{ url_for('aggiungi_fornitore', pratica_id=pratica.id) }}"
+                    class="row g-2 align-items-end">
+                <input type="hidden" name="torna" value="{{ request.url }}">
+                <div class="col-7">
+                  <label class="form-label form-label-sm mb-1 fw-semibold">Fornitore</label>
+                  <input type="text" name="nome_fornitore" class="form-control form-control-sm"
+                         placeholder="es. Medimec, Permobil…" required>
+                </div>
+                <div class="col-3">
+                  <label class="form-label form-label-sm mb-1 fw-semibold">Importo €</label>
+                  <input type="number" name="importo" step="0.01" min="0"
+                         class="form-control form-control-sm" placeholder="0.00" required>
+                </div>
+                <div class="col-2">
+                  <button type="submit" class="btn btn-success btn-sm w-100">
+                    <i class="bi bi-check-lg"></i>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
           <div class="card-body p-0">
             {% if preventivi %}
             <table class="table mb-0">
@@ -66,6 +96,7 @@
                 <tr>
                   <th>Fornitore</th>
                   <th class="text-end">Importo (netto IVA)</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -73,6 +104,15 @@
                 <tr>
                   <td>{{ pv.nome_fornitore }}</td>
                   <td class="text-end fw-semibold">€ {{ "%.2f"|format(pv.importo) }}</td>
+                  <td class="text-end" style="width:40px">
+                    <form method="post" action="{{ url_for('elimina_fornitore', preventivo_id=pv.id) }}"
+                          onsubmit="return confirm('Rimuovere {{ pv.nome_fornitore }}?')">
+                      <input type="hidden" name="torna" value="{{ request.url }}">
+                      <button type="submit" class="btn btn-link btn-sm p-0 text-danger" title="Rimuovi">
+                        <i class="bi bi-x-circle"></i>
+                      </button>
+                    </form>
+                  </td>
                 </tr>
                 {% endfor %}
               </tbody>
@@ -80,11 +120,14 @@
                 <tr>
                   <td class="fw-bold text-muted small">TOTALE COSTO</td>
                   <td class="text-end fw-bold">€ {{ "%.2f"|format(margine.costo) }}</td>
+                  <td></td>
                 </tr>
               </tfoot>
             </table>
             {% else %}
-            <div class="text-center text-muted py-4">Nessun preventivo registrato</div>
+            <div class="text-center text-muted py-3 small">
+              Nessun costo registrato — usa <strong>Aggiungi</strong> per inserire i fornitori.
+            </div>
             {% endif %}
           </div>
         </div>

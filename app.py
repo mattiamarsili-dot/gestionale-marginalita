@@ -16,7 +16,7 @@ from config import (
     MARGINE_SOGLIA_OK, MARGINE_SOGLIA_WARN,
 )
 from database import (
-    init_db, migrate_db, get_db, calcola_margine, provvigione_corrente,
+    init_db, migrate_db, backfill_clienti, get_db, calcola_margine, provvigione_corrente,
     _PH, _DATE_FILTER, _MONTH_FORMAT, _FATTURATA_TRUE, last_inserted_id,
 )
 from pdf_extractor import estrai_totale_pdf
@@ -64,6 +64,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 try:
     init_db()
     migrate_db()
+    backfill_clienti()
 except Exception as _db_err:
     import sys, traceback
     print("ERRORE AVVIO DB:", _db_err, file=sys.stderr)
@@ -154,7 +155,7 @@ def dashboard():
     righe = []
 
     for pr in pratiche:
-        m_dati = calcola_margine(pr["importo_asl"], pr["costo_totale"], pr["provvigione_pct"], pr.get("importo_privato") or 0)
+        m_dati = calcola_margine(pr["importo_asl"], pr["costo_totale"], pr["provvigione_pct"], pr["importo_privato"] or 0)
         stats["num_pratiche"]        += 1
         stats["totale_ricavi"]       += m_dati["ricavi_totali"]
         stats["mol_totale"]          += m_dati["mol"]
@@ -194,6 +195,7 @@ def dashboard():
 def nuova_pratica():
     if request.method == "POST":
         nome_paziente = request.form["nome_paziente"].strip()
+        cliente_id    = request.form.get("cliente_id") or None
         data_pratica  = request.form["data_pratica"]
         importo_asl     = float(request.form["importo_asl"])
         importo_privato = float(request.form.get("importo_privato") or 0)
@@ -208,9 +210,9 @@ def nuova_pratica():
         with get_db() as conn:
             cur = conn.cursor()
             cur.execute(
-                f"INSERT INTO pratiche (nome_paziente, data_pratica, importo_asl, importo_privato, provvigione_pct, note) "
-                f"VALUES ({_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH})",
-                (nome_paziente, data_pratica, importo_asl, importo_privato, provvigione_pct, note),
+                f"INSERT INTO pratiche (nome_paziente, cliente_id, data_pratica, importo_asl, importo_privato, provvigione_pct, note) "
+                f"VALUES ({_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH})",
+                (nome_paziente, cliente_id, data_pratica, importo_asl, importo_privato, provvigione_pct, note),
             )
             pratica_id = last_inserted_id(cur)
 
@@ -229,12 +231,22 @@ def nuova_pratica():
 
         return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id))
 
+    # Cliente preselezionato (arrivo dalla scheda cliente)
+    cliente_sel = None
+    cliente_id = request.args.get("cliente_id")
     with get_db() as conn:
         _, prov_default = provvigione_corrente(conn)
+        if cliente_id:
+            cur = conn.cursor()
+            cur.execute(
+                f"SELECT id, cognome, nome FROM clienti WHERE id = {_PH}", (cliente_id,)
+            )
+            cliente_sel = cur.fetchone()
     return render_template(
         "nuova_pratica.html",
         oggi=datetime.now().strftime("%Y-%m-%d"),
         prov_default=prov_default,
+        cliente_sel=cliente_sel,
     )
 
 
@@ -254,7 +266,7 @@ def dettaglio_pratica(pratica_id):
     costo_totale = sum(p["importo"] for p in preventivi)
     margine = calcola_margine(
         pratica["importo_asl"], costo_totale, pratica["provvigione_pct"],
-        pratica.get("importo_privato") or 0
+        pratica["importo_privato"] or 0
     )
     return render_template(
         "dettaglio_pratica.html",
@@ -435,7 +447,7 @@ def fatturati():
 
     righe = []
     for pr in pratiche_raw:
-        m_dati = calcola_margine(pr["importo_asl"], pr["costo_totale"], pr["provvigione_pct"])
+        m_dati = calcola_margine(pr["importo_asl"], pr["costo_totale"], pr["provvigione_pct"], pr["importo_privato"] or 0)
         righe.append({**dict(pr), **m_dati})
 
     # Raggruppa per mese di fatturazione
@@ -456,6 +468,37 @@ def fatturati():
         soglia_ok=MARGINE_SOGLIA_OK,
         soglia_warn=MARGINE_SOGLIA_WARN,
     )
+
+
+# ── Aggiungi / rimuovi fornitore singolo ─────────────────────────────────────
+
+@app.route("/pratica/<int:pratica_id>/fornitore/aggiungi", methods=["POST"])
+def aggiungi_fornitore(pratica_id):
+    nome_f  = request.form.get("nome_fornitore", "").strip()
+    importo = request.form.get("importo", "").strip()
+    torna   = request.form.get("torna", url_for("dettaglio_pratica", pratica_id=pratica_id))
+    if nome_f and importo:
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                f"INSERT INTO preventivi (pratica_id, nome_fornitore, importo) VALUES ({_PH},{_PH},{_PH})",
+                (pratica_id, nome_f, float(importo)),
+            )
+    return redirect(torna)
+
+
+@app.route("/preventivo/<int:preventivo_id>/elimina", methods=["POST"])
+def elimina_fornitore(preventivo_id):
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT pratica_id FROM preventivi WHERE id={_PH}", (preventivo_id,))
+        row = cur.fetchone()
+        pratica_id = row["pratica_id"] if row else None
+        cur.execute(f"DELETE FROM preventivi WHERE id={_PH}", (preventivo_id,))
+    torna = request.form.get("torna")
+    if torna:
+        return redirect(torna)
+    return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) if pratica_id else url_for("dashboard"))
 
 
 # ── Elimina pratica ───────────────────────────────────────────────────────────
@@ -568,6 +611,162 @@ def api_config():
         "margine_soglia_ok":       MARGINE_SOGLIA_OK,
         "margine_soglia_warn":     MARGINE_SOGLIA_WARN,
     })
+
+
+# ── Anagrafica clienti ────────────────────────────────────────────────────────
+
+# Campi del modello cliente scrivibili da form (esclusi id e creato_il).
+CLIENTE_FIELDS = [
+    "cognome", "nome", "codice_fiscale", "data_nascita", "luogo_nascita",
+    "provincia", "residenza_via", "residenza_civico", "residenza_citta",
+    "residenza_cap", "telefono", "email", "asl", "medico_curante",
+    "decorrenza_residenza", "documento_tipo_numero", "documento_data_rilascio",
+    "note",
+]
+# Campi data: stringa vuota → NULL (SQLite/Postgres non accettano '' su DATE)
+_CLIENTE_DATE_FIELDS = {"data_nascita", "decorrenza_residenza", "documento_data_rilascio"}
+
+
+def _leggi_cliente_dal_form(form) -> dict:
+    """Estrae i campi cliente dal form, normalizzando vuoti e date."""
+    dati = {}
+    for campo in CLIENTE_FIELDS:
+        val = (form.get(campo) or "").strip()
+        if campo in _CLIENTE_DATE_FIELDS and not val:
+            val = None
+        dati[campo] = val
+    return dati
+
+
+@app.route("/clienti")
+def clienti():
+    q = (request.args.get("q") or "").strip()
+    with get_db() as conn:
+        cur = conn.cursor()
+        if q:
+            like = f"%{q}%"
+            cur.execute(
+                f"""SELECT c.*, COUNT(p.id) AS num_pratiche
+                    FROM clienti c
+                    LEFT JOIN pratiche p ON p.cliente_id = c.id
+                    WHERE c.cognome LIKE {_PH} OR c.nome LIKE {_PH}
+                       OR c.codice_fiscale LIKE {_PH}
+                    GROUP BY c.id
+                    ORDER BY c.cognome, c.nome""",
+                (like, like, like),
+            )
+        else:
+            cur.execute(
+                """SELECT c.*, COUNT(p.id) AS num_pratiche
+                   FROM clienti c
+                   LEFT JOIN pratiche p ON p.cliente_id = c.id
+                   GROUP BY c.id
+                   ORDER BY c.cognome, c.nome"""
+            )
+        elenco = cur.fetchall()
+    return render_template("clienti.html", clienti=elenco, q=q)
+
+
+@app.route("/cliente/nuovo", methods=["GET", "POST"])
+def cliente_nuovo():
+    if request.method == "POST":
+        dati = _leggi_cliente_dal_form(request.form)
+        if not dati["cognome"]:
+            return render_template("cliente_form.html", cliente=dati, errore="Il cognome è obbligatorio.", modifica=False)
+        cols = ", ".join(CLIENTE_FIELDS)
+        ph = ", ".join([_PH] * len(CLIENTE_FIELDS))
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                f"INSERT INTO clienti ({cols}) VALUES ({ph})",
+                tuple(dati[c] for c in CLIENTE_FIELDS),
+            )
+            cliente_id = last_inserted_id(cur)
+        return redirect(url_for("cliente_dettaglio", cliente_id=cliente_id))
+    return render_template("cliente_form.html", cliente={}, errore=None, modifica=False)
+
+
+@app.route("/cliente/<int:cliente_id>")
+def cliente_dettaglio(cliente_id):
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT * FROM clienti WHERE id = {_PH}", (cliente_id,))
+        cliente = cur.fetchone()
+        if not cliente:
+            return "Cliente non trovato", 404
+        cur.execute(
+            f"""SELECT p.*, COALESCE(SUM(pr.importo), 0) AS costo_totale
+                FROM pratiche p
+                LEFT JOIN preventivi pr ON pr.pratica_id = p.id
+                WHERE p.cliente_id = {_PH}
+                GROUP BY p.id
+                ORDER BY p.data_pratica DESC""",
+            (cliente_id,),
+        )
+        pratiche = cur.fetchall()
+    return render_template("cliente_dettaglio.html", cliente=cliente, pratiche=pratiche)
+
+
+@app.route("/cliente/<int:cliente_id>/modifica", methods=["GET", "POST"])
+def cliente_modifica(cliente_id):
+    if request.method == "POST":
+        dati = _leggi_cliente_dal_form(request.form)
+        if not dati["cognome"]:
+            dati["id"] = cliente_id
+            return render_template("cliente_form.html", cliente=dati, errore="Il cognome è obbligatorio.", modifica=True)
+        set_clause = ", ".join(f"{c} = {_PH}" for c in CLIENTE_FIELDS)
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                f"UPDATE clienti SET {set_clause} WHERE id = {_PH}",
+                tuple(dati[c] for c in CLIENTE_FIELDS) + (cliente_id,),
+            )
+        return redirect(url_for("cliente_dettaglio", cliente_id=cliente_id))
+
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT * FROM clienti WHERE id = {_PH}", (cliente_id,))
+        cliente = cur.fetchone()
+        if not cliente:
+            return "Cliente non trovato", 404
+    return render_template("cliente_form.html", cliente=cliente, errore=None, modifica=True)
+
+
+@app.route("/cliente/<int:cliente_id>/elimina", methods=["POST"])
+def cliente_elimina(cliente_id):
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT COUNT(*) AS n FROM pratiche WHERE cliente_id = {_PH}", (cliente_id,))
+        n = cur.fetchone()["n"]
+        if n > 0:
+            # Non eliminare un cliente con pratiche collegate: si perderebbe il legame.
+            return redirect(url_for("cliente_dettaglio", cliente_id=cliente_id))
+        cur.execute(f"DELETE FROM clienti WHERE id = {_PH}", (cliente_id,))
+    return redirect(url_for("clienti"))
+
+
+# ── API: ricerca clienti (per selettore in nuova pratica) ─────────────────────
+
+@app.route("/api/clienti")
+def api_clienti():
+    q = (request.args.get("q") or "").strip()
+    with get_db() as conn:
+        cur = conn.cursor()
+        if q:
+            like = f"%{q}%"
+            cur.execute(
+                f"""SELECT id, cognome, nome, codice_fiscale FROM clienti
+                    WHERE cognome LIKE {_PH} OR nome LIKE {_PH} OR codice_fiscale LIKE {_PH}
+                    ORDER BY cognome, nome LIMIT 20""",
+                (like, like, like),
+            )
+        else:
+            cur.execute(
+                "SELECT id, cognome, nome, codice_fiscale FROM clienti "
+                "ORDER BY cognome, nome LIMIT 20"
+            )
+        risultati = [dict(r) for r in cur.fetchall()]
+    return jsonify(risultati)
 
 
 # ── Avvio ─────────────────────────────────────────────────────────────────────
