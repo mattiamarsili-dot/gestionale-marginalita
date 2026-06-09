@@ -22,7 +22,10 @@ from database import (
 from pdf_extractor import estrai_totale_pdf
 from drive_sync import drive_configurato
 from pdf_filler import PDF_TEMPLATES, compila_pdf, nome_file_consigliato
-from presets import preset_per_categoria, get_preset
+from presets import (
+    seed_presets, preset_per_categoria, get_preset, lista_preset,
+    crea_preset, aggiorna_preset, elimina_preset, categorie_note,
+)
 
 # ── Periodi predefiniti ────────────────────────────────────────────────────────
 
@@ -67,6 +70,7 @@ try:
     init_db()
     migrate_db()
     backfill_clienti()
+    seed_presets()
 except Exception as _db_err:
     import sys, traceback
     print("ERRORE AVVIO DB:", _db_err, file=sys.stderr)
@@ -774,6 +778,82 @@ def genera_modulo(pratica_id, template_id):
         mimetype="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# ── Gestione preset ausili ────────────────────────────────────────────────────
+
+def _leggi_righe_preset(form) -> list:
+    """Estrae le righe dal form del preset (array paralleli)."""
+    cods   = form.getlist("codice_iso[]")
+    descs  = form.getlist("descrizione[]")
+    qtas   = form.getlist("qta[]")
+    prezzi = form.getlist("prezzo_unitario[]")
+    n = max(len(cods), len(descs), len(qtas), len(prezzi))
+    righe = []
+    for i in range(n):
+        def g(lst):
+            return lst[i] if i < len(lst) else ""
+        try:
+            qta = float(g(qtas)) if g(qtas) else 1
+        except ValueError:
+            qta = 1
+        try:
+            prezzo = float(g(prezzi)) if g(prezzi) else 0
+        except ValueError:
+            prezzo = 0
+        righe.append({
+            "codice_iso": g(cods).strip(),
+            "descrizione": g(descs).strip(),
+            "qta": qta,
+            "prezzo_unitario": prezzo,
+        })
+    return righe
+
+
+@app.route("/presets")
+def presets():
+    return render_template("presets.html", categorie=preset_per_categoria())
+
+
+@app.route("/preset/nuovo", methods=["GET", "POST"])
+def preset_nuovo():
+    if request.method == "POST":
+        label = (request.form.get("label") or "").strip()
+        categoria = (request.form.get("categoria") or "").strip()
+        righe = _leggi_righe_preset(request.form)
+        if not label:
+            return render_template("preset_form.html", preset={"righe": righe, "categoria": categoria},
+                                   categorie_note=categorie_note(), errore="Il nome del set è obbligatorio.", modifica=False)
+        pid = crea_preset(label, categoria, righe)
+        return redirect(url_for("presets") + f"#preset-{pid}")
+    return render_template("preset_form.html", preset={"righe": []},
+                           categorie_note=categorie_note(), errore=None, modifica=False)
+
+
+@app.route("/preset/<int:preset_id>/modifica", methods=["GET", "POST"])
+def preset_modifica(preset_id):
+    if request.method == "POST":
+        label = (request.form.get("label") or "").strip()
+        categoria = (request.form.get("categoria") or "").strip()
+        righe = _leggi_righe_preset(request.form)
+        if not label:
+            preset = {"id": preset_id, "label": label, "categoria": categoria, "righe": righe}
+            return render_template("preset_form.html", preset=preset,
+                                   categorie_note=categorie_note(), errore="Il nome del set è obbligatorio.", modifica=True)
+        aggiorna_preset(preset_id, label, categoria, righe)
+        return redirect(url_for("presets") + f"#preset-{preset_id}")
+
+    preset = get_preset(preset_id)
+    if not preset:
+        return "Preset non trovato", 404
+    return render_template("preset_form.html", preset=preset,
+                           categorie_note=categorie_note(), errore=None, modifica=True)
+
+
+@app.route("/preset/<int:preset_id>/elimina", methods=["POST"])
+def preset_elimina(preset_id):
+    elimina_preset(preset_id)
+    return redirect(url_for("presets"))
 
 
 # ── Anagrafica clienti ────────────────────────────────────────────────────────

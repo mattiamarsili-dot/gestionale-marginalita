@@ -118,9 +118,27 @@ _SQLITE_SCHEMA = """
         FOREIGN KEY (pratica_id) REFERENCES pratiche(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS preset_ausili (
+        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+        label     TEXT NOT NULL,
+        categoria TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS preset_righe (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        preset_id       INTEGER NOT NULL,
+        codice_iso      TEXT,
+        descrizione     TEXT,
+        qta             REAL NOT NULL DEFAULT 1,
+        prezzo_unitario REAL NOT NULL DEFAULT 0,
+        ordine          INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (preset_id) REFERENCES preset_ausili(id) ON DELETE CASCADE
+    );
+
     CREATE INDEX IF NOT EXISTS idx_pratiche_data      ON pratiche(data_pratica);
     CREATE INDEX IF NOT EXISTS idx_preventivi_pratica ON preventivi(pratica_id);
     CREATE INDEX IF NOT EXISTS idx_righe_pratica      ON righe_ausili(pratica_id);
+    CREATE INDEX IF NOT EXISTS idx_preset_righe       ON preset_righe(preset_id);
     CREATE INDEX IF NOT EXISTS idx_clienti_cognome    ON clienti(cognome);
     CREATE INDEX IF NOT EXISTS idx_clienti_cf         ON clienti(codice_fiscale);
 """
@@ -191,9 +209,27 @@ _POSTGRES_SCHEMA = """
         FOREIGN KEY (pratica_id) REFERENCES pratiche(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS preset_ausili (
+        id        SERIAL PRIMARY KEY,
+        label     TEXT NOT NULL,
+        categoria TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS preset_righe (
+        id              SERIAL PRIMARY KEY,
+        preset_id       INTEGER NOT NULL,
+        codice_iso      TEXT,
+        descrizione     TEXT,
+        qta             REAL NOT NULL DEFAULT 1,
+        prezzo_unitario REAL NOT NULL DEFAULT 0,
+        ordine          INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (preset_id) REFERENCES preset_ausili(id) ON DELETE CASCADE
+    );
+
     CREATE INDEX IF NOT EXISTS idx_pratiche_data      ON pratiche(data_pratica);
     CREATE INDEX IF NOT EXISTS idx_preventivi_pratica ON preventivi(pratica_id);
     CREATE INDEX IF NOT EXISTS idx_righe_pratica      ON righe_ausili(pratica_id);
+    CREATE INDEX IF NOT EXISTS idx_preset_righe       ON preset_righe(preset_id);
     CREATE INDEX IF NOT EXISTS idx_clienti_cognome    ON clienti(cognome);
     CREATE INDEX IF NOT EXISTS idx_clienti_cf         ON clienti(codice_fiscale);
 """
