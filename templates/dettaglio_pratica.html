@@ -35,7 +35,16 @@
             <div class="row g-3">
               <div class="col-6">
                 <div class="dettaglio-label">Paziente</div>
-                <div class="dettaglio-val">{{ pratica.nome_paziente }}</div>
+                <div class="dettaglio-val">
+                  {% if cliente %}
+                  <a href="{{ url_for('cliente_dettaglio', cliente_id=cliente.id) }}" class="text-decoration-none">
+                    {{ pratica.nome_paziente }} <i class="bi bi-link-45deg"></i>
+                  </a>
+                  {% else %}
+                  {{ pratica.nome_paziente }}
+                  <span class="badge bg-warning-subtle text-warning ms-1" style="font-size:.7em">non in anagrafica</span>
+                  {% endif %}
+                </div>
               </div>
               <div class="col-6">
                 <div class="dettaglio-label">Data</div>
@@ -202,6 +211,90 @@
       </div>
 
     </div>
+
+    <!-- Moduli PDF -->
+    <div class="card mt-4" id="moduli">
+      <div class="card-header bg-dark text-white py-3 d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-file-earmark-pdf me-2"></i>Moduli PDF</span>
+        <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#formDatiModuli">
+          <i class="bi bi-sliders me-1"></i>Dati per i moduli
+        </button>
+      </div>
+
+      <!-- Quick-edit dei campi clinici usati nei moduli -->
+      <div class="collapse" id="formDatiModuli">
+        <div class="border-bottom px-3 py-3 bg-light">
+          <form method="post" action="{{ url_for('aggiorna_dati_moduli', pratica_id=pratica.id) }}" class="row g-2">
+            <div class="col-12 col-sm-4">
+              <label class="form-label form-label-sm mb-1">N° pratica</label>
+              <input type="text" name="numero_pratica" class="form-control form-control-sm" value="{{ pratica.numero_pratica or '' }}">
+            </div>
+            <div class="col-12 col-sm-4">
+              <label class="form-label form-label-sm mb-1">ASL destinataria</label>
+              <input type="text" name="asl_destinataria" class="form-control form-control-sm"
+                     value="{{ pratica.asl_destinataria or '' }}" placeholder="{{ cliente.asl if cliente else 'es. RM 2' }}">
+            </div>
+            <div class="col-12 col-sm-4">
+              <label class="form-label form-label-sm mb-1">Medico / struttura</label>
+              <input type="text" name="medico_struttura" class="form-control form-control-sm" value="{{ pratica.medico_struttura or '' }}">
+            </div>
+            <div class="col-12">
+              <label class="form-label form-label-sm mb-1">Ausilio (oggetto richiesta)</label>
+              <input type="text" name="ausilio" class="form-control form-control-sm" value="{{ pratica.ausilio or '' }}"
+                     placeholder="es. Carrozzina elettronica a sei ruote">
+            </div>
+            <div class="col-12 col-sm-6">
+              <label class="form-label form-label-sm mb-1">Diagnosi</label>
+              <input type="text" name="diagnosi" class="form-control form-control-sm" value="{{ pratica.diagnosi or '' }}">
+            </div>
+            <div class="col-12 col-sm-6">
+              <label class="form-label form-label-sm mb-1">Significato terapeutico</label>
+              <input type="text" name="sign_terapeutico" class="form-control form-control-sm" value="{{ pratica.sign_terapeutico or '' }}">
+            </div>
+            <div class="col-12 text-end">
+              <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-save me-1"></i>Salva dati moduli</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card-body">
+        {% if not cliente %}
+        <div class="alert alert-warning py-2 small mb-3">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i>
+          Questa pratica non è collegata a un cliente in anagrafica: i moduli non possono essere
+          precompilati con i dati del paziente.
+          <a href="{{ url_for('modifica_pratica', pratica_id=pratica.id) }}">Collega un cliente</a>.
+        </div>
+        {% endif %}
+
+        <div class="row g-2">
+          {% for m in moduli %}
+          <div class="col-12 col-sm-6">
+            <div class="d-flex align-items-center justify-content-between border rounded p-2">
+              <div class="me-2">
+                <div class="fw-semibold small">{{ m.label }}</div>
+                {% if m.stato == 'parziale' %}
+                <span class="badge bg-warning-subtle text-warning" style="font-size:.65em">sezione ausili in arrivo</span>
+                {% endif %}
+              </div>
+              {% if m.richiede_cliente and not cliente %}
+              <button class="btn btn-sm btn-outline-secondary" disabled title="Serve un cliente collegato">
+                <i class="bi bi-download"></i>
+              </button>
+              {% else %}
+              <a href="{{ url_for('genera_modulo', pratica_id=pratica.id, template_id=m.id) }}"
+                 class="btn btn-sm btn-primary text-nowrap">
+                <i class="bi bi-download me-1"></i>Genera
+              </a>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 

@@ -4,7 +4,7 @@ import os
 from datetime import datetime, date
 from flask import (
     Flask, render_template, request, redirect,
-    url_for, jsonify, session,
+    url_for, jsonify, session, Response,
 )
 from werkzeug.utils import secure_filename
 
@@ -21,6 +21,7 @@ from database import (
 )
 from pdf_extractor import estrai_totale_pdf
 from drive_sync import drive_configurato
+from pdf_filler import PDF_TEMPLATES, compila_pdf, nome_file_consigliato
 
 # ── Periodi predefiniti ────────────────────────────────────────────────────────
 
@@ -263,16 +264,27 @@ def dettaglio_pratica(pratica_id):
         cur.execute(f"SELECT * FROM preventivi WHERE pratica_id = {_PH}", (pratica_id,))
         preventivi = cur.fetchall()
 
+        cliente = None
+        if pratica["cliente_id"]:
+            cur.execute(f"SELECT * FROM clienti WHERE id = {_PH}", (pratica["cliente_id"],))
+            cliente = cur.fetchone()
+
     costo_totale = sum(p["importo"] for p in preventivi)
     margine = calcola_margine(
         pratica["importo_asl"], costo_totale, pratica["provvigione_pct"],
         pratica["importo_privato"] or 0
     )
+    # Moduli PDF: ordinati, con etichetta e stato
+    moduli = [
+        {"id": tid, **meta} for tid, meta in PDF_TEMPLATES.items()
+    ]
     return render_template(
         "dettaglio_pratica.html",
         pratica=pratica,
+        cliente=cliente,
         preventivi=preventivi,
         margine=margine,
+        moduli=moduli,
         soglia_ok=MARGINE_SOGLIA_OK,
         soglia_warn=MARGINE_SOGLIA_WARN,
     )
@@ -611,6 +623,68 @@ def api_config():
         "margine_soglia_ok":       MARGINE_SOGLIA_OK,
         "margine_soglia_warn":     MARGINE_SOGLIA_WARN,
     })
+
+
+# ── Dati per i moduli (campi clinici della pratica) ───────────────────────────
+
+_PRATICA_MODULO_FIELDS = [
+    "numero_pratica", "ausilio", "asl_destinataria", "medico_struttura",
+    "diagnosi", "sign_terapeutico",
+]
+
+
+@app.route("/pratica/<int:pratica_id>/dati-moduli", methods=["POST"])
+def aggiorna_dati_moduli(pratica_id):
+    valori = [(request.form.get(c) or "").strip() for c in _PRATICA_MODULO_FIELDS]
+    set_clause = ", ".join(f"{c} = {_PH}" for c in _PRATICA_MODULO_FIELDS)
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"UPDATE pratiche SET {set_clause} WHERE id = {_PH}",
+            tuple(valori) + (pratica_id,),
+        )
+    return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) + "#moduli")
+
+
+# ── Generazione modulo PDF ────────────────────────────────────────────────────
+
+@app.route("/pratica/<int:pratica_id>/modulo/<template_id>")
+def genera_modulo(pratica_id, template_id):
+    if template_id not in PDF_TEMPLATES:
+        return "Modulo non disponibile", 404
+
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT * FROM pratiche WHERE id = {_PH}", (pratica_id,))
+        pratica = cur.fetchone()
+        if not pratica:
+            return "Pratica non trovata", 404
+        cliente = None
+        if pratica["cliente_id"]:
+            cur.execute(f"SELECT * FROM clienti WHERE id = {_PH}", (pratica["cliente_id"],))
+            cliente = cur.fetchone()
+
+    pratica_d = dict(pratica)
+    cliente_d = dict(cliente) if cliente else None
+
+    if PDF_TEMPLATES[template_id].get("richiede_cliente") and not cliente_d:
+        # Senza cliente collegato non c'è anagrafica da inserire nel modulo
+        return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) + "#moduli")
+
+    try:
+        pdf_bytes = compila_pdf(template_id, pratica_d, cliente_d)
+    except Exception as e:
+        import sys, traceback
+        print("ERRORE GENERAZIONE PDF:", e, file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        return f"Errore nella generazione del modulo: {e}", 500
+
+    filename = nome_file_consigliato(template_id, pratica_d, cliente_d)
+    return Response(
+        pdf_bytes,
+        mimetype="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # ── Anagrafica clienti ────────────────────────────────────────────────────────
