@@ -303,9 +303,9 @@ def _draw_fit(c, text, x0, x1, baseline, align="left", size=9, font="Helvetica",
         c.drawString(x0 + 2, baseline, text)
 
 
-def _overlay_preventivo(reader, header: dict, righe, iva_pct, header_size=13, table_size=9):
-    """Pagina-overlay del preventivo: intestazione (anagrafica, più grande) e
-    tabella (righe + totali) con font uniforme e tutto centrato nelle celle.
+def _overlay_preventivo(reader, header: dict, righe, iva_pct, header_size=12, table_size=9):
+    """Pagina-overlay del preventivo: intestazione (anagrafica) e tabella
+    (righe + totali). Allineamenti per colonna e centratura verticale nella riga.
     L'overlay non è vincolato all'altezza delle caselle del modulo."""
     import io as _io
     from reportlab.pdfgen import canvas
@@ -317,13 +317,25 @@ def _overlay_preventivo(reader, header: dict, righe, iva_pct, header_size=13, ta
     buf = _io.BytesIO()
     c = canvas.Canvas(buf, pagesize=(W, H))
 
-    # ── Intestazione: anagrafica + dati pratica (allineata a sinistra, più grande)
+    # ── Intestazione ─────────────────────────────────────────────────────────
     for name, val in (header or {}).items():
-        if name in rects and val:
-            x0, y0, x1, _ = rects[name]
-            _draw_fit(c, str(val), x0, x1, y0 + 2, "left", header_size, min_size=9)
+        if name not in rects or not val:
+            continue
+        x0, y0, x1, y1 = rects[name]
+        if name == "preventivo_numero":
+            # numero lungo → corpo ridotto per non toccare "/aus/"
+            _draw_fit(c, str(val), x0, x1, y0 + 2, "left", 8.5, min_size=6)
+        elif name in ("preventivo_asl", "preventivo_data"):
+            # allineati in alto a destra
+            _draw_fit(c, str(val), x0, x1, y1 - header_size * 0.85, "right", header_size, min_size=8)
+        else:
+            _draw_fit(c, str(val), x0, x1, y0 + 2, "left", header_size, min_size=8)
 
-    # ── Tabella righe (tutto centrato nella cella)
+    # ── Tabella righe ──────────────────────────────────────────────────────────
+    # Allineamento orizzontale per colonna; verticale: centrato nella riga
+    # (uguale spazio sopra/sotto, usando la cella descrizione come banda di riga).
+    col_align = {"iso": "center", "descrizione": "left", "qta": "center",
+                 "prezzo_unitario": "right", "prezzo_totale": "right"}
     imponibile = 0.0
     for i, r in enumerate(righe[:_SAPIO_MAX_RIGHE]):
         n = i + 1
@@ -335,18 +347,21 @@ def _overlay_preventivo(reader, header: dict, righe, iva_pct, header_size=13, ta
         prezzo = r.get("prezzo_unitario") or 0
         totale = qta * prezzo
         imponibile += totale
-        base = rects[desc_name][1] + 4   # baseline comune alla riga
-        def cell(name, text):
+        # baseline = centro verticale della banda di riga (cella descrizione)
+        dy0, dy1 = rects[desc_name][1], rects[desc_name][3]
+        base = (dy0 + dy1) / 2 - table_size * 0.35
+
+        def cell(name, text, col):
             if name in rects:
                 x0, _, x1, _ = rects[name]
-                _draw_fit(c, text, x0, x1, base, "center", table_size)
-        cell(f"{pref}_iso", (r.get("codice_iso") or "").strip())
-        cell(desc_name, (r.get("descrizione") or "").strip())
-        cell(f"{pref}_qta", _fmt_qta(qta))
-        cell(f"{pref}_prezzo_unitario", _euro(prezzo))
-        cell(f"{pref}_prezzo_totale", _euro(totale))
+                _draw_fit(c, text, x0, x1, base, col_align[col], table_size)
+        cell(f"{pref}_iso", (r.get("codice_iso") or "").strip(), "iso")
+        cell(desc_name, (r.get("descrizione") or "").strip(), "descrizione")
+        cell(f"{pref}_qta", _fmt_qta(qta), "qta")
+        cell(f"{pref}_prezzo_unitario", _euro(prezzo), "prezzo_unitario")
+        cell(f"{pref}_prezzo_totale", _euro(totale), "prezzo_totale")
 
-    # ── Totali (centrati)
+    # ── Totali (cifre a destra, centrate in verticale) ─────────────────────────
     iva = imponibile * (iva_pct / 100.0)
     for name, val in (
         ("preventivo_totale_imponibile", _euro(imponibile)),
@@ -354,8 +369,8 @@ def _overlay_preventivo(reader, header: dict, righe, iva_pct, header_size=13, ta
         ("preventivo_totale_lordo", _euro(imponibile + iva)),
     ):
         if name in rects:
-            x0, y0, x1, _ = rects[name]
-            _draw_fit(c, val, x0, x1, y0 + 3, "center", table_size)
+            x0, y0, x1, y1 = rects[name]
+            _draw_fit(c, val, x0, x1, (y0 + y1) / 2 - table_size * 0.35, "right", table_size)
 
     c.save()
     buf.seek(0)
