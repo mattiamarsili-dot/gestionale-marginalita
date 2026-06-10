@@ -193,29 +193,9 @@ def build_field_map(template_id: str, pratica: dict, cliente: dict, righe: list 
             "preventivo_numero": numero_preventivo(pratica, cliente),
             "preventivo_ref_struttura": (pratica.get("medico_struttura") or "").strip(),
         }
-
-        imponibile = 0.0
-        for i, r in enumerate(righe[:_SAPIO_MAX_RIGHE]):
-            n = i + 1                      # righe numerate 01..16
-            pref = f"preventivo_riga{n:02d}"
-            qta = r.get("qta") or 0
-            prezzo = r.get("prezzo_unitario") or 0
-            totale = qta * prezzo
-            imponibile += totale
-            # La riga 01 ha il campo descrizione annidato (.0.0); le altre no
-            desc_field = f"{pref}_descrizione.0.0" if n == 1 else f"{pref}_descrizione"
-            fm[f"{pref}_iso"] = (r.get("codice_iso") or "").strip()
-            fm[desc_field] = (r.get("descrizione") or "").strip()
-            fm[f"{pref}_qta"] = _fmt_qta(qta)
-            fm[f"{pref}_prezzo_unitario"] = _euro(prezzo)
-            fm[f"{pref}_prezzo_totale"] = _euro(totale)
-
-        iva_pct = pratica.get("iva_percentuale")
-        iva_pct = 4.0 if iva_pct in (None, "") else float(iva_pct)
-        iva = imponibile * iva_pct / 100.0
-        fm["preventivo_totale_imponibile"] = _euro(imponibile)
-        fm["preventivo_iva"] = _euro(iva)
-        fm["preventivo_totale_lordo"] = _euro(imponibile + iva)
+        # Righe e totali NON vanno nell'AcroForm: vengono disegnati con un overlay
+        # uniforme (vedi _overlay_preventivo_tabella) perché le celle del template
+        # hanno altezze diverse e il viewer le centra in modo incoerente.
         return fm
 
     if template_id == "prescrizione-gen":
@@ -280,6 +260,100 @@ def _restyle_form_fields(writer, filled_names: set, center_hints=(), font_size: 
                 del o[NameObject("/AP")]
 
 
+# ── Overlay tabella preventivo (resa uniforme) ────────────────────────────────
+
+def _field_rects(reader) -> dict:
+    """{nome_qualificato: (x0, y0, x1, y1)} di tutti i widget della prima pagina."""
+    def qn(o):
+        parts, cur = [], o
+        while cur is not None:
+            t = cur.get("/T")
+            if t is not None:
+                parts.append(str(t))
+            p = cur.get("/Parent")
+            cur = p.get_object() if p else None
+        return ".".join(reversed(parts))
+
+    rects = {}
+    for a in (reader.pages[0].get("/Annots") or []):
+        o = a.get_object()
+        r = o.get("/Rect")
+        if r is None:
+            continue
+        rects[qn(o)] = tuple(float(v) for v in r)
+    return rects
+
+
+def _draw_fit(c, text, x0, x1, baseline, align="left", size=9, font="Helvetica", min_size=6.0):
+    """Disegna testo dentro [x0,x1] alla baseline data, riducendo il corpo se non entra."""
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+    if not text:
+        return
+    max_w = (x1 - x0) - 4
+    s = size
+    while s > min_size and stringWidth(text, font, s) > max_w:
+        s -= 0.5
+    c.setFont(font, s)
+    if align == "center":
+        w = stringWidth(text, font, s)
+        c.drawString(x0 + (x1 - x0 - w) / 2, baseline, text)
+    elif align == "right":
+        c.drawRightString(x1 - 2, baseline, text)
+    else:
+        c.drawString(x0 + 2, baseline, text)
+
+
+def _overlay_preventivo_tabella(reader, righe, iva_pct, size=9):
+    """Crea una pagina-overlay con righe e totali del preventivo, font uniforme
+    e baseline allineata in basso per ogni riga. Restituisce la pagina pypdf."""
+    import io as _io
+    from reportlab.pdfgen import canvas
+    from pypdf import PdfReader as _PdfReader
+
+    rects = _field_rects(reader)
+    box = reader.pages[0].mediabox
+    W, H = float(box.width), float(box.height)
+    buf = _io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=(W, H))
+
+    imponibile = 0.0
+    for i, r in enumerate(righe[:_SAPIO_MAX_RIGHE]):
+        n = i + 1
+        pref = f"preventivo_riga{n:02d}"
+        desc_name = f"{pref}_descrizione.0.0" if n == 1 else f"{pref}_descrizione"
+        if desc_name not in rects:
+            continue
+        qta = r.get("qta") or 0
+        prezzo = r.get("prezzo_unitario") or 0
+        totale = qta * prezzo
+        imponibile += totale
+        # baseline comune alla riga = bordo inferiore della cella descrizione + 4
+        base = rects[desc_name][1] + 4
+        def cell(name, text, align):
+            if name in rects:
+                x0, _, x1, _ = rects[name]
+                _draw_fit(c, text, x0, x1, base, align, size)
+        cell(f"{pref}_iso", (r.get("codice_iso") or "").strip(), "left")
+        cell(desc_name, (r.get("descrizione") or "").strip(), "left")
+        cell(f"{pref}_qta", _fmt_qta(qta), "center")
+        cell(f"{pref}_prezzo_unitario", _euro(prezzo), "right")
+        cell(f"{pref}_prezzo_totale", _euro(totale), "right")
+
+    iva = imponibile * (iva_pct / 100.0)
+    for name, val in (
+        ("preventivo_totale_imponibile", _euro(imponibile)),
+        ("preventivo_iva", _euro(iva)),
+        ("preventivo_totale_lordo", _euro(imponibile + iva)),
+    ):
+        if name in rects:
+            x0, y0, x1, y1 = rects[name]
+            _draw_fit(c, val, x0, x1, y0 + 3, "right", size)
+
+    c.save()
+    buf.seek(0)
+    return _PdfReader(buf).pages[0]
+
+
 # ── Generazione PDF ───────────────────────────────────────────────────────────
 
 def compila_pdf(template_id: str, pratica: dict, cliente: dict, righe: list = None) -> bytes:
@@ -302,8 +376,20 @@ def compila_pdf(template_id: str, pratica: dict, cliente: dict, righe: list = No
     for page in writer.pages:
         writer.update_page_form_field_values(page, field_map)
 
-    # Migliora font (auto-size) e centra gli importi sui campi appena compilati
+    # Migliora font sui campi compilati (intestazione)
     _restyle_form_fields(writer, set(field_map.keys()), center_hints=_CENTER_HINTS)
+
+    # Preventivo Sapio: righe e totali resi con overlay uniforme (font e
+    # allineamento coerenti, indipendenti dalla resa del viewer)
+    if template_id == "preventivo-sapio" and righe:
+        iva_pct = pratica.get("iva_percentuale")
+        iva_pct = 4.0 if iva_pct in (None, "") else float(iva_pct)
+        try:
+            overlay = _overlay_preventivo_tabella(reader, righe, iva_pct)
+            writer.pages[0].merge_page(overlay)
+        except Exception as _ov_err:
+            import sys
+            print("WARN overlay preventivo non riuscito:", _ov_err, file=sys.stderr)
 
     # NeedAppearances: forza i viewer a rigenerare l'aspetto con il nuovo stile
     try:
