@@ -13,8 +13,7 @@
         <h4 class="fw-bold mb-0">{{ pratica.nome_paziente }}</h4>
         <small class="text-muted">Pratica #{{ pratica.id }} — {{ pratica.data_pratica }}</small>
       </div>
-      <a href="{{ url_for('modifica_pratica', pratica_id=pratica.id) }}"
-         class="btn btn-sm btn-outline-secondary">
+      <a href="{{ url_for('modifica_pratica', pratica_id=pratica.id) }}" class="btn btn-sm btn-outline-secondary">
         <i class="bi bi-pencil me-1"></i>Modifica
       </a>
       <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalElimina">
@@ -22,101 +21,184 @@
       </button>
     </div>
 
-    <div class="row g-4">
-
-      <!-- Sinistra: dati + fornitori -->
-      <div class="col-12 col-lg-7">
-
-        <div class="card mb-4">
-          <div class="card-header bg-primary text-white py-3">
-            <i class="bi bi-person-fill me-2"></i>Dati Pratica
-          </div>
-          <div class="card-body">
-            <div class="row g-3">
-              <div class="col-6">
-                <div class="dettaglio-label">Paziente</div>
-                <div class="dettaglio-val">
-                  {% if cliente %}
-                  <a href="{{ url_for('cliente_dettaglio', cliente_id=cliente.id) }}" class="text-decoration-none">
-                    {{ pratica.nome_paziente }} <i class="bi bi-link-45deg"></i>
-                  </a>
-                  {% else %}
-                  {{ pratica.nome_paziente }}
-                  <span class="badge bg-warning-subtle text-warning ms-1" style="font-size:.7em">non in anagrafica</span>
-                  {% endif %}
-                </div>
-              </div>
-              <div class="col-6">
-                <div class="dettaglio-label">Data</div>
-                <div class="dettaglio-val">{{ pratica.data_pratica }}</div>
-              </div>
-              <div class="col-6">
-                <div class="dettaglio-label">Importo ASL (netto IVA)</div>
-                <div class="dettaglio-val fw-bold text-primary">€ {{ "%.2f"|format(pratica.importo_asl) }}</div>
-              </div>
-              {% if pratica.note %}
-              <div class="col-12">
-                <div class="dettaglio-label">Note</div>
-                <div class="dettaglio-val text-muted">{{ pratica.note }}</div>
-              </div>
+    <!-- Dati pratica (comune alle due schede) -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-6 col-md-3">
+            <div class="dettaglio-label">Paziente</div>
+            <div class="dettaglio-val">
+              {% if cliente %}
+              <a href="{{ url_for('cliente_dettaglio', cliente_id=cliente.id) }}" class="text-decoration-none">
+                {{ pratica.nome_paziente }} <i class="bi bi-link-45deg"></i>
+              </a>
+              {% else %}
+              {{ pratica.nome_paziente }}
+              <span class="badge bg-warning-subtle text-warning ms-1" style="font-size:.7em">non in anagrafica</span>
               {% endif %}
             </div>
           </div>
+          <div class="col-6 col-md-3">
+            <div class="dettaglio-label">Data</div>
+            <div class="dettaglio-val">{{ pratica.data_pratica }}</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="dettaglio-label">Importo ASL (netto IVA)</div>
+            <div class="dettaglio-val fw-bold text-primary">€ {{ "%.2f"|format(pratica.importo_asl) }}</div>
+          </div>
+          {% if pratica.note %}
+          <div class="col-6 col-md-3">
+            <div class="dettaglio-label">Note</div>
+            <div class="dettaglio-val text-muted">{{ pratica.note }}</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Schede -->
+    <ul class="nav nav-tabs mb-0" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-btn-moduli" data-bs-toggle="tab" data-bs-target="#tab-moduli"
+                type="button" role="tab">
+          <i class="bi bi-file-earmark-pdf me-1"></i>Moduli e codifica ASL
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-btn-margine" data-bs-toggle="tab" data-bs-target="#tab-margine"
+                type="button" role="tab">
+          <i class="bi bi-calculator me-1"></i>Marginalità
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content border border-top-0 rounded-bottom p-3 bg-white">
+
+      <!-- ════════ SCHEDA 1: MODULI E CODIFICA ASL ════════ -->
+      <div class="tab-pane fade show active" id="tab-moduli" role="tabpanel">
+
+        <!-- Codifica ASL e dati per i moduli -->
+        <div class="card mb-4">
+          <div class="card-header bg-primary text-white py-3">
+            <i class="bi bi-upc-scan me-2"></i>Codifica ASL e dati per i moduli
+          </div>
+          <div class="card-body">
+            <form method="post" action="{{ url_for('aggiorna_dati_moduli', pratica_id=pratica.id) }}" class="row g-2">
+              <div class="col-12 col-sm-4">
+                <label class="form-label form-label-sm mb-1">N° pratica</label>
+                <input type="text" name="numero_pratica" class="form-control form-control-sm" value="{{ pratica.numero_pratica or '' }}"
+                       placeholder="auto: AM{ggmm}.{aa}.ASL">
+              </div>
+              <div class="col-12 col-sm-4">
+                <label class="form-label form-label-sm mb-1">ASL destinataria</label>
+                <input type="text" name="asl_destinataria" class="form-control form-control-sm"
+                       value="{{ pratica.asl_destinataria or '' }}" placeholder="{{ cliente.asl if cliente else 'es. RM 2' }}">
+              </div>
+              <div class="col-8 col-sm-3">
+                <label class="form-label form-label-sm mb-1">Medico / struttura</label>
+                <input type="text" name="medico_struttura" class="form-control form-control-sm" value="{{ pratica.medico_struttura or '' }}">
+              </div>
+              <div class="col-4 col-sm-1">
+                <label class="form-label form-label-sm mb-1">IVA %</label>
+                <input type="number" name="iva_percentuale" step="0.01" min="0" class="form-control form-control-sm"
+                       value="{{ pratica.iva_percentuale if pratica.iva_percentuale is not none else 4 }}">
+              </div>
+              <div class="col-12">
+                <label class="form-label form-label-sm mb-1">Ausilio (oggetto richiesta)</label>
+                <input type="text" name="ausilio" class="form-control form-control-sm" value="{{ pratica.ausilio or '' }}"
+                       placeholder="es. Carrozzina elettronica a sei ruote">
+              </div>
+              <div class="col-12 col-sm-6">
+                <label class="form-label form-label-sm mb-1">Diagnosi</label>
+                <input type="text" name="diagnosi" class="form-control form-control-sm" value="{{ pratica.diagnosi or '' }}">
+              </div>
+              <div class="col-12 col-sm-6">
+                <label class="form-label form-label-sm mb-1">Significato terapeutico</label>
+                <input type="text" name="sign_terapeutico" class="form-control form-control-sm" value="{{ pratica.sign_terapeutico or '' }}">
+              </div>
+              <div class="col-12 text-end">
+                <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-save me-1"></i>Salva codifica</button>
+              </div>
+            </form>
+          </div>
         </div>
 
-        <div class="card">
-          <div class="card-header bg-primary text-white py-3 d-flex align-items-center justify-content-between">
-            <span><i class="bi bi-truck me-2"></i>Costi Fornitori</span>
-            <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse"
-                    data-bs-target="#formAggiungiFornitore" aria-expanded="false">
-              <i class="bi bi-plus-lg me-1"></i>Aggiungi
-            </button>
+        <!-- Righe ausili (LEA) -->
+        <div class="card mb-4" id="ausili">
+          <div class="card-header bg-primary text-white py-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <span><i class="bi bi-list-check me-2"></i>Righe ausili (LEA)</span>
+            <div class="d-flex gap-2 flex-wrap">
+              <form method="post" action="{{ url_for('applica_preset', pratica_id=pratica.id) }}" class="d-flex gap-1">
+                <select name="preset_id" class="form-select form-select-sm" style="max-width:280px" required>
+                  <option value="" selected disabled>Inserisci set per categoria…</option>
+                  {% for categoria, lista in preset_categorie.items() %}
+                  <optgroup label="{{ categoria }}">
+                    {% for p in lista %}
+                    <option value="{{ p.id }}">{{ p.label }} ({{ p.righe|length }})</option>
+                    {% endfor %}
+                  </optgroup>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-sm btn-light text-nowrap" title="Inserisci il set di righe">
+                  <i class="bi bi-box-arrow-in-down"></i>
+                </button>
+              </form>
+              <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#formAggiungiRiga">
+                <i class="bi bi-plus-lg me-1"></i>Riga singola
+              </button>
+            </div>
           </div>
 
-          <!-- form aggiunta rapida fornitore -->
-          <div class="collapse" id="formAggiungiFornitore">
+          <div class="collapse" id="formAggiungiRiga">
             <div class="border-bottom px-3 py-3 bg-light">
-              <form method="post" action="{{ url_for('aggiungi_fornitore', pratica_id=pratica.id) }}"
-                    class="row g-2 align-items-end">
-                <input type="hidden" name="torna" value="{{ request.url }}">
-                <div class="col-7">
-                  <label class="form-label form-label-sm mb-1 fw-semibold">Fornitore</label>
-                  <input type="text" name="nome_fornitore" class="form-control form-control-sm"
-                         placeholder="es. Medimec, Permobil…" required>
+              <form method="post" action="{{ url_for('aggiungi_riga', pratica_id=pratica.id) }}" class="row g-2 align-items-end">
+                <div class="col-6 col-sm-2">
+                  <label class="form-label form-label-sm mb-1">Cod. ISO</label>
+                  <input type="text" name="codice_iso" class="form-control form-control-sm" placeholder="12.36.06.018">
                 </div>
-                <div class="col-3">
-                  <label class="form-label form-label-sm mb-1 fw-semibold">Importo €</label>
-                  <input type="number" name="importo" step="0.01" min="0"
-                         class="form-control form-control-sm" placeholder="0.00" required>
+                <div class="col-12 col-sm-5">
+                  <label class="form-label form-label-sm mb-1">Descrizione</label>
+                  <input type="text" name="descrizione" class="form-control form-control-sm" placeholder="Descrizione ausilio">
                 </div>
-                <div class="col-2">
-                  <button type="submit" class="btn btn-success btn-sm w-100">
-                    <i class="bi bi-check-lg"></i>
-                  </button>
+                <div class="col-3 col-sm-1">
+                  <label class="form-label form-label-sm mb-1">Q.tà</label>
+                  <input type="number" name="qta" step="1" min="0" value="1" class="form-control form-control-sm">
+                </div>
+                <div class="col-6 col-sm-2">
+                  <label class="form-label form-label-sm mb-1">Prezzo unit. €</label>
+                  <input type="number" name="prezzo_unitario" step="0.01" min="0" class="form-control form-control-sm" placeholder="0.00">
+                </div>
+                <div class="col-3 col-sm-2">
+                  <button type="submit" class="btn btn-success btn-sm w-100"><i class="bi bi-check-lg"></i></button>
                 </div>
               </form>
             </div>
           </div>
 
           <div class="card-body p-0">
-            {% if preventivi %}
-            <table class="table mb-0">
+            {% if righe %}
+            <table class="table mb-0 align-middle">
               <thead class="table-light">
                 <tr>
-                  <th>Fornitore</th>
-                  <th class="text-end">Importo (netto IVA)</th>
+                  <th>Cod. ISO</th>
+                  <th>Descrizione</th>
+                  <th class="text-center">Q.tà</th>
+                  <th class="text-end">Prezzo unit.</th>
+                  <th class="text-end">Totale</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {% for pv in preventivi %}
+                {% for r in righe %}
                 <tr>
-                  <td>{{ pv.nome_fornitore }}</td>
-                  <td class="text-end fw-semibold">€ {{ "%.2f"|format(pv.importo) }}</td>
+                  <td class="text-muted small">{{ r.codice_iso or '—' }}</td>
+                  <td>{{ r.descrizione or '—' }}</td>
+                  <td class="text-center">{{ (r.qta or 0) | int }}</td>
+                  <td class="text-end">€ {{ "%.2f"|format(r.prezzo_unitario or 0) }}</td>
+                  <td class="text-end fw-semibold">€ {{ "%.2f"|format((r.qta or 0) * (r.prezzo_unitario or 0)) }}</td>
                   <td class="text-end" style="width:40px">
-                    <form method="post" action="{{ url_for('elimina_fornitore', preventivo_id=pv.id) }}"
-                          onsubmit="return confirm('Rimuovere {{ pv.nome_fornitore }}?')">
-                      <input type="hidden" name="torna" value="{{ request.url }}">
+                    <form method="post" action="{{ url_for('elimina_riga', riga_id=r.id) }}"
+                          onsubmit="return confirm('Rimuovere questa riga?')">
                       <button type="submit" class="btn btn-link btn-sm p-0 text-danger" title="Rimuovi">
                         <i class="bi bi-x-circle"></i>
                       </button>
@@ -127,280 +209,209 @@
               </tbody>
               <tfoot class="table-light">
                 <tr>
-                  <td class="fw-bold text-muted small">TOTALE COSTO</td>
-                  <td class="text-end fw-bold">€ {{ "%.2f"|format(margine.costo) }}</td>
+                  <td colspan="4" class="text-end fw-bold text-muted small">IMPONIBILE AUSILI</td>
+                  <td class="text-end fw-bold">€ {{ "%.2f"|format(tot_ausili) }}</td>
                   <td></td>
                 </tr>
               </tfoot>
             </table>
             {% else %}
             <div class="text-center text-muted py-3 small">
-              Nessun costo registrato — usa <strong>Aggiungi</strong> per inserire i fornitori.
+              Nessuna riga ausilio — usa <strong>Inserisci set</strong> o <strong>Riga singola</strong>. Servono per il preventivo e la prescrizione.
             </div>
             {% endif %}
           </div>
         </div>
 
-      </div>
-
-      <!-- Destra: analisi margine -->
-      <div class="col-12 col-lg-5">
-        <div class="card">
-          <div class="card-header bg-primary text-white py-3">
-            <i class="bi bi-calculator me-2"></i>Analisi Margine
+        <!-- Moduli PDF -->
+        <div class="card" id="moduli">
+          <div class="card-header bg-dark text-white py-3">
+            <i class="bi bi-file-earmark-pdf me-2"></i>Genera moduli PDF
           </div>
           <div class="card-body">
-            <div id="riepilogo-margine">
-              <div class="riga-calc">
-                <span>Ricavi (ASL)</span>
-                <span class="fw-semibold">€ {{ "%.2f"|format(margine.ricavi) }}</span>
-              </div>
-              <div class="riga-calc text-danger">
-                <span>Costo fornitori</span>
-                <span>— € {{ "%.2f"|format(margine.costo) }}</span>
-              </div>
-              <div class="riga-calc text-muted">
-                <span>Provvigione {{ margine.provvigione_pct | int }}%</span>
-                <span>— € {{ "%.2f"|format(margine.provvigione) }}</span>
-              </div>
-              <div class="riga-calc text-muted">
-                <span>Struttura 5%</span>
-                <span>— € {{ "%.2f"|format(margine.struttura) }}</span>
-              </div>
-              <div class="riga-calc totale mt-1 pt-1">
-                <span>MOL</span>
-                <span class="{% if margine.mol >= 0 %}text-success{% else %}text-danger{% endif %}">
-                  € {{ "%.2f"|format(margine.mol) }}
-                </span>
-              </div>
+            {% if not cliente %}
+            <div class="alert alert-warning py-2 small mb-3">
+              <i class="bi bi-exclamation-triangle-fill me-1"></i>
+              Questa pratica non è collegata a un cliente in anagrafica: i moduli non possono essere
+              precompilati con i dati del paziente.
+              <a href="{{ url_for('modifica_pratica', pratica_id=pratica.id) }}">Collega un cliente</a>.
             </div>
-
-            <div class="mt-4 text-center">
-              {% set pct = margine.margine_pct %}
-              <div class="fs-1 fw-bold {% if pct >= soglia_ok %}text-success{% elif pct >= soglia_warn %}text-warning{% else %}text-danger{% endif %}">
-                {{ "%.1f"|format(pct) }}%
+            {% endif %}
+            <div class="row g-2">
+              {% for m in moduli %}
+              <div class="col-12 col-sm-6">
+                <div class="d-flex align-items-center justify-content-between border rounded p-2">
+                  <div class="me-2">
+                    <div class="fw-semibold small">{{ m.label }}</div>
+                    {% if m.stato == 'parziale' %}
+                    <span class="badge bg-warning-subtle text-warning" style="font-size:.65em">sezione ausili in arrivo</span>
+                    {% endif %}
+                  </div>
+                  {% if m.richiede_cliente and not cliente %}
+                  <button class="btn btn-sm btn-outline-secondary" disabled title="Serve un cliente collegato">
+                    <i class="bi bi-download"></i>
+                  </button>
+                  {% else %}
+                  <a href="{{ url_for('genera_modulo', pratica_id=pratica.id, template_id=m.id) }}"
+                     class="btn btn-sm btn-primary text-nowrap">
+                    <i class="bi bi-download me-1"></i>Genera
+                  </a>
+                  {% endif %}
+                </div>
               </div>
-              <div class="text-muted small mb-2">Margine totale</div>
-              <div class="progress-margine">
-                {% set w = [[pct, 100] | min, 0] | max %}
-                <div class="progress-bar {% if pct >= soglia_ok %}bg-success{% elif pct >= soglia_warn %}bg-warning{% else %}bg-danger{% endif %}"
-                     style="width: {{ w }}%"></div>
-              </div>
-              <div class="d-flex justify-content-end mt-1">
-                <small class="text-muted">Soglia: <strong>{{ soglia_ok | int }}%</strong></small>
-              </div>
-            </div>
-
-            <div class="mt-3">
-              {% if pct >= soglia_ok %}
-              <div class="alert alert-success py-2 small mb-0">
-                <i class="bi bi-check-circle-fill me-1"></i> Pratica sostenibile.
-              </div>
-              {% elif pct >= soglia_warn %}
-              <div class="alert alert-warning py-2 small mb-0">
-                <i class="bi bi-exclamation-triangle-fill me-1"></i> Margine sotto soglia minima.
-              </div>
-              {% else %}
-              <div class="alert alert-danger py-2 small mb-0">
-                <i class="bi bi-x-circle-fill me-1"></i> Margine critico!
-              </div>
-              {% endif %}
+              {% endfor %}
             </div>
           </div>
         </div>
+
       </div>
 
-    </div>
+      <!-- ════════ SCHEDA 2: MARGINALITÀ ════════ -->
+      <div class="tab-pane fade" id="tab-margine" role="tabpanel">
+        <div class="row g-4">
 
-    <!-- Righe ausili (LEA) -->
-    <div class="card mt-4" id="ausili">
-      <div class="card-header bg-primary text-white py-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
-        <span><i class="bi bi-list-check me-2"></i>Righe ausili (LEA)</span>
-        <div class="d-flex gap-2 flex-wrap">
-          <form method="post" action="{{ url_for('applica_preset', pratica_id=pratica.id) }}"
-                class="d-flex gap-1">
-            <select name="preset_id" class="form-select form-select-sm" style="max-width:280px" required>
-              <option value="" selected disabled>Inserisci set per categoria…</option>
-              {% for categoria, lista in preset_categorie.items() %}
-              <optgroup label="{{ categoria }}">
-                {% for p in lista %}
-                <option value="{{ p.id }}">{{ p.label }} ({{ p.righe|length }})</option>
-                {% endfor %}
-              </optgroup>
-              {% endfor %}
-            </select>
-            <button type="submit" class="btn btn-sm btn-light text-nowrap" title="Inserisci il set di righe">
-              <i class="bi bi-box-arrow-in-down"></i>
-            </button>
-          </form>
-          <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#formAggiungiRiga">
-            <i class="bi bi-plus-lg me-1"></i>Riga singola
-          </button>
-        </div>
-      </div>
+          <!-- Costi fornitori -->
+          <div class="col-12 col-lg-7">
+            <div class="card">
+              <div class="card-header bg-primary text-white py-3 d-flex align-items-center justify-content-between">
+                <span><i class="bi bi-truck me-2"></i>Costi Fornitori</span>
+                <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#formAggiungiFornitore" aria-expanded="false">
+                  <i class="bi bi-plus-lg me-1"></i>Aggiungi
+                </button>
+              </div>
 
-      <div class="collapse" id="formAggiungiRiga">
-        <div class="border-bottom px-3 py-3 bg-light">
-          <form method="post" action="{{ url_for('aggiungi_riga', pratica_id=pratica.id) }}" class="row g-2 align-items-end">
-            <div class="col-6 col-sm-2">
-              <label class="form-label form-label-sm mb-1">Cod. ISO</label>
-              <input type="text" name="codice_iso" class="form-control form-control-sm" placeholder="12.36.06.018">
-            </div>
-            <div class="col-12 col-sm-5">
-              <label class="form-label form-label-sm mb-1">Descrizione</label>
-              <input type="text" name="descrizione" class="form-control form-control-sm" placeholder="Descrizione ausilio">
-            </div>
-            <div class="col-3 col-sm-1">
-              <label class="form-label form-label-sm mb-1">Q.tà</label>
-              <input type="number" name="qta" step="1" min="0" value="1" class="form-control form-control-sm">
-            </div>
-            <div class="col-6 col-sm-2">
-              <label class="form-label form-label-sm mb-1">Prezzo unit. €</label>
-              <input type="number" name="prezzo_unitario" step="0.01" min="0" class="form-control form-control-sm" placeholder="0.00">
-            </div>
-            <div class="col-3 col-sm-2">
-              <button type="submit" class="btn btn-success btn-sm w-100"><i class="bi bi-check-lg"></i></button>
-            </div>
-          </form>
-        </div>
-      </div>
+              <div class="collapse" id="formAggiungiFornitore">
+                <div class="border-bottom px-3 py-3 bg-light">
+                  <form method="post" action="{{ url_for('aggiungi_fornitore', pratica_id=pratica.id) }}"
+                        class="row g-2 align-items-end">
+                    <input type="hidden" name="torna" value="{{ request.path }}#tab-margine">
+                    <div class="col-7">
+                      <label class="form-label form-label-sm mb-1 fw-semibold">Fornitore</label>
+                      <input type="text" name="nome_fornitore" class="form-control form-control-sm"
+                             placeholder="es. Medimec, Permobil…" required>
+                    </div>
+                    <div class="col-3">
+                      <label class="form-label form-label-sm mb-1 fw-semibold">Importo €</label>
+                      <input type="number" name="importo" step="0.01" min="0"
+                             class="form-control form-control-sm" placeholder="0.00" required>
+                    </div>
+                    <div class="col-2">
+                      <button type="submit" class="btn btn-success btn-sm w-100"><i class="bi bi-check-lg"></i></button>
+                    </div>
+                  </form>
+                </div>
+              </div>
 
-      <div class="card-body p-0">
-        {% if righe %}
-        <table class="table mb-0 align-middle">
-          <thead class="table-light">
-            <tr>
-              <th>Cod. ISO</th>
-              <th>Descrizione</th>
-              <th class="text-center">Q.tà</th>
-              <th class="text-end">Prezzo unit.</th>
-              <th class="text-end">Totale</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for r in righe %}
-            <tr>
-              <td class="text-muted small">{{ r.codice_iso or '—' }}</td>
-              <td>{{ r.descrizione or '—' }}</td>
-              <td class="text-center">{{ (r.qta or 0) | int }}</td>
-              <td class="text-end">€ {{ "%.2f"|format(r.prezzo_unitario or 0) }}</td>
-              <td class="text-end fw-semibold">€ {{ "%.2f"|format((r.qta or 0) * (r.prezzo_unitario or 0)) }}</td>
-              <td class="text-end" style="width:40px">
-                <form method="post" action="{{ url_for('elimina_riga', riga_id=r.id) }}"
-                      onsubmit="return confirm('Rimuovere questa riga?')">
-                  <button type="submit" class="btn btn-link btn-sm p-0 text-danger" title="Rimuovi">
-                    <i class="bi bi-x-circle"></i>
-                  </button>
-                </form>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-          <tfoot class="table-light">
-            <tr>
-              <td colspan="4" class="text-end fw-bold text-muted small">IMPONIBILE AUSILI</td>
-              <td class="text-end fw-bold">€ {{ "%.2f"|format(tot_ausili) }}</td>
-              <td></td>
-            </tr>
-          </tfoot>
-        </table>
-        {% else %}
-        <div class="text-center text-muted py-3 small">
-          Nessuna riga ausilio — usa <strong>Aggiungi riga</strong>. Servono per il preventivo e la prescrizione.
-        </div>
-        {% endif %}
-      </div>
-    </div>
-
-    <!-- Moduli PDF -->
-    <div class="card mt-4" id="moduli">
-      <div class="card-header bg-dark text-white py-3 d-flex align-items-center justify-content-between">
-        <span><i class="bi bi-file-earmark-pdf me-2"></i>Moduli PDF</span>
-        <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#formDatiModuli">
-          <i class="bi bi-sliders me-1"></i>Dati per i moduli
-        </button>
-      </div>
-
-      <!-- Quick-edit dei campi clinici usati nei moduli -->
-      <div class="collapse" id="formDatiModuli">
-        <div class="border-bottom px-3 py-3 bg-light">
-          <form method="post" action="{{ url_for('aggiorna_dati_moduli', pratica_id=pratica.id) }}" class="row g-2">
-            <div class="col-12 col-sm-4">
-              <label class="form-label form-label-sm mb-1">N° pratica</label>
-              <input type="text" name="numero_pratica" class="form-control form-control-sm" value="{{ pratica.numero_pratica or '' }}">
-            </div>
-            <div class="col-12 col-sm-4">
-              <label class="form-label form-label-sm mb-1">ASL destinataria</label>
-              <input type="text" name="asl_destinataria" class="form-control form-control-sm"
-                     value="{{ pratica.asl_destinataria or '' }}" placeholder="{{ cliente.asl if cliente else 'es. RM 2' }}">
-            </div>
-            <div class="col-8 col-sm-3">
-              <label class="form-label form-label-sm mb-1">Medico / struttura</label>
-              <input type="text" name="medico_struttura" class="form-control form-control-sm" value="{{ pratica.medico_struttura or '' }}">
-            </div>
-            <div class="col-4 col-sm-1">
-              <label class="form-label form-label-sm mb-1">IVA %</label>
-              <input type="number" name="iva_percentuale" step="0.01" min="0" class="form-control form-control-sm"
-                     value="{{ pratica.iva_percentuale if pratica.iva_percentuale is not none else 4 }}">
-            </div>
-            <div class="col-12">
-              <label class="form-label form-label-sm mb-1">Ausilio (oggetto richiesta)</label>
-              <input type="text" name="ausilio" class="form-control form-control-sm" value="{{ pratica.ausilio or '' }}"
-                     placeholder="es. Carrozzina elettronica a sei ruote">
-            </div>
-            <div class="col-12 col-sm-6">
-              <label class="form-label form-label-sm mb-1">Diagnosi</label>
-              <input type="text" name="diagnosi" class="form-control form-control-sm" value="{{ pratica.diagnosi or '' }}">
-            </div>
-            <div class="col-12 col-sm-6">
-              <label class="form-label form-label-sm mb-1">Significato terapeutico</label>
-              <input type="text" name="sign_terapeutico" class="form-control form-control-sm" value="{{ pratica.sign_terapeutico or '' }}">
-            </div>
-            <div class="col-12 text-end">
-              <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-save me-1"></i>Salva dati moduli</button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <div class="card-body">
-        {% if not cliente %}
-        <div class="alert alert-warning py-2 small mb-3">
-          <i class="bi bi-exclamation-triangle-fill me-1"></i>
-          Questa pratica non è collegata a un cliente in anagrafica: i moduli non possono essere
-          precompilati con i dati del paziente.
-          <a href="{{ url_for('modifica_pratica', pratica_id=pratica.id) }}">Collega un cliente</a>.
-        </div>
-        {% endif %}
-
-        <div class="row g-2">
-          {% for m in moduli %}
-          <div class="col-12 col-sm-6">
-            <div class="d-flex align-items-center justify-content-between border rounded p-2">
-              <div class="me-2">
-                <div class="fw-semibold small">{{ m.label }}</div>
-                {% if m.stato == 'parziale' %}
-                <span class="badge bg-warning-subtle text-warning" style="font-size:.65em">sezione ausili in arrivo</span>
+              <div class="card-body p-0">
+                {% if preventivi %}
+                <table class="table mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Fornitore</th>
+                      <th class="text-end">Importo (netto IVA)</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for pv in preventivi %}
+                    <tr>
+                      <td>{{ pv.nome_fornitore }}</td>
+                      <td class="text-end fw-semibold">€ {{ "%.2f"|format(pv.importo) }}</td>
+                      <td class="text-end" style="width:40px">
+                        <form method="post" action="{{ url_for('elimina_fornitore', preventivo_id=pv.id) }}"
+                              onsubmit="return confirm('Rimuovere {{ pv.nome_fornitore }}?')">
+                          <input type="hidden" name="torna" value="{{ request.path }}#tab-margine">
+                          <button type="submit" class="btn btn-link btn-sm p-0 text-danger" title="Rimuovi">
+                            <i class="bi bi-x-circle"></i>
+                          </button>
+                        </form>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                  <tfoot class="table-light">
+                    <tr>
+                      <td class="fw-bold text-muted small">TOTALE COSTO</td>
+                      <td class="text-end fw-bold">€ {{ "%.2f"|format(margine.costo) }}</td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+                {% else %}
+                <div class="text-center text-muted py-3 small">
+                  Nessun costo registrato — usa <strong>Aggiungi</strong> per inserire i fornitori.
+                </div>
                 {% endif %}
               </div>
-              {% if m.richiede_cliente and not cliente %}
-              <button class="btn btn-sm btn-outline-secondary" disabled title="Serve un cliente collegato">
-                <i class="bi bi-download"></i>
-              </button>
-              {% else %}
-              <a href="{{ url_for('genera_modulo', pratica_id=pratica.id, template_id=m.id) }}"
-                 class="btn btn-sm btn-primary text-nowrap">
-                <i class="bi bi-download me-1"></i>Genera
-              </a>
-              {% endif %}
             </div>
           </div>
-          {% endfor %}
+
+          <!-- Analisi margine -->
+          <div class="col-12 col-lg-5">
+            <div class="card">
+              <div class="card-header bg-primary text-white py-3">
+                <i class="bi bi-calculator me-2"></i>Analisi Margine
+              </div>
+              <div class="card-body">
+                <div id="riepilogo-margine">
+                  <div class="riga-calc">
+                    <span>Ricavi (ASL)</span>
+                    <span class="fw-semibold">€ {{ "%.2f"|format(margine.ricavi) }}</span>
+                  </div>
+                  <div class="riga-calc text-danger">
+                    <span>Costo fornitori</span>
+                    <span>— € {{ "%.2f"|format(margine.costo) }}</span>
+                  </div>
+                  <div class="riga-calc text-muted">
+                    <span>Provvigione {{ margine.provvigione_pct | int }}%</span>
+                    <span>— € {{ "%.2f"|format(margine.provvigione) }}</span>
+                  </div>
+                  <div class="riga-calc text-muted">
+                    <span>Struttura 5%</span>
+                    <span>— € {{ "%.2f"|format(margine.struttura) }}</span>
+                  </div>
+                  <div class="riga-calc totale mt-1 pt-1">
+                    <span>MOL</span>
+                    <span class="{% if margine.mol >= 0 %}text-success{% else %}text-danger{% endif %}">
+                      € {{ "%.2f"|format(margine.mol) }}
+                    </span>
+                  </div>
+                </div>
+
+                <div class="mt-4 text-center">
+                  {% set pct = margine.margine_pct %}
+                  <div class="fs-1 fw-bold {% if pct >= soglia_ok %}text-success{% elif pct >= soglia_warn %}text-warning{% else %}text-danger{% endif %}">
+                    {{ "%.1f"|format(pct) }}%
+                  </div>
+                  <div class="text-muted small mb-2">Margine totale</div>
+                  <div class="progress-margine">
+                    {% set w = [[pct, 100] | min, 0] | max %}
+                    <div class="progress-bar {% if pct >= soglia_ok %}bg-success{% elif pct >= soglia_warn %}bg-warning{% else %}bg-danger{% endif %}"
+                         style="width: {{ w }}%"></div>
+                  </div>
+                  <div class="d-flex justify-content-end mt-1">
+                    <small class="text-muted">Soglia: <strong>{{ soglia_ok | int }}%</strong></small>
+                  </div>
+                </div>
+
+                <div class="mt-3">
+                  {% if pct >= soglia_ok %}
+                  <div class="alert alert-success py-2 small mb-0"><i class="bi bi-check-circle-fill me-1"></i> Pratica sostenibile.</div>
+                  {% elif pct >= soglia_warn %}
+                  <div class="alert alert-warning py-2 small mb-0"><i class="bi bi-exclamation-triangle-fill me-1"></i> Margine sotto soglia minima.</div>
+                  {% else %}
+                  <div class="alert alert-danger py-2 small mb-0"><i class="bi bi-x-circle-fill me-1"></i> Margine critico!</div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
-    </div>
 
+    </div>
   </div>
 </div>
 
@@ -425,4 +436,21 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Attiva la scheda corretta in base all'ancora dell'URL (#tab-margine, #ausili, #moduli)
+(function () {
+  const hash = window.location.hash;
+  if (!hash) return;
+  const target = document.querySelector(hash);
+  const pane = target ? target.closest('.tab-pane') : null;
+  if (pane) {
+    const trigger = document.querySelector('[data-bs-target="#' + pane.id + '"]');
+    if (trigger) new bootstrap.Tab(trigger).show();
+    if (target !== pane) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+})();
+</script>
 {% endblock %}
