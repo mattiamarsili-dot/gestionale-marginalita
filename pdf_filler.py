@@ -326,8 +326,8 @@ def _overlay_preventivo(reader, header: dict, righe, iva_pct, header_size=12, ta
             # numero lungo → corpo ridotto per non toccare "/aus/"
             _draw_fit(c, str(val), x0, x1, y0 + 2, "left", 8.5, min_size=6)
         elif name in ("preventivo_asl", "preventivo_data"):
-            # allineati in alto a destra
-            _draw_fit(c, str(val), x0, x1, y1 - header_size * 0.85, "right", header_size, min_size=8)
+            # allineati in alto a destra (baseline vicino al bordo superiore)
+            _draw_fit(c, str(val), x0, x1, y1 - header_size, "right", header_size, min_size=8)
         else:
             _draw_fit(c, str(val), x0, x1, y0 + 2, "left", header_size, min_size=8)
 
@@ -347,9 +347,11 @@ def _overlay_preventivo(reader, header: dict, righe, iva_pct, header_size=12, ta
         prezzo = r.get("prezzo_unitario") or 0
         totale = qta * prezzo
         imponibile += totale
-        # baseline = centro verticale della banda di riga (cella descrizione)
-        dy0, dy1 = rects[desc_name][1], rects[desc_name][3]
-        base = (dy0 + dy1) / 2 - table_size * 0.35
+
+        # baseline comune alla riga, centrata sulla cella q.tà (altezza standard
+        # di riga): tutte le colonne risultano sulla stessa linea e centrate.
+        ref = rects.get(f"{pref}_qta") or rects[desc_name]
+        base = (ref[1] + ref[3]) / 2 - table_size * 0.35
 
         def cell(name, text, col):
             if name in rects:
