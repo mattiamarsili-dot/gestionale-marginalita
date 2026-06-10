@@ -1,0 +1,236 @@
+[
+  {
+    "id": "ST-CM-001",
+    "categoria": "Carrozzine manuali",
+    "label": "Carrozzina manuale — grave limitazione della deambulazione",
+    "text": "Il presidio è indicato in relazione alla grave limitazione della deambulazione autonoma secondaria al quadro clinico-funzionale documentato. La carrozzina manuale consente al paziente di effettuare gli spostamenti essenziali in ambiente domestico ed extra-domestico, favorendo la partecipazione alle attività quotidiane e riducendo la dipendenza continuativa dal caregiver. L’ausilio contribuisce inoltre alla prevenzione delle complicanze correlate alla ridotta mobilità, quali affaticamento eccessivo, rischio di caduta e prolungata permanenza a letto o in posizione non idonea."
+  },
+  {
+    "id": "ST-CM-002",
+    "categoria": "Carrozzine manuali",
+    "label": "Carrozzina superleggera — autonomia e tutela arti superiori",
+    "text": "La carrozzina superleggera è indicata per garantire una mobilità autonoma più efficace in presenza di deficit motorio agli arti inferiori e conservata capacità di utilizzo degli arti superiori. La riduzione del peso del telaio e la migliore adattabilità posturale consentono una propulsione meno gravosa, limitando il sovraccarico funzionale di spalle, gomiti e polsi. Il presidio favorisce gli spostamenti quotidiani, migliora la partecipazione sociale e consente una gestione più sicura delle attività domestiche, lavorative o scolastiche."
+  },
+  {
+    "id": "ST-CM-003",
+    "categoria": "Carrozzine manuali",
+    "label": "Carrozzina manuale con postura — controllo del tronco",
+    "text": "Il paziente presenta ridotta capacità di controllo del tronco e necessità di un corretto posizionamento in postura seduta. La carrozzina manuale associata a componenti posturali consente di mantenere un assetto stabile e funzionale, migliorando l’allineamento di bacino, tronco e capo. Il presidio riduce il rischio di posture viziate, deformità secondarie e lesioni da pressione, favorendo al tempo stesso la tolleranza alla posizione seduta e la partecipazione alle attività di vita quotidiana."
+  },
+  {
+    "id": "ST-CE-001",
+    "categoria": "Carrozzine elettroniche",
+    "label": "Elettronica — impossibilità alla propulsione manuale",
+    "text": "Il presidio è indicato in presenza di grave compromissione motoria che impedisce la deambulazione autonoma e non consente una propulsione manuale efficace e sicura della carrozzina. La carrozzina elettronica permette al paziente di recuperare autonomia negli spostamenti, riducendo la dipendenza dal caregiver e favorendo la partecipazione alle attività quotidiane. L’ausilio risulta necessario per garantire mobilità, sicurezza e continuità della vita relazionale in ambiente domestico, sanitario ed extra-domestico."
+  },
+  {
+    "id": "ST-CE-002",
+    "categoria": "Carrozzine elettroniche",
+    "label": "Elettronica con postura — patologia neurologica complessa",
+    "text": "In presenza di patologia neurologica con grave compromissione della funzione motoria e del controllo posturale, la carrozzina elettronica con sistema posturale consente la mobilità autonoma residua e il mantenimento di una posizione seduta corretta. Il presidio contribuisce alla prevenzione di deformità secondarie, retrazioni, lesioni da pressione e complicanze respiratorie correlate a posture non adeguate. L’ausilio è finalizzato a migliorare autonomia, sicurezza, tolleranza alla seduta e qualità della vita del paziente."
+  },
+  {
+    "id": "ST-CE-003",
+    "categoria": "Carrozzine elettroniche",
+    "label": "Elettronica — patologia progressiva / neuromuscolare",
+    "text": "Il quadro clinico è caratterizzato da patologia progressiva con riduzione della forza muscolare, affaticabilità e progressiva perdita dell’autonomia negli spostamenti. La carrozzina elettronica consente di preservare la mobilità residua, ridurre il dispendio energetico e limitare il carico assistenziale sul caregiver. Il presidio permette al paziente di mantenere una maggiore partecipazione alle attività quotidiane e relazionali, garantendo sicurezza negli spostamenti e possibilità di adattamento all’evoluzione del quadro funzionale."
+  },
+  {
+    "id": "ST-CE-004",
+    "categoria": "Carrozzine elettroniche",
+    "label": "Elettronica con elevazione/basculamento — funzioni posturali",
+    "text": "La presenza di grave disabilità motoria e difficoltà nel mantenimento prolungato della postura seduta rende necessario un sistema elettronico dotato di funzioni posturali. Basculamento, reclinazione o elevazione consentono variazioni controllate della posizione, migliorano la distribuzione delle pressioni, facilitano le attività assistenziali e favoriscono l’interazione con l’ambiente. Il presidio contribuisce alla prevenzione di complicanze cutanee e posturali, aumentando sicurezza, comfort e partecipazione funzionale del paziente."
+  },
+  {
+    "id": "ST-BR-001",
+    "categoria": "Bascule e recliner",
+    "label": "Basculante — prevenzione lesioni da pressione",
+    "text": "Il sistema basculante è indicato per pazienti con ridotta mobilità autonoma, scarsa capacità di variazione posturale e rischio aumentato di lesioni da pressione. La possibilità di modificare l’inclinazione della seduta consente una migliore redistribuzione dei carichi, riduce le pressioni localizzate e migliora la tolleranza alla posizione seduta. Il presidio facilita inoltre le manovre assistenziali, il riposo, l’igiene e la gestione quotidiana, contribuendo alla prevenzione di complicanze cutanee, posturali e respiratorie."
+  },
+  {
+    "id": "ST-BR-002",
+    "categoria": "Bascule e recliner",
+    "label": "Basculante pediatrica — pluridisabilità",
+    "text": "Il paziente in età evolutiva presenta compromissione del controllo posturale e necessità di un contenimento adeguato durante la postura seduta. La base basculante pediatrica, associata a componenti posturali, permette un posizionamento stabile e sicuro, favorendo l’allineamento di bacino, tronco e capo. Il presidio contribuisce a prevenire deformità evolutive, migliora la tolleranza alla seduta e consente una migliore partecipazione alle attività riabilitative, educative e familiari."
+  },
+  {
+    "id": "ST-BR-003",
+    "categoria": "Bascule e recliner",
+    "label": "Recliner — gestione fatica e postura prolungata",
+    "text": "Il presidio reclinabile è indicato quando il paziente non tollera a lungo la postura seduta statica o necessita di variazioni frequenti dell’assetto posturale. La regolazione dell’inclinazione consente di ridurre l’affaticamento, facilitare il rilassamento muscolare e migliorare il comfort durante la permanenza in carrozzina. L’ausilio supporta la gestione domiciliare e assistenziale, riducendo il rischio di posture scorrette, dolore, scivolamento del bacino e complicanze correlate all’immobilità."
+  },
+  {
+    "id": "ST-SP-001",
+    "categoria": "Sistemi posturali",
+    "label": "Sistema posturale — controllo bacino e tronco",
+    "text": "Il sistema posturale è indicato per garantire il corretto allineamento di bacino e tronco in presenza di deficit del controllo posturale. Il presidio consente una postura seduta più stabile e funzionale, favorendo la respirazione, l’alimentazione, l’interazione con l’ambiente e l’utilizzo degli arti superiori. La personalizzazione dei supporti permette di ridurre asimmetrie, posture viziate e pressioni localizzate, contribuendo alla prevenzione di deformità secondarie e lesioni cutanee."
+  },
+  {
+    "id": "ST-SP-002",
+    "categoria": "Sistemi posturali",
+    "label": "Postura modulare — deformità evolutive",
+    "text": "Il paziente presenta alterazioni posturali con rischio di peggioramento evolutivo e necessità di contenimento personalizzato. Il sistema posturale modulare consente di sostenere i segmenti corporei compromessi, migliorare l’allineamento e prevenire l’aggravamento di deformità a carico di rachide, bacino e arti. Il presidio è finalizzato a incrementare la stabilità, la sicurezza e la tolleranza alla posizione seduta, riducendo complicanze ortopediche, cutanee e respiratorie."
+  },
+  {
+    "id": "ST-SP-003",
+    "categoria": "Sistemi posturali",
+    "label": "Postura su misura — grave asimmetria",
+    "text": "La presenza di grave asimmetria posturale richiede un sistema di contenimento e sostegno personalizzato. Il presidio su misura consente di adattare il supporto alla morfologia del paziente, migliorando la distribuzione delle pressioni e il mantenimento di una postura corretta e tollerabile. L’obiettivo terapeutico è prevenire il peggioramento delle deformità, ridurre il rischio di lesioni da pressione e favorire una maggiore stabilità nelle attività quotidiane."
+  },
+  {
+    "id": "ST-OR-001",
+    "categoria": "Ortesi",
+    "label": "Ortesi arto inferiore — allineamento e deambulazione",
+    "text": "L’ortesi è indicata per sostenere l’arto inferiore, migliorare l’allineamento articolare e favorire una deambulazione più sicura nei limiti del quadro clinico. Il presidio contribuisce a compensare deficit di forza, instabilità o alterazioni del controllo motorio, riducendo il rischio di cadute e sovraccarichi funzionali. L’utilizzo dell’ortesi permette inoltre di prevenire atteggiamenti viziati, retrazioni e deformità secondarie, supportando il programma riabilitativo e le attività quotidiane."
+  },
+  {
+    "id": "ST-OR-002",
+    "categoria": "Ortesi",
+    "label": "Ortesi arto superiore — funzione e prevenzione deformità",
+    "text": "L’ortesi per arto superiore è indicata in presenza di deficit motorio, spasticità, instabilità articolare o ridotta capacità di controllo funzionale della mano e del polso. Il presidio consente di mantenere un corretto posizionamento, prevenire deformità e retrazioni, ridurre posture patologiche e favorire, ove possibile, l’utilizzo funzionale residuo dell’arto. L’ausilio supporta le attività quotidiane e contribuisce alla prevenzione di dolore e complicanze muscolo-scheletriche."
+  },
+  {
+    "id": "ST-OR-003",
+    "categoria": "Ortesi",
+    "label": "Busto / tronco — contenimento e stabilità",
+    "text": "Il busto ortopedico è indicato per migliorare il contenimento e la stabilità del tronco in presenza di alterazioni posturali, instabilità o deformità del rachide. Il presidio sostiene l’allineamento, riduce il rischio di peggioramento delle curve patologiche e favorisce una postura più funzionale durante la posizione seduta o in stazione eretta assistita. L’utilizzo dell’ortesi contribuisce a migliorare comfort, controllo del tronco e sicurezza nelle attività quotidiane."
+  },
+  {
+    "id": "ST-PR-001",
+    "categoria": "Propulsori",
+    "label": "Propulsore — riduzione sovraccarico arti superiori",
+    "text": "Il sistema di propulsione assistita è indicato in presenza di ridotta efficienza della propulsione manuale, affaticabilità o rischio di sovraccarico degli arti superiori. Il presidio consente di mantenere una mobilità autonoma più sicura e meno faticosa, riducendo lo stress meccanico su spalle, gomiti e polsi. L’ausilio favorisce gli spostamenti in ambiente interno ed esterno, migliora la partecipazione sociale e contribuisce a preservare nel tempo la funzionalità residua degli arti superiori."
+  },
+  {
+    "id": "ST-PR-002",
+    "categoria": "Propulsori",
+    "label": "Propulsore accompagnatore — sicurezza caregiver",
+    "text": "Il sistema di propulsione per accompagnatore è indicato quando il paziente non è in grado di gestire autonomamente gli spostamenti e il caregiver necessita di supporto per movimentare la carrozzina in sicurezza. Il presidio riduce lo sforzo fisico dell’assistente, facilita la gestione di pendenze e percorsi esterni e limita il rischio di cadute o perdita di controllo. L’ausilio consente una mobilità più sicura del paziente e una minore esposizione del caregiver a sovraccarichi muscolo-scheletrici."
+  },
+  {
+    "id": "ST-AD-001",
+    "categoria": "Ausili per la cura personale e domiciliari",
+    "label": "Letto articolato — assistenza e posizionamento",
+    "text": "Il letto articolato è indicato per pazienti con ridotta autonomia nei cambi posturali, nei trasferimenti e nella gestione delle attività quotidiane a letto. La regolazione delle sezioni e dell’altezza facilita l’assistenza, migliora il posizionamento, riduce il rischio di posture incongrue e consente una gestione più sicura da parte del caregiver. Il presidio contribuisce alla prevenzione di complicanze da immobilità, agevola l’igiene, il riposo e le manovre assistenziali domiciliari."
+  },
+  {
+    "id": "ST-AD-002",
+    "categoria": "Ausili per la cura personale e domiciliari",
+    "label": "Materasso antidecubito — prevenzione lesioni",
+    "text": "Il materasso antidecubito è indicato in presenza di ridotta mobilità, permanenza prolungata a letto e rischio aumentato di lesioni da pressione. Il presidio consente una migliore distribuzione dei carichi, riduce le pressioni localizzate e contribuisce alla protezione dei distretti cutanei maggiormente esposti. L’utilizzo risulta finalizzato alla prevenzione di complicanze cutanee, al miglioramento del comfort e alla gestione assistenziale del paziente fragile o non autosufficiente."
+  },
+  {
+    "id": "ST-AD-003",
+    "categoria": "Ausili per la cura personale e domiciliari",
+    "label": "Sollevatore — trasferimenti sicuri",
+    "text": "Il sollevatore è indicato per pazienti con grave compromissione motoria e impossibilità o marcata difficoltà nei trasferimenti autonomi. Il presidio consente di effettuare in sicurezza i passaggi letto-carrozzina, carrozzina-servizi igienici e altre movimentazioni assistite, riducendo il rischio di cadute, traumi e manovre incongrue. L’ausilio tutela sia il paziente sia il caregiver, diminuendo il carico fisico assistenziale e favorendo la permanenza sicura al domicilio."
+  },
+  {
+    "id": "ST-AD-004",
+    "categoria": "Ausili per la cura personale e domiciliari",
+    "label": "Sedia WC/doccia — igiene personale",
+    "text": "La sedia WC/doccia è indicata in presenza di ridotta autonomia motoria e difficoltà nell’accesso sicuro ai servizi igienici o alla doccia. Il presidio consente di svolgere le attività di igiene personale in condizioni di maggiore sicurezza, riducendo il rischio di cadute, scivolamenti e trasferimenti non controllati. L’ausilio facilita l’assistenza da parte del caregiver, preserva la dignità del paziente e favorisce una gestione domiciliare più sicura e funzionale."
+  },
+  {
+    "id": "ST-AD-005",
+    "categoria": "Ausili per la cura personale e domiciliari",
+    "label": "Sedia WC basculante — igiene con controllo posturale",
+    "text": "La sedia WC/doccia basculante è indicata quando, oltre alla ridotta autonomia nelle attività di igiene, è presente un deficit del controllo posturale che rende instabile o rischiosa la posizione seduta. Il basculamento e gli accessori di contenimento consentono un migliore allineamento, aumentano la sicurezza durante l’igiene e facilitano le manovre assistenziali. Il presidio riduce il rischio di cadute, scivolamenti e posture non corrette, migliorando comfort e gestione quotidiana."
+  },
+  {
+    "id": "ST-AM-001",
+    "categoria": "Ausili per la mobilità in ambiente",
+    "label": "Montascale — superamento barriere architettoniche",
+    "text": "Il montascale è indicato quando la presenza di scale o dislivelli impedisce al paziente l’accesso sicuro agli ambienti essenziali dell’abitazione o degli spazi di vita. Il presidio consente il superamento delle barriere architettoniche riducendo il rischio di cadute e movimentazioni manuali pericolose. L’ausilio favorisce la permanenza al domicilio, migliora la partecipazione alla vita familiare e sociale e riduce la dipendenza da interventi assistenziali esterni."
+  },
+  {
+    "id": "ST-AM-002",
+    "categoria": "Ausili per la mobilità in ambiente",
+    "label": "Montascale a cingoli — carrozzina e scale",
+    "text": "Il montascale a cingoli è indicato per consentire il trasporto sicuro del paziente in carrozzina lungo rampe di scale non superabili autonomamente. Il presidio riduce la necessità di sollevamenti manuali, limita il rischio di cadute e rende possibile l’accesso ad ambienti altrimenti non fruibili. L’ausilio è finalizzato a migliorare sicurezza, continuità della permanenza domiciliare e partecipazione alla vita quotidiana, tutelando al tempo stesso il caregiver."
+  },
+  {
+    "id": "ST-ST-001",
+    "categoria": "Statica",
+    "label": "Stabilizzatore — verticalizzazione terapeutica",
+    "text": "Lo stabilizzatore è indicato per consentire la verticalizzazione assistita in pazienti con impossibilità o grave difficoltà al mantenimento autonomo della stazione eretta. Il presidio favorisce il carico controllato sugli arti inferiori, contribuisce alla prevenzione di retrazioni, osteopenia da immobilità e complicanze circolatorie, e migliora la partecipazione alle attività riabilitative e quotidiane. L’ausilio consente un posizionamento sicuro e progressivo, adattato alle condizioni clinico-funzionali del paziente."
+  },
+  {
+    "id": "ST-ST-002",
+    "categoria": "Statica",
+    "label": "Standing pediatrico — sviluppo e postura",
+    "text": "Nel paziente in età evolutiva, lo standing è indicato per favorire la verticalizzazione assistita, il corretto allineamento posturale e la partecipazione alle attività educative e riabilitative. Il presidio contribuisce alla prevenzione di retrazioni, deformità secondarie e complicanze legate alla prolungata posizione seduta o supina. L’utilizzo controllato permette di sostenere lo sviluppo funzionale, migliorare l’interazione con l’ambiente e facilitare il lavoro terapeutico in sicurezza."
+  },
+  {
+    "id": "ST-PP-001",
+    "categoria": "Postura pediatrica",
+    "label": "Postura pediatrica — controllo capo tronco bacino",
+    "text": "Il sistema posturale pediatrico è indicato per pazienti in età evolutiva con deficit del controllo di capo, tronco e bacino. Il presidio permette un contenimento stabile e personalizzato, favorendo l’allineamento corporeo e prevenendo l’instaurarsi o il peggioramento di deformità secondarie. La corretta postura seduta migliora comfort, respirazione, alimentazione, interazione e partecipazione alle attività riabilitative, scolastiche e familiari, sostenendo il percorso di crescita del bambino."
+  },
+  {
+    "id": "ST-GEN-001",
+    "categoria": "Generico",
+    "label": "Motivazione generale — ausilio per autonomia e sicurezza",
+    "text": "L’ausilio è indicato in relazione al quadro clinico-funzionale del paziente, caratterizzato da limitazioni motorie e ridotta autonomia nelle attività quotidiane. Il presidio consente di migliorare sicurezza, partecipazione e gestione assistenziale, riducendo il rischio di cadute, posture incongrue, affaticamento e complicanze secondarie. La prescrizione è finalizzata a sostenere le capacità residue del paziente, favorire la permanenza nel proprio ambiente di vita e ridurre il carico assistenziale del caregiver."
+  },
+  {
+    "id": "ST-MOVEON-001",
+    "categoria": "Ortesi MoveOn",
+    "label": "MoveOn 1 — arto superiore / dita",
+    "text": "Ortesi su misura indispensabile per il contrasto attivo, su base meccanica e propriocettiva, della rigidità a carico delle dita dell’arto superiore. Il presidio è finalizzato a prolungare l’azione dei trattamenti farmacologici e riabilitativi, prevenendo dolore, retrazioni e blocchi articolari, e favorendo il mantenimento della funzionalità residua della mano."
+  },
+  {
+    "id": "ST-MOVEON-002",
+    "categoria": "Ortesi MoveOn",
+    "label": "MoveOn 2 — arto inferiore / piede cadente",
+    "text": "Ortesi su misura indispensabile per il contrasto attivo, su base meccanica e propriocettiva, degli atteggiamenti scorretti dell’arto inferiore, prevenendo o correggendo piede cadente, difetti di pronazione e supinazione. Il tutore, tramite tiranti elicoidali, permette una correzione altamente personalizzata del tono muscolare patologico e del controllo dell’allineamento durante la deambulazione."
+  },
+  {
+    "id": "ST-MOVEON-003",
+    "categoria": "Ortesi MoveOn",
+    "label": "MoveOn 3 — bacino / equilibrio",
+    "text": "Ortesi su misura indispensabile per il contrasto attivo, su base meccanica e propriocettiva, dell’instabilità del bacino. Il presidio favorisce il miglioramento dell’equilibrio e del controllo muscolare sulla catena glutea e sui quadricipiti, contribuendo a una maggiore stabilità posturale e funzionale durante le attività quotidiane."
+  },
+  {
+    "id": "ST-MOVEON-004",
+    "categoria": "Ortesi MoveOn",
+    "label": "MoveOn 4 — tronco / atteggiamenti cifotici",
+    "text": "Ortesi su misura indispensabile per il contrasto attivo, su base meccanica e propriocettiva, della caduta e dell’instabilità del tronco. Il presidio contribuisce alla correzione di atteggiamenti cifotici e disallineamenti posturali, favorendo un migliore controllo del tronco, una postura più stabile e una maggiore sicurezza nelle attività quotidiane."
+  },
+  {
+    "id": "ST-MOVEON-005",
+    "categoria": "Ortesi MoveOn",
+    "label": "MoveOn 5 — spalla / arto plegico",
+    "text": "Ortesi su misura indispensabile per il contrasto attivo, su base meccanica e propriocettiva, dei deficit a carico dell’articolazione della spalla e dell’arto plegico. Il presidio è finalizzato a migliorare il sostegno, il posizionamento e il controllo dell’arto superiore, contribuendo alla prevenzione di dolore, atteggiamenti patologici e complicanze articolari."
+  },
+  {
+    "id": "ST-AZI-SUPERLEGGERA-001",
+    "categoria": "Carrozzine manuali",
+    "label": "Superleggera — mobilità esterna e autonomia",
+    "text": "Ausilio indispensabile per la mobilità, principalmente in ambiente esterno, finalizzato ad aumentare l’autonomia e la qualità di vita del paziente. La carrozzina superleggera è dotata di assetto e misure personalizzate, indispensabili per un utilizzo corretto, autonomo e coerente con il contesto ambientale e funzionale del paziente."
+  },
+  {
+    "id": "ST-AZI-POSTURA-MODULARE-001",
+    "categoria": "Sistemi posturali",
+    "label": "Postura modulare — bacino e tronco",
+    "text": "Sistema di postura modulare indispensabile per consentire una corretta postura del bacino e del tronco, prevenire possibili problematiche da pressione e consentire un adeguato allineamento del tronco nei pazienti con deficit di controllo posturale. Il presidio sostiene la stabilità seduta e favorisce una migliore tolleranza alla postura durante le attività quotidiane."
+  },
+  {
+    "id": "ST-AZI-POSTURA-SU-MISURA-001",
+    "categoria": "Sistemi posturali",
+    "label": "Postura su misura — bacino e tronco",
+    "text": "Sistema di postura su misura indispensabile per consentire una corretta postura del bacino e del tronco, prevenire possibili problematiche da pressione e consentire un adeguato allineamento del tronco nei pazienti con deficit di controllo posturale. La realizzazione personalizzata permette di adattare il presidio alla morfologia e alle esigenze funzionali del paziente."
+  },
+  {
+    "id": "ST-AZI-ELETTRONICA-001",
+    "categoria": "Carrozzine elettroniche",
+    "label": "Carrozzina elettronica — guida autonoma e postura elettrica",
+    "text": "Ausilio indispensabile per la movimentazione esterna con possibilità di guida autonoma. La carrozzina elettronica permette la regolazione elettrica della postura e integra elementi di supporto per tronco, bacino e capo, utili a mantenere allineamento, comfort e prevenzione delle lesioni da pressione. Il presidio favorisce autonomia, sicurezza e partecipazione alle attività quotidiane."
+  },
+  {
+    "id": "ST-AZI-PROPULSORI-001",
+    "categoria": "Propulsori",
+    "label": "Propulsori — elettrificazione carrozzina manuale",
+    "text": "Ausilio indispensabile per elettrificare la carrozzina manuale, facilitando gli spostamenti nei diversi ambienti di vita tramite batteria ricaricabile e motore. Il sistema di propulsione assistita riduce lo sforzo richiesto al paziente o al caregiver, migliora l’autonomia negli spostamenti e consente una mobilità più sicura e meno faticosa."
+  }
+]

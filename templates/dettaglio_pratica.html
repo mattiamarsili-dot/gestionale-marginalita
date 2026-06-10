@@ -108,13 +108,37 @@
                 <input type="text" name="ausilio" class="form-control form-control-sm" value="{{ pratica.ausilio or '' }}"
                        placeholder="es. Carrozzina elettronica a sei ruote">
               </div>
-              <div class="col-12 col-sm-6">
+              <div class="col-12">
                 <label class="form-label form-label-sm mb-1">Diagnosi</label>
                 <input type="text" name="diagnosi" class="form-control form-control-sm" value="{{ pratica.diagnosi or '' }}">
               </div>
-              <div class="col-12 col-sm-6">
-                <label class="form-label form-label-sm mb-1">Significato terapeutico</label>
-                <input type="text" name="sign_terapeutico" class="form-control form-control-sm" value="{{ pratica.sign_terapeutico or '' }}">
+              <div class="col-12">
+                <label class="form-label form-label-sm mb-1 d-flex justify-content-between align-items-end">
+                  <span>Significato terapeutico</span>
+                </label>
+                <div class="d-flex gap-1 mb-1">
+                  <select id="sel-significato" class="form-select form-select-sm" multiple size="3" style="max-width:520px">
+                    {% for categoria, lista in significato_categorie.items() %}
+                    <optgroup label="{{ categoria }}">
+                      {% for s in lista %}
+                      <option value="{{ s.id }}">{{ s.label }}</option>
+                      {% endfor %}
+                    </optgroup>
+                    {% endfor %}
+                  </select>
+                  <div class="d-flex flex-column gap-1">
+                    <button type="button" id="btn-add-significato" class="btn btn-sm btn-outline-primary text-nowrap"
+                            title="Aggiungi i testi selezionati">
+                      <i class="bi bi-plus-lg"></i> Inserisci
+                    </button>
+                    <button type="button" id="btn-clear-significato" class="btn btn-sm btn-outline-secondary text-nowrap"
+                            title="Svuota il campo">
+                      <i class="bi bi-eraser"></i> Pulisci
+                    </button>
+                  </div>
+                </div>
+                <small class="text-muted">Seleziona uno o più preset (Ctrl/Cmd per multipli), poi "Inserisci".</small>
+                <textarea name="sign_terapeutico" id="txt-significato" class="form-control form-control-sm mt-1" rows="4">{{ pratica.sign_terapeutico or '' }}</textarea>
               </div>
               <div class="col-12 text-end">
                 <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-save me-1"></i>Salva codifica</button>
@@ -146,6 +170,14 @@
               <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#formAggiungiRiga">
                 <i class="bi bi-plus-lg me-1"></i>Riga singola
               </button>
+              {% if righe %}
+              <form method="post" action="{{ url_for('svuota_righe', pratica_id=pratica.id) }}"
+                    onsubmit="return confirm('Cancellare tutti i codici in elenco?');">
+                <button type="submit" class="btn btn-sm btn-outline-light text-nowrap" title="Cancella tutti i codici">
+                  <i class="bi bi-trash me-1"></i>Svuota
+                </button>
+              </form>
+              {% endif %}
             </div>
           </div>
 
@@ -451,6 +483,28 @@
     if (trigger) new bootstrap.Tab(trigger).show();
     if (target !== pane) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
+})();
+
+// Preset di significato terapeutico: inserisce nel campo i testi selezionati
+(function () {
+  const SIGN_TEXTS = {
+    {% for categoria, lista in significato_categorie.items() %}{% for s in lista %}"{{ s.id }}": {{ s.text | tojson }},
+    {% endfor %}{% endfor %}
+  };
+  const sel = document.getElementById('sel-significato');
+  const txt = document.getElementById('txt-significato');
+  const add = document.getElementById('btn-add-significato');
+  const clr = document.getElementById('btn-clear-significato');
+  if (!sel || !txt) return;
+  add.addEventListener('click', () => {
+    const scelti = Array.from(sel.selectedOptions).map(o => SIGN_TEXTS[o.value]).filter(Boolean);
+    if (!scelti.length) return;
+    const sep = txt.value.trim() ? '\n\n' : '';
+    txt.value = txt.value.trim() + sep + scelti.join('\n\n');
+    sel.selectedIndex = -1;
+    txt.focus();
+  });
+  clr.addEventListener('click', () => { txt.value = ''; txt.focus(); });
 })();
 </script>
 {% endblock %}

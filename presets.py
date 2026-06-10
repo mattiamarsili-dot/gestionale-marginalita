@@ -138,3 +138,22 @@ def elimina_preset(preset_id):
 def categorie_note() -> list:
     """Elenco delle categorie esistenti (per il datalist nel form)."""
     return sorted({p.get("categoria") for p in lista_preset() if p.get("categoria")})
+
+
+# ── Preset di significato terapeutico (sola lettura, da JSON) ──────────────────
+
+_SIGN_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "presets_significato.json")
+
+try:
+    with open(_SIGN_PATH, encoding="utf-8") as _f:
+        _SIGN_PRESETS = json.load(_f)
+except (OSError, json.JSONDecodeError):
+    _SIGN_PRESETS = []
+
+
+def significato_per_categoria() -> dict:
+    """Preset di significato terapeutico raggruppati per categoria."""
+    gruppi: dict = {}
+    for p in _SIGN_PRESETS:
+        gruppi.setdefault(p.get("categoria") or "Altro", []).append(p)
+    return dict(sorted(gruppi.items()))

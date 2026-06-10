@@ -25,6 +25,7 @@ from pdf_filler import PDF_TEMPLATES, compila_pdf, nome_file_consigliato
 from presets import (
     seed_presets, preset_per_categoria, get_preset, lista_preset,
     crea_preset, aggiorna_preset, elimina_preset, categorie_note,
+    significato_per_categoria,
 )
 
 # ── Periodi predefiniti ────────────────────────────────────────────────────────
@@ -301,6 +302,7 @@ def dettaglio_pratica(pratica_id):
         margine=margine,
         moduli=moduli,
         preset_categorie=preset_per_categoria(),
+        significato_categorie=significato_per_categoria(),
         soglia_ok=MARGINE_SOGLIA_OK,
         soglia_warn=MARGINE_SOGLIA_WARN,
     )
@@ -579,6 +581,15 @@ def applica_preset(pratica_id):
                     (pratica_id, r.get("codice_iso", ""), r.get("descrizione", ""),
                      r.get("qta", 1), r.get("prezzo_unitario", 0), ordine),
                 )
+    return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) + "#ausili")
+
+
+@app.route("/pratica/<int:pratica_id>/righe/svuota", methods=["POST"])
+def svuota_righe(pratica_id):
+    """Cancella tutte le righe ausili della pratica."""
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"DELETE FROM righe_ausili WHERE pratica_id = {_PH}", (pratica_id,))
     return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) + "#ausili")
 
 
