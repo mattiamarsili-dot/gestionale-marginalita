@@ -137,12 +137,20 @@ _SQLITE_SCHEMA = """
         FOREIGN KEY (preset_id) REFERENCES preset_ausili(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS significato_catalogo (
+        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+        articolo  TEXT NOT NULL,
+        testo     TEXT NOT NULL,
+        ordine    INTEGER NOT NULL DEFAULT 0
+    );
+
     CREATE INDEX IF NOT EXISTS idx_pratiche_data      ON pratiche(data_pratica);
     CREATE INDEX IF NOT EXISTS idx_preventivi_pratica ON preventivi(pratica_id);
     CREATE INDEX IF NOT EXISTS idx_righe_pratica      ON righe_ausili(pratica_id);
     CREATE INDEX IF NOT EXISTS idx_preset_righe       ON preset_righe(preset_id);
     CREATE INDEX IF NOT EXISTS idx_clienti_cognome    ON clienti(cognome);
     CREATE INDEX IF NOT EXISTS idx_clienti_cf         ON clienti(codice_fiscale);
+    CREATE INDEX IF NOT EXISTS idx_sign_articolo      ON significato_catalogo(articolo);
 """
 
 _POSTGRES_SCHEMA = """
@@ -230,12 +238,20 @@ _POSTGRES_SCHEMA = """
         FOREIGN KEY (preset_id) REFERENCES preset_ausili(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS significato_catalogo (
+        id        SERIAL PRIMARY KEY,
+        articolo  TEXT NOT NULL,
+        testo     TEXT NOT NULL,
+        ordine    INTEGER NOT NULL DEFAULT 0
+    );
+
     CREATE INDEX IF NOT EXISTS idx_pratiche_data      ON pratiche(data_pratica);
     CREATE INDEX IF NOT EXISTS idx_preventivi_pratica ON preventivi(pratica_id);
     CREATE INDEX IF NOT EXISTS idx_righe_pratica      ON righe_ausili(pratica_id);
     CREATE INDEX IF NOT EXISTS idx_preset_righe       ON preset_righe(preset_id);
     CREATE INDEX IF NOT EXISTS idx_clienti_cognome    ON clienti(cognome);
     CREATE INDEX IF NOT EXISTS idx_clienti_cf         ON clienti(codice_fiscale);
+    CREATE INDEX IF NOT EXISTS idx_sign_articolo      ON significato_catalogo(articolo);
 """
 
 def init_db():
