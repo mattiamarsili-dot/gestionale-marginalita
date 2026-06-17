@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}{% if modifica %}Modifica{% else %}Nuovo{% endif %} set — Gestionale Marginalità{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-xl-10">
+
+    <div class="d-flex align-items-center mb-4 gap-3">
+      <a href="{{ url_for('presets') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+      <div>
+        <h4 class="fw-bold mb-0">{% if modifica %}Modifica set{% else %}Nuovo set di ausili{% endif %}</h4>
+        <small class="text-muted">Le righe verranno inserite in blocco quando selezioni il set in una pratica</small>
+      </div>
+    </div>
+
+    {% if errore %}
+    <div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i>{{ errore }}</div>
+    {% endif %}
+
+    {% if modifica %}
+    <form method="post" id="form-elimina" action="{{ url_for('preset_elimina', preset_id=preset.id) }}"
+          onsubmit="return confirm('Eliminare definitivamente questo set?');"></form>
+    {% endif %}
+
+    <form method="post" id="form-preset">
+      <div class="card mb-4">
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-12 col-sm-7">
+              <label class="form-label">Nome del set *</label>
+              <input type="text" name="label" class="form-control" value="{{ preset.label or '' }}"
+                     placeholder="Es. Carrozzina elettronica 6 ruote + postura" required autofocus>
+            </div>
+            <div class="col-12 col-sm-5">
+              <label class="form-label">Categoria</label>
+              <input type="text" name="categoria" class="form-control" list="lista-categorie"
+                     value="{{ preset.categoria or '' }}" placeholder="Es. Carrozzine elettroniche">
+              <datalist id="lista-categorie">
+                {% for c in categorie_note %}<option value="{{ c }}">{% endfor %}
+              </datalist>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header bg-primary text-white py-3 d-flex align-items-center justify-content-between">
+          <span><i class="bi bi-list-check me-2"></i>Righe del set</span>
+          <button type="button" id="btn-aggiungi-riga" class="btn btn-sm btn-light">
+            <i class="bi bi-plus-lg me-1"></i>Aggiungi riga
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <table class="table mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th style="width:18%">Cod. ISO</th>
+                <th>Descrizione</th>
+                <th style="width:10%">Q.tà</th>
+                <th style="width:16%">Prezzo unit. €</th>
+                <th style="width:40px"></th>
+              </tr>
+            </thead>
+            <tbody id="righe-body"></tbody>
+          </table>
+          <div id="righe-empty" class="text-center text-muted py-3 small">
+            Nessuna riga — usa <strong>Aggiungi riga</strong>.
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-between gap-2 mt-4">
+        {% if modifica %}
+        <button type="submit" form="form-elimina" formnovalidate class="btn btn-outline-danger">
+          <i class="bi bi-trash me-1"></i>Elimina
+        </button>
+        {% else %}<span></span>{% endif %}
+        <div class="d-flex gap-2">
+          <a href="{{ url_for('presets') }}" class="btn btn-outline-secondary">Annulla</a>
+          <button type="submit" class="btn btn-primary px-4"><i class="bi bi-save-fill me-1"></i>Salva set</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const righeBody = document.getElementById('righe-body');
+const righeEmpty = document.getElementById('righe-empty');
+
+function aggiornaEmpty() {
+  righeEmpty.style.display = righeBody.querySelector('tr') ? 'none' : '';
+}
+
+function cellaInput(attrs) {
+  const td = document.createElement('td');
+  const inp = document.createElement('input');
+  inp.className = 'form-control form-control-sm';
+  Object.entries(attrs).forEach(([k, v]) => inp.setAttribute(k, v));
+  td.appendChild(inp);
+  return { td, inp };
+}
+
+function aggiungiRiga(cod = '', descr = '', qta = 1, prezzo = '') {
+  const tr = document.createElement('tr');
+  const c1 = cellaInput({ type: 'text', name: 'codice_iso[]' });        c1.inp.value = cod;
+  const c2 = cellaInput({ type: 'text', name: 'descrizione[]' });       c2.inp.value = descr;
+  const c3 = cellaInput({ type: 'number', name: 'qta[]', step: '1', min: '0' });           c3.inp.value = qta;
+  const c4 = cellaInput({ type: 'number', name: 'prezzo_unitario[]', step: '0.01', min: '0' }); c4.inp.value = prezzo;
+  const c5 = document.createElement('td');
+  c5.className = 'text-end';
+  c5.innerHTML = '<button type="button" class="btn btn-link btn-sm p-0 text-danger btn-rimuovi" title="Rimuovi"><i class="bi bi-x-circle"></i></button>';
+  c5.querySelector('.btn-rimuovi').addEventListener('click', () => { tr.remove(); aggiornaEmpty(); });
+  [c1.td, c2.td, c3.td, c4.td, c5].forEach(td => tr.appendChild(td));
+  righeBody.appendChild(tr);
+  aggiornaEmpty();
+}
+
+document.getElementById('btn-aggiungi-riga').addEventListener('click', () => aggiungiRiga());
+
+// Righe esistenti (passate in modo sicuro come JSON)
+const righeIniziali = {{ preset.righe | tojson }};
+if (righeIniziali.length) {
+  righeIniziali.forEach(r => aggiungiRiga(r.codice_iso || '', r.descrizione || '', r.qta || 1, r.prezzo_unitario || ''));
+} else {
+  aggiungiRiga();
+}
+</script>
+{% endblock %}

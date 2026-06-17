@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Pratiche — Gestionale Marginalità{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+  <div>
+    <h4 class="fw-bold mb-0"><i class="bi bi-folder2-open me-2"></i>Pratiche</h4>
+    <small class="text-muted">{{ pratiche|length }} pratiche</small>
+  </div>
+  <div class="d-flex gap-2">
+    <form method="get" class="d-flex" role="search">
+      {% if centro %}<input type="hidden" name="centro" value="{{ centro }}">{% endif %}
+      <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input type="text" name="q" value="{{ q }}" class="form-control"
+               placeholder="Cerca per paziente, CF o n° pratica…" autofocus>
+        {% if q %}
+        <a href="{{ url_for('pratiche', centro=centro or None) }}" class="btn btn-outline-secondary" title="Pulisci">
+          <i class="bi bi-x-lg"></i>
+        </a>
+        {% endif %}
+      </div>
+    </form>
+    <a href="{{ url_for('nuova_pratica') }}" class="btn btn-primary text-nowrap">
+      <i class="bi bi-plus-circle-fill me-1"></i>Nuova
+    </a>
+  </div>
+</div>
+
+<!-- Filtro per centro -->
+<div class="d-flex flex-wrap gap-2 mb-4">
+  <a href="{{ url_for('pratiche', q=q or None) }}"
+     class="btn btn-sm {{ 'btn-primary' if not centro else 'btn-outline-secondary' }}">Tutti i centri</a>
+  {% for c in centri %}
+  <a href="{{ url_for('pratiche', q=q or None, centro=c) }}"
+     class="btn btn-sm {{ 'btn-primary' if centro == c else 'btn-outline-secondary' }}">{{ c }}</a>
+  {% endfor %}
+  <a href="{{ url_for('pratiche', q=q or None, centro='Senza centro') }}"
+     class="btn btn-sm {{ 'btn-primary' if centro == 'Senza centro' else 'btn-outline-secondary' }}">Senza centro</a>
+</div>
+
+{% if gruppi %}
+  {% for nome_centro, elenco in gruppi %}
+  <div class="card mb-4">
+    <div class="card-header bg-light fw-semibold py-2 d-flex align-items-center justify-content-between">
+      <span><i class="bi bi-building me-2"></i>{{ nome_centro }}</span>
+      <span class="badge bg-secondary-subtle text-secondary">{{ elenco|length }}</span>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Data</th>
+            <th>Paziente</th>
+            <th>N° pratica</th>
+            <th class="text-end">Importo ASL</th>
+            <th class="text-end">Costo fornitori</th>
+            <th class="text-center">Stato</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in elenco %}
+          <tr style="cursor:pointer" onclick="window.location='{{ url_for('dettaglio_pratica', pratica_id=p.id) }}'">
+            <td>{{ p.data_pratica }}</td>
+            <td class="fw-semibold">
+              {% if p.cognome %}{{ p.cognome }}{% if p.nome %} {{ p.nome }}{% endif %}{% else %}{{ p.nome_paziente }}{% endif %}
+            </td>
+            <td class="text-muted">{{ p.numero_pratica or '—' }}</td>
+            <td class="text-end">€ {{ '%.2f'|format(p.importo_asl) }}</td>
+            <td class="text-end text-muted">€ {{ '%.2f'|format(p.costo_totale) }}</td>
+            <td class="text-center">
+              {% if p.fatturata %}
+              <span class="badge bg-success-subtle text-success">Fatturata</span>
+              {% else %}
+              <span class="badge bg-secondary-subtle text-secondary">Aperta</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+<div class="card"><div class="card-body">
+  <div class="text-center text-muted py-5">
+    <i class="bi bi-folder2-open opacity-25 fs-1 d-block mb-2"></i>
+    {% if q or centro %}Nessuna pratica trovata con questi filtri.{% else %}Nessuna pratica registrata.{% endif %}
+  </div>
+</div></div>
+{% endif %}
+{% endblock %}

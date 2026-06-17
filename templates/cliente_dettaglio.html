@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}{{ cliente.cognome }} {{ cliente.nome }} — Gestionale Marginalità{% endblock %}
+
+{% macro riga(label, valore) %}
+<div class="col-12 col-sm-6 col-lg-4">
+  <div class="text-muted small">{{ label }}</div>
+  <div class="fw-semibold">{{ valore or '—' }}</div>
+</div>
+{% endmacro %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-xl-10">
+
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+      <div class="d-flex align-items-center gap-3">
+        <a href="{{ url_for('clienti') }}" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+          <h4 class="fw-bold mb-0">{{ cliente.cognome }}{% if cliente.nome %} {{ cliente.nome }}{% endif %}</h4>
+          <small class="text-muted">{{ cliente.codice_fiscale or 'Codice fiscale non inserito' }}</small>
+        </div>
+      </div>
+      <a href="{{ url_for('cliente_modifica', cliente_id=cliente.id) }}" class="btn btn-outline-primary">
+        <i class="bi bi-pencil me-1"></i>Modifica
+      </a>
+    </div>
+
+    <!-- Dati anagrafici -->
+    <div class="card mb-4">
+      <div class="card-header bg-light fw-semibold py-3"><i class="bi bi-person-vcard me-2"></i>Dati anagrafici</div>
+      <div class="card-body">
+        <div class="row g-3">
+          {{ riga("Data di nascita", cliente.data_nascita) }}
+          {{ riga("Luogo di nascita", cliente.luogo_nascita) }}
+          {{ riga("Telefono", cliente.telefono) }}
+          {{ riga("Email", cliente.email) }}
+          {{ riga("Centro di appartenenza", cliente.centro) }}
+          {{ riga("ASL", cliente.asl) }}
+          {{ riga("Medico curante", cliente.medico_curante) }}
+          {{ riga("Residenza", (cliente.residenza_via ~ ' ' ~ (cliente.residenza_civico or '')) if cliente.residenza_via else None) }}
+          {{ riga("Città", (cliente.residenza_citta ~ (' (' ~ cliente.provincia ~ ')' if cliente.provincia else '')) if cliente.residenza_citta else None) }}
+          {{ riga("CAP", cliente.residenza_cap) }}
+          {{ riga("Decorrenza residenza", cliente.decorrenza_residenza) }}
+          {{ riga("Documento", cliente.documento_tipo_numero) }}
+          {{ riga("Rilascio documento", cliente.documento_data_rilascio) }}
+        </div>
+        {% if cliente.note %}
+        <div class="mt-3 pt-3 border-top">
+          <div class="text-muted small">Note</div>
+          <div>{{ cliente.note }}</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Pratiche collegate -->
+    <div class="card">
+      <div class="card-header bg-light fw-semibold py-3 d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-folder2-open me-2"></i>Pratiche collegate</span>
+        <a href="{{ url_for('nuova_pratica', cliente_id=cliente.id) }}" class="btn btn-sm btn-primary">
+          <i class="bi bi-plus-circle me-1"></i>Nuova pratica
+        </a>
+      </div>
+      <div class="card-body p-0">
+        {% if pratiche %}
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Data</th>
+              <th class="text-end">Importo ASL</th>
+              <th class="text-end">Costo fornitori</th>
+              <th class="text-center">Stato</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in pratiche %}
+            <tr style="cursor:pointer" onclick="window.location='{{ url_for('dettaglio_pratica', pratica_id=p.id) }}'">
+              <td>{{ p.data_pratica }}</td>
+              <td class="text-end">€ {{ '%.2f'|format(p.importo_asl) }}</td>
+              <td class="text-end text-muted">€ {{ '%.2f'|format(p.costo_totale) }}</td>
+              <td class="text-center">
+                {% if p.fatturata %}
+                <span class="badge bg-success-subtle text-success">Fatturata</span>
+                {% else %}
+                <span class="badge bg-secondary-subtle text-secondary">Aperta</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="text-center text-muted py-4">
+          <i class="bi bi-inbox opacity-25 fs-3 d-block mb-1"></i>
+          Nessuna pratica collegata a questo cliente.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

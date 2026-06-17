@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Preset ausili — Gestionale Marginalità{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+  <div>
+    <h4 class="fw-bold mb-0"><i class="bi bi-collection me-2"></i>Preset ausili</h4>
+    <small class="text-muted">Set di codici riutilizzabili, raggruppati per categoria</small>
+  </div>
+  <a href="{{ url_for('preset_nuovo') }}" class="btn btn-primary">
+    <i class="bi bi-plus-circle-fill me-1"></i>Nuovo set
+  </a>
+</div>
+
+{% if categorie %}
+  {% for categoria, lista in categorie.items() %}
+  <div class="mb-4">
+    <h6 class="text-uppercase text-muted fw-bold small mb-2">{{ categoria }}</h6>
+    <div class="row g-2">
+      {% for p in lista %}
+      <div class="col-12 col-md-6 col-xl-4" id="preset-{{ p.id }}">
+        <div class="card h-100">
+          <div class="card-body d-flex justify-content-between align-items-start gap-2 py-3">
+            <div>
+              <div class="fw-semibold">{{ p.label }}</div>
+              <small class="text-muted"><i class="bi bi-list-ul me-1"></i>{{ p.num_righe }} righe</small>
+            </div>
+            <a href="{{ url_for('preset_modifica', preset_id=p.id) }}"
+               class="btn btn-sm btn-outline-secondary" title="Modifica">
+              <i class="bi bi-pencil"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+<div class="text-center text-muted py-5">
+  <i class="bi bi-collection opacity-25 fs-1 d-block mb-2"></i>
+  Nessun preset. Crea il primo con <strong>Nuovo set</strong>.
+</div>
+{% endif %}
+{% endblock %}

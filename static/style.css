@@ -91,6 +91,25 @@ body {
 .dettaglio-label { font-size: .78rem; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); font-weight: 600; }
 .dettaglio-val { font-size: 1rem; font-weight: 500; }
 
+/* Schede pratica (nav-tabs) — titoli ad alto contrasto */
+.nav-tabs { border-bottom: 2px solid var(--primary); gap: 4px; }
+.nav-tabs .nav-link {
+  color: var(--primary);
+  font-weight: 700;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+  padding: .6rem 1.1rem;
+  background: #e9eef5;
+}
+.nav-tabs .nav-link:hover { background: #dbe4f0; color: var(--primary); }
+.nav-tabs .nav-link.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+.nav-tabs .nav-link.active:hover { background: var(--primary); color: #fff; }
+
 /* Modals */
 .modal-content { border-radius: 14px; border: none; }
 .modal-header { border-radius: 14px 14px 0 0; background: var(--primary); color: #fff; }

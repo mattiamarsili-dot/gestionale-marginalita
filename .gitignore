@@ -11,8 +11,25 @@ env/
 *.db
 *.sqlite
 
-# Google credentials locali
-*.json
+# Google credentials locali (solo file di credenziali, non tutti i .json:
+# i dati di preset e la field-map PDF devono restare versionati)
+*credentials*.json
+*service-account*.json
+client_secret*.json
+
+# Materiale di riferimento del prototipo (non fa parte dell'app deployata)
+CRM AM/
+
+# Backup DB locali (contengono dati pazienti reali)
+gestionale.backup.*.db
+backup_*.json
+
+# Dati reali / documenti (non vanno versionati)
+*.xlsx
+*.docx
+
+# Config locale dell'editor / Claude
+.claude/
 
 # Upload PDF locali
 uploads/

@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}{% if modifica %}Modifica{% else %}Nuovo{% endif %} cliente — Gestionale Marginalità{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-xl-9">
+
+    <div class="d-flex align-items-center mb-4 gap-3">
+      <a href="{{ url_for('clienti') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i>
+      </a>
+      <div>
+        <h4 class="fw-bold mb-0">{% if modifica %}Modifica cliente{% else %}Nuovo cliente{% endif %}</h4>
+        <small class="text-muted">Dati anagrafici usati anche per compilare i moduli PDF</small>
+      </div>
+    </div>
+
+    {% if errore %}
+    <div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i>{{ errore }}</div>
+    {% endif %}
+
+    {% if modifica %}
+    <!-- Form separato per l'eliminazione (referenziato dal bottone via attributo form=) -->
+    <form method="post" id="form-elimina" action="{{ url_for('cliente_elimina', cliente_id=cliente.id) }}"
+          onsubmit="return confirm('Eliminare definitivamente questo cliente?');"></form>
+    {% endif %}
+
+    <form method="post" id="form-cliente">
+      <!-- Anagrafica -->
+      <div class="card mb-4">
+        <div class="card-header bg-primary text-white py-3"><i class="bi bi-person-fill me-2"></i>Anagrafica</div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-12 col-sm-6">
+              <label class="form-label">Cognome *</label>
+              <input type="text" name="cognome" class="form-control" value="{{ cliente.cognome or '' }}" required autofocus>
+            </div>
+            <div class="col-12 col-sm-6">
+              <label class="form-label">Nome</label>
+              <input type="text" name="nome" class="form-control" value="{{ cliente.nome or '' }}">
+            </div>
+            <div class="col-12 col-sm-6">
+              <label class="form-label">Codice Fiscale</label>
+              <input type="text" name="codice_fiscale" class="form-control text-uppercase"
+                     maxlength="16" value="{{ cliente.codice_fiscale or '' }}">
+            </div>
+            <div class="col-6 col-sm-3">
+              <label class="form-label">Data di nascita</label>
+              <input type="date" name="data_nascita" class="form-control" value="{{ cliente.data_nascita or '' }}">
+            </div>
+            <div class="col-6 col-sm-3">
+              <label class="form-label">Luogo di nascita</label>
+              <input type="text" name="luogo_nascita" class="form-control" value="{{ cliente.luogo_nascita or '' }}">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Residenza -->
+      <div class="card mb-4">
+        <div class="card-header bg-primary text-white py-3"><i class="bi bi-house-fill me-2"></i>Residenza</div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-12 col-sm-8">
+              <label class="form-label">Via</label>
+              <input type="text" name="residenza_via" class="form-control" value="{{ cliente.residenza_via or '' }}">
+            </div>
+            <div class="col-6 col-sm-4">
+              <label class="form-label">Civico</label>
+              <input type="text" name="residenza_civico" class="form-control" value="{{ cliente.residenza_civico or '' }}">
+            </div>
+            <div class="col-12 col-sm-5">
+              <label class="form-label">Città / Comune</label>
+              <input type="text" name="residenza_citta" class="form-control" value="{{ cliente.residenza_citta or '' }}">
+            </div>
+            <div class="col-6 col-sm-3">
+              <label class="form-label">Provincia</label>
+              <input type="text" name="provincia" class="form-control text-uppercase" maxlength="2"
+                     value="{{ cliente.provincia or '' }}">
+            </div>
+            <div class="col-6 col-sm-4">
+              <label class="form-label">CAP</label>
+              <input type="text" name="residenza_cap" class="form-control" maxlength="5"
+                     value="{{ cliente.residenza_cap or '' }}">
+            </div>
+            <div class="col-12 col-sm-6">
+              <label class="form-label">Decorrenza residenza <small class="text-muted">(per autocert.)</small></label>
+              <input type="date" name="decorrenza_residenza" class="form-control"
+                     value="{{ cliente.decorrenza_residenza or '' }}">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contatti e sanità -->
+      <div class="card mb-4">
+        <div class="card-header bg-primary text-white py-3"><i class="bi bi-telephone-fill me-2"></i>Contatti e sanità</div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-12 col-sm-6">
+              <label class="form-label">Telefono</label>
+              <input type="text" name="telefono" class="form-control" value="{{ cliente.telefono or '' }}">
+            </div>
+            <div class="col-12 col-sm-6">
+              <label class="form-label">Email</label>
+              <input type="email" name="email" class="form-control" value="{{ cliente.email or '' }}">
+            </div>
+            <div class="col-12 col-sm-6">
+              <label class="form-label">Centro di appartenenza</label>
+              {% set centro_corrente = cliente.centro or '' %}
+              <select name="centro" class="form-select">
+                <option value="">— Nessuno —</option>
+                {% for c in centri %}
+                <option value="{{ c }}" {{ 'selected' if centro_corrente == c }}>{{ c }}</option>
+                {% endfor %}
+                {% if centro_corrente and centro_corrente not in centri %}
+                <option value="{{ centro_corrente }}" selected>{{ centro_corrente }}</option>
+                {% endif %}
+              </select>
+            </div>
+            <div class="col-12 col-sm-6">
+              <label class="form-label">ASL di appartenenza</label>
+              <input type="text" name="asl" class="form-control" value="{{ cliente.asl or '' }}" placeholder="Es. RM 2">
+            </div>
+            <div class="col-12 col-sm-6">
+              <label class="form-label">Medico curante</label>
+              <input type="text" name="medico_curante" class="form-control" value="{{ cliente.medico_curante or '' }}">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Documento (per deleghe) -->
+      <div class="card mb-4">
+        <div class="card-header bg-primary text-white py-3"><i class="bi bi-card-text me-2"></i>Documento d'identità <small class="opacity-75">(per le deleghe)</small></div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-12 col-sm-8">
+              <label class="form-label">Tipo e numero</label>
+              <input type="text" name="documento_tipo_numero" class="form-control"
+                     value="{{ cliente.documento_tipo_numero or '' }}" placeholder="Es. CI AB1234567">
+            </div>
+            <div class="col-12 col-sm-4">
+              <label class="form-label">Data rilascio</label>
+              <input type="date" name="documento_data_rilascio" class="form-control"
+                     value="{{ cliente.documento_data_rilascio or '' }}">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Note</label>
+              <textarea name="note" class="form-control" rows="2">{{ cliente.note or '' }}</textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-between gap-2">
+        {% if modifica %}
+        <button type="submit" form="form-elimina" formnovalidate class="btn btn-outline-danger">
+          <i class="bi bi-trash me-1"></i>Elimina
+        </button>
+        {% else %}<span></span>{% endif %}
+        <div class="d-flex gap-2">
+          <a href="{{ url_for('clienti') }}" class="btn btn-outline-secondary">Annulla</a>
+          <button type="submit" class="btn btn-primary px-4"><i class="bi bi-save-fill me-1"></i>Salva</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

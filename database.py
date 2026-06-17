@@ -52,9 +52,34 @@ def get_db():
 # ── Schema ────────────────────────────────────────────────────────────────────
 
 _SQLITE_SCHEMA = """
+    CREATE TABLE IF NOT EXISTS clienti (
+        id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+        cognome                 TEXT NOT NULL,
+        nome                    TEXT NOT NULL DEFAULT '',
+        codice_fiscale          TEXT,
+        data_nascita            DATE,
+        luogo_nascita           TEXT,
+        provincia               TEXT,
+        residenza_via           TEXT,
+        residenza_civico        TEXT,
+        residenza_citta         TEXT,
+        residenza_cap           TEXT,
+        telefono                TEXT,
+        email                   TEXT,
+        asl                     TEXT,
+        centro                  TEXT,
+        medico_curante          TEXT,
+        decorrenza_residenza    DATE,
+        documento_tipo_numero   TEXT,
+        documento_data_rilascio DATE,
+        note                    TEXT,
+        creato_il               TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS pratiche (
         id               INTEGER PRIMARY KEY AUTOINCREMENT,
         nome_paziente    TEXT NOT NULL,
+        cliente_id       INTEGER,
         data_pratica     DATE NOT NULL,
         importo_asl      REAL NOT NULL,
         importo_privato  REAL NOT NULL DEFAULT 0,
@@ -62,7 +87,16 @@ _SQLITE_SCHEMA = """
         note             TEXT,
         fatturata        INTEGER NOT NULL DEFAULT 0,
         data_fatturazione DATE,
-        creato_il        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        numero_pratica   TEXT,
+        ausilio          TEXT,
+        asl_destinataria TEXT,
+        medico_struttura TEXT,
+        diagnosi         TEXT,
+        sign_terapeutico TEXT,
+        iva_percentuale  REAL NOT NULL DEFAULT 4,
+        moduli_attivi    TEXT,
+        creato_il        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (cliente_id) REFERENCES clienti(id)
     );
 
     CREATE TABLE IF NOT EXISTS preventivi (
@@ -75,14 +109,71 @@ _SQLITE_SCHEMA = """
         FOREIGN KEY (pratica_id) REFERENCES pratiche(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS righe_ausili (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        pratica_id      INTEGER NOT NULL,
+        codice_iso      TEXT,
+        descrizione     TEXT,
+        qta             REAL NOT NULL DEFAULT 1,
+        prezzo_unitario REAL NOT NULL DEFAULT 0,
+        ordine          INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (pratica_id) REFERENCES pratiche(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS preset_ausili (
+        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+        label     TEXT NOT NULL,
+        categoria TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS preset_righe (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        preset_id       INTEGER NOT NULL,
+        codice_iso      TEXT,
+        descrizione     TEXT,
+        qta             REAL NOT NULL DEFAULT 1,
+        prezzo_unitario REAL NOT NULL DEFAULT 0,
+        ordine          INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (preset_id) REFERENCES preset_ausili(id) ON DELETE CASCADE
+    );
+
     CREATE INDEX IF NOT EXISTS idx_pratiche_data      ON pratiche(data_pratica);
     CREATE INDEX IF NOT EXISTS idx_preventivi_pratica ON preventivi(pratica_id);
+    CREATE INDEX IF NOT EXISTS idx_righe_pratica      ON righe_ausili(pratica_id);
+    CREATE INDEX IF NOT EXISTS idx_preset_righe       ON preset_righe(preset_id);
+    CREATE INDEX IF NOT EXISTS idx_clienti_cognome    ON clienti(cognome);
+    CREATE INDEX IF NOT EXISTS idx_clienti_cf         ON clienti(codice_fiscale);
 """
 
 _POSTGRES_SCHEMA = """
+    CREATE TABLE IF NOT EXISTS clienti (
+        id                      SERIAL PRIMARY KEY,
+        cognome                 TEXT NOT NULL,
+        nome                    TEXT NOT NULL DEFAULT '',
+        codice_fiscale          TEXT,
+        data_nascita            DATE,
+        luogo_nascita           TEXT,
+        provincia               TEXT,
+        residenza_via           TEXT,
+        residenza_civico        TEXT,
+        residenza_citta         TEXT,
+        residenza_cap           TEXT,
+        telefono                TEXT,
+        email                   TEXT,
+        asl                     TEXT,
+        centro                  TEXT,
+        medico_curante          TEXT,
+        decorrenza_residenza    DATE,
+        documento_tipo_numero   TEXT,
+        documento_data_rilascio DATE,
+        note                    TEXT,
+        creato_il               TIMESTAMPTZ DEFAULT NOW()
+    );
+
     CREATE TABLE IF NOT EXISTS pratiche (
         id               SERIAL PRIMARY KEY,
         nome_paziente    TEXT NOT NULL,
+        cliente_id       INTEGER REFERENCES clienti(id),
         data_pratica     DATE NOT NULL,
         importo_asl      REAL NOT NULL,
         importo_privato  REAL NOT NULL DEFAULT 0,
@@ -90,6 +181,14 @@ _POSTGRES_SCHEMA = """
         note             TEXT,
         fatturata        BOOLEAN NOT NULL DEFAULT FALSE,
         data_fatturazione DATE,
+        numero_pratica   TEXT,
+        ausilio          TEXT,
+        asl_destinataria TEXT,
+        medico_struttura TEXT,
+        diagnosi         TEXT,
+        sign_terapeutico TEXT,
+        iva_percentuale  REAL NOT NULL DEFAULT 4,
+        moduli_attivi    TEXT,
         creato_il        TIMESTAMPTZ DEFAULT NOW()
     );
 
@@ -103,8 +202,40 @@ _POSTGRES_SCHEMA = """
         FOREIGN KEY (pratica_id) REFERENCES pratiche(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS righe_ausili (
+        id              SERIAL PRIMARY KEY,
+        pratica_id      INTEGER NOT NULL,
+        codice_iso      TEXT,
+        descrizione     TEXT,
+        qta             REAL NOT NULL DEFAULT 1,
+        prezzo_unitario REAL NOT NULL DEFAULT 0,
+        ordine          INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (pratica_id) REFERENCES pratiche(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS preset_ausili (
+        id        SERIAL PRIMARY KEY,
+        label     TEXT NOT NULL,
+        categoria TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS preset_righe (
+        id              SERIAL PRIMARY KEY,
+        preset_id       INTEGER NOT NULL,
+        codice_iso      TEXT,
+        descrizione     TEXT,
+        qta             REAL NOT NULL DEFAULT 1,
+        prezzo_unitario REAL NOT NULL DEFAULT 0,
+        ordine          INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (preset_id) REFERENCES preset_ausili(id) ON DELETE CASCADE
+    );
+
     CREATE INDEX IF NOT EXISTS idx_pratiche_data      ON pratiche(data_pratica);
     CREATE INDEX IF NOT EXISTS idx_preventivi_pratica ON preventivi(pratica_id);
+    CREATE INDEX IF NOT EXISTS idx_righe_pratica      ON righe_ausili(pratica_id);
+    CREATE INDEX IF NOT EXISTS idx_preset_righe       ON preset_righe(preset_id);
+    CREATE INDEX IF NOT EXISTS idx_clienti_cognome    ON clienti(cognome);
+    CREATE INDEX IF NOT EXISTS idx_clienti_cf         ON clienti(codice_fiscale);
 """
 
 def init_db():
@@ -139,6 +270,18 @@ def migrate_db():
             cur.execute(
                 "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS importo_privato REAL NOT NULL DEFAULT 0"
             )
+            cur.execute(
+                "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS cliente_id INTEGER REFERENCES clienti(id)"
+            )
+            cur.execute(
+                "ALTER TABLE clienti ADD COLUMN IF NOT EXISTS centro TEXT"
+            )
+            for col in [
+                "numero_pratica TEXT", "ausilio TEXT", "asl_destinataria TEXT",
+                "medico_struttura TEXT", "diagnosi TEXT", "sign_terapeutico TEXT",
+                "iva_percentuale REAL NOT NULL DEFAULT 4", "moduli_attivi TEXT",
+            ]:
+                cur.execute(f"ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS {col}")
         else:
             for ddl in [
                 "ALTER TABLE preventivi ADD COLUMN drive_file_id TEXT",
@@ -146,11 +289,83 @@ def migrate_db():
                 "ALTER TABLE pratiche ADD COLUMN fatturata INTEGER NOT NULL DEFAULT 0",
                 "ALTER TABLE pratiche ADD COLUMN data_fatturazione DATE",
                 "ALTER TABLE pratiche ADD COLUMN importo_privato REAL NOT NULL DEFAULT 0",
+                "ALTER TABLE pratiche ADD COLUMN cliente_id INTEGER REFERENCES clienti(id)",
+                "ALTER TABLE clienti ADD COLUMN centro TEXT",
+                "ALTER TABLE pratiche ADD COLUMN numero_pratica TEXT",
+                "ALTER TABLE pratiche ADD COLUMN ausilio TEXT",
+                "ALTER TABLE pratiche ADD COLUMN asl_destinataria TEXT",
+                "ALTER TABLE pratiche ADD COLUMN medico_struttura TEXT",
+                "ALTER TABLE pratiche ADD COLUMN diagnosi TEXT",
+                "ALTER TABLE pratiche ADD COLUMN sign_terapeutico TEXT",
+                "ALTER TABLE pratiche ADD COLUMN iva_percentuale REAL NOT NULL DEFAULT 4",
+                "ALTER TABLE pratiche ADD COLUMN moduli_attivi TEXT",
             ]:
                 try:
                     cur.execute(ddl)
                 except Exception:
                     pass  # colonna già presente
+
+        # Indice su cliente_id: creato qui (non in init_db) perché la colonna
+        # viene aggiunta dagli ALTER sopra sui DB già esistenti.
+        try:
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_pratiche_cliente ON pratiche(cliente_id)"
+            )
+        except Exception:
+            pass
+        try:
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_clienti_centro ON clienti(centro)"
+            )
+        except Exception:
+            pass
+
+
+def backfill_clienti() -> int:
+    """
+    Crea un cliente per ogni `nome_paziente` distinto delle pratiche non ancora
+    collegate e imposta `pratiche.cliente_id`. Idempotente: riusa il cliente già
+    creato in un run precedente (match per `cognome` == nome_paziente originale).
+
+    Il nome libero finisce in `cognome` (con `nome` vuoto): la separazione
+    cognome/nome non è affidabile sul testo libero, l'utente potrà correggere
+    dalla scheda anagrafica. Restituisce il numero di clienti creati.
+    """
+    creati = 0
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"SELECT DISTINCT nome_paziente FROM pratiche "
+            f"WHERE cliente_id IS NULL AND nome_paziente IS NOT NULL "
+            f"AND TRIM(nome_paziente) <> ''"
+        )
+        nomi = [r["nome_paziente"] for r in cur.fetchall()]
+
+        for nome in nomi:
+            nome_norm = nome.strip()
+            # Riusa un cliente già creato dal backfill (cognome == nome originale, nome vuoto)
+            cur.execute(
+                f"SELECT id FROM clienti WHERE cognome = {_PH} AND (nome = '' OR nome IS NULL) "
+                f"ORDER BY id LIMIT 1",
+                (nome_norm,),
+            )
+            row = cur.fetchone()
+            if row:
+                cliente_id = row["id"]
+            else:
+                cur.execute(
+                    f"INSERT INTO clienti (cognome, nome, note) VALUES ({_PH}, '', {_PH})",
+                    (nome_norm, "Creato automaticamente dalla migrazione pratiche"),
+                )
+                cliente_id = last_inserted_id(cur)
+                creati += 1
+
+            cur.execute(
+                f"UPDATE pratiche SET cliente_id = {_PH} "
+                f"WHERE cliente_id IS NULL AND nome_paziente = {_PH}",
+                (cliente_id, nome_norm),
+            )
+    return creati
 
 # ── Helper DB ─────────────────────────────────────────────────────────────────
 
