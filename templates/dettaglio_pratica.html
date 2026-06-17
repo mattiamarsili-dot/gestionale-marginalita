@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ pratica.nome_paziente }} — Gestionale Marginalità{% endblock %}
+{% block title %}{{ pratica.nome_paziente or 'Nuova pratica' }} — Gestionale Marginalità{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -10,8 +10,8 @@
         <i class="bi bi-arrow-left"></i>
       </a>
       <div class="flex-grow-1">
-        <h4 class="fw-bold mb-0">{{ pratica.nome_paziente }}</h4>
-        <small class="text-muted">Pratica #{{ pratica.id }} — {{ pratica.data_pratica }}</small>
+        <h4 class="fw-bold mb-0">{{ pratica.nome_paziente or 'Nuova pratica (bozza)' }}</h4>
+        <small class="text-muted">Pratica #{{ pratica.id }} — {{ pratica.data_pratica }}{% if not pratica.nome_paziente %} · seleziona il paziente nella scheda Codifica{% endif %}</small>
       </div>
       <a href="{{ url_for('modifica_pratica', pratica_id=pratica.id) }}" class="btn btn-sm btn-outline-secondary">
         <i class="bi bi-pencil me-1"></i>Modifica
@@ -84,21 +84,43 @@
           </div>
           <div class="card-body">
             <form method="post" action="{{ url_for('aggiorna_dati_moduli', pratica_id=pratica.id) }}" class="row g-2">
-              <div class="col-12 col-sm-4">
+              <input type="hidden" name="cliente_id" id="cod-cliente-id" value="{{ pratica.cliente_id or '' }}">
+              <div class="col-12 col-sm-6">
+                <label class="form-label form-label-sm mb-1 d-flex justify-content-between align-items-end">
+                  <span>Paziente / cliente</span>
+                  {% if cliente %}
+                  <a href="{{ url_for('cliente_dettaglio', cliente_id=cliente.id) }}" class="small text-decoration-none">
+                    <i class="bi bi-link-45deg"></i> in anagrafica
+                  </a>
+                  {% else %}
+                  <a href="{{ url_for('cliente_nuovo') }}" id="cod-nuovo-cliente" class="small text-decoration-none">
+                    <i class="bi bi-person-plus"></i> nuovo cliente
+                  </a>
+                  {% endif %}
+                </label>
+                <div class="position-relative">
+                  <input type="text" name="nome_paziente" id="cod-nome-paziente" autocomplete="off"
+                         class="form-control form-control-sm" placeholder="Cerca in anagrafica o digita un nome…"
+                         value="{{ pratica.nome_paziente or '' }}">
+                  <div id="cod-cliente-dropdown" class="list-group position-absolute w-100 shadow-sm d-none"
+                       style="z-index:1050; max-height:240px; overflow-y:auto;"></div>
+                </div>
+              </div>
+              <div class="col-6 col-sm-3">
                 <label class="form-label form-label-sm mb-1">N° pratica</label>
                 <input type="text" name="numero_pratica" class="form-control form-control-sm" value="{{ pratica.numero_pratica or '' }}"
-                       placeholder="auto: AM{ggmm}.{aa}.ASL">
+                       placeholder="auto al preventivo">
               </div>
-              <div class="col-12 col-sm-4">
+              <div class="col-6 col-sm-3">
                 <label class="form-label form-label-sm mb-1">ASL destinataria</label>
-                <input type="text" name="asl_destinataria" class="form-control form-control-sm"
-                       value="{{ pratica.asl_destinataria or '' }}" placeholder="{{ cliente.asl if cliente else 'es. RM 2' }}">
+                <input type="text" name="asl_destinataria" id="cod-asl" class="form-control form-control-sm"
+                       value="{{ pratica.asl_destinataria or (cliente.asl if cliente else '') }}" placeholder="es. RM 2">
               </div>
-              <div class="col-12 col-sm-4">
+              <div class="col-12 col-sm-6">
                 <label class="form-label form-label-sm mb-1">Medico / struttura</label>
                 <input type="text" name="medico_struttura" class="form-control form-control-sm" value="{{ pratica.medico_struttura or '' }}">
               </div>
-              <div class="col-12">
+              <div class="col-12 col-sm-6">
                 <label class="form-label form-label-sm mb-1">Ausilio (oggetto richiesta)</label>
                 <input type="text" name="ausilio" class="form-control form-control-sm" value="{{ pratica.ausilio or '' }}"
                        placeholder="es. Carrozzina elettronica a sei ruote">
@@ -107,34 +129,49 @@
                 <label class="form-label form-label-sm mb-1">Diagnosi</label>
                 <input type="text" name="diagnosi" class="form-control form-control-sm" value="{{ pratica.diagnosi or '' }}">
               </div>
+
+              <!-- Significato terapeutico: nascosto, si apre con la spunta -->
               <div class="col-12">
-                <label class="form-label form-label-sm mb-1 d-flex justify-content-between align-items-end">
-                  <span>Significato terapeutico</span>
-                </label>
-                <div class="d-flex gap-1 mb-1">
-                  <select id="sel-significato" class="form-select form-select-sm" multiple size="3" style="max-width:520px">
-                    {% for categoria, lista in significato_categorie.items() %}
-                    <optgroup label="{{ categoria }}">
-                      {% for s in lista %}
-                      <option value="{{ s.id }}">{{ s.label }}</option>
-                      {% endfor %}
-                    </optgroup>
-                    {% endfor %}
-                  </select>
-                  <div class="d-flex flex-column gap-1">
-                    <button type="button" id="btn-add-significato" class="btn btn-sm btn-outline-primary text-nowrap"
-                            title="Aggiungi i testi selezionati">
-                      <i class="bi bi-plus-lg"></i> Inserisci
-                    </button>
-                    <button type="button" id="btn-clear-significato" class="btn btn-sm btn-outline-secondary text-nowrap"
-                            title="Svuota il campo">
-                      <i class="bi bi-eraser"></i> Pulisci
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="chk-significato"
+                         {% if pratica.sign_terapeutico %}checked{% endif %}>
+                  <label class="form-check-label fw-semibold small" for="chk-significato">
+                    Significato terapeutico
+                  </label>
+                </div>
+                <div id="box-significato" class="border rounded p-2 mt-1 bg-light {% if not pratica.sign_terapeutico %}d-none{% endif %}">
+                  <div class="row g-2 align-items-end mb-2">
+                    <div class="col-12 col-sm-6">
+                      <label class="form-label form-label-sm mb-1">Articolo</label>
+                      <select id="sel-articolo" class="form-select form-select-sm">
+                        <option value="" selected disabled>Scegli un articolo…</option>
+                        {% for a in sign_articoli %}
+                        <option value="{{ a }}">{{ a }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div class="col-12 col-sm-6 text-sm-end">
+                      <small class="text-muted">Seleziona le motivazioni, correggile e usa <strong>Inserisci</strong>. Le correzioni si salvano nel catalogo.</small>
+                    </div>
+                  </div>
+                  <!-- Motivazioni dell'articolo scelto (catalogo globale, editabili) -->
+                  <div id="motivazioni-articolo" class="d-none">
+                    <div id="motivazioni-lista" class="vstack gap-2"></div>
+                    <button type="button" id="btn-add-motivazione" class="btn btn-sm btn-outline-secondary mt-2">
+                      <i class="bi bi-plus-lg"></i> Aggiungi motivazione
                     </button>
                   </div>
+                  <hr class="my-2">
+                  <label class="form-label form-label-sm mb-1 d-flex justify-content-between align-items-end">
+                    <span>Testo che andrà nel modulo</span>
+                    <button type="button" id="btn-clear-significato" class="btn btn-sm btn-link p-0 text-secondary text-nowrap">
+                      <i class="bi bi-eraser"></i> Pulisci
+                    </button>
+                  </label>
+                  <textarea name="sign_terapeutico" id="txt-significato" class="form-control form-control-sm" rows="5">{{ pratica.sign_terapeutico or '' }}</textarea>
                 </div>
-                <small class="text-muted">Seleziona uno o più preset (Ctrl/Cmd per multipli), poi "Inserisci".</small>
-                <textarea name="sign_terapeutico" id="txt-significato" class="form-control form-control-sm mt-1" rows="4">{{ pratica.sign_terapeutico or '' }}</textarea>
               </div>
+
               <div class="col-12 text-end">
                 <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-save me-1"></i>Salva codifica</button>
               </div>
@@ -505,26 +542,161 @@
   }
 })();
 
-// Preset di significato terapeutico: inserisce nel campo i testi selezionati
+// ── Autocomplete paziente nella scheda Codifica (con ASL da anagrafica) ──────
 (function () {
-  const SIGN_TEXTS = {
-    {% for categoria, lista in significato_categorie.items() %}{% for s in lista %}"{{ s.id }}": {{ s.text | tojson }},
-    {% endfor %}{% endfor %}
-  };
-  const sel = document.getElementById('sel-significato');
-  const txt = document.getElementById('txt-significato');
-  const add = document.getElementById('btn-add-significato');
-  const clr = document.getElementById('btn-clear-significato');
-  if (!sel || !txt) return;
-  add.addEventListener('click', () => {
-    const scelti = Array.from(sel.selectedOptions).map(o => SIGN_TEXTS[o.value]).filter(Boolean);
-    if (!scelti.length) return;
-    const sep = txt.value.trim() ? '\n\n' : '';
-    txt.value = txt.value.trim() + sep + scelti.join('\n\n');
-    sel.selectedIndex = -1;
-    txt.focus();
+  const input    = document.getElementById('cod-nome-paziente');
+  const hidden   = document.getElementById('cod-cliente-id');
+  const dropdown = document.getElementById('cod-cliente-dropdown');
+  const aslInput = document.getElementById('cod-asl');
+  const nuovoLink= document.getElementById('cod-nuovo-cliente');
+  if (!input) return;
+  let timer = null;
+
+  function nascondi() { dropdown.classList.add('d-none'); dropdown.innerHTML = ''; }
+
+  // Link "nuovo cliente": passa il nome digitato come cognome da precompilare
+  function urlNuovoCliente(q) {
+    return '/cliente/nuovo' + (q ? '?cognome=' + encodeURIComponent(q) : '');
+  }
+
+  function voceCreaCliente(q) {
+    const a = document.createElement('a');
+    a.href = urlNuovoCliente(q);
+    a.className = 'list-group-item list-group-item-action py-2 text-primary';
+    a.innerHTML = `<i class="bi bi-person-plus me-1"></i>Crea «<strong>${q}</strong>» in anagrafica`;
+    return a;
+  }
+
+  async function cerca(q) {
+    try {
+      const res = await fetch('/api/clienti?q=' + encodeURIComponent(q));
+      const lista = await res.json();
+      dropdown.innerHTML = '';
+      lista.forEach(c => {
+        const nome = c.cognome + (c.nome ? ' ' + c.nome : '');
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'list-group-item list-group-item-action py-2';
+        btn.innerHTML = `<span class="fw-semibold">${nome}</span>` +
+          (c.codice_fiscale ? ` <small class="text-muted ms-1">${c.codice_fiscale}</small>` : '') +
+          (c.asl ? ` <small class="text-primary ms-1">ASL ${c.asl}</small>` : '');
+        btn.addEventListener('click', () => {
+          input.value = nome;
+          hidden.value = c.id;
+          // ASL copiata da anagrafica se il campo è vuoto
+          if (aslInput && !aslInput.value.trim() && c.asl) aslInput.value = c.asl;
+          nascondi();
+        });
+        dropdown.appendChild(btn);
+      });
+      // Paziente non presente → permetti di crearlo nella pagina cliente
+      dropdown.appendChild(voceCreaCliente(q));
+      dropdown.classList.remove('d-none');
+    } catch (_) { nascondi(); }
+  }
+
+  input.addEventListener('input', () => {
+    // Digitando a mano si scollega l'anagrafica (resta testo libero)
+    if (hidden.value) hidden.value = '';
+    const q = input.value.trim();
+    if (nuovoLink) nuovoLink.href = urlNuovoCliente(q);
+    clearTimeout(timer);
+    if (q.length < 2) { nascondi(); return; }
+    timer = setTimeout(() => cerca(q), 180);
   });
-  clr.addEventListener('click', () => { txt.value = ''; txt.focus(); });
+  document.addEventListener('click', (e) => {
+    if (!dropdown.contains(e.target) && e.target !== input) nascondi();
+  });
+})();
+
+// ── Significato terapeutico: box a scomparsa + catalogo articoli editabile ───
+(function () {
+  const SIGN_CAT = {{ sign_catalogo | tojson }};
+  const chk   = document.getElementById('chk-significato');
+  const box   = document.getElementById('box-significato');
+  const sel   = document.getElementById('sel-articolo');
+  const wrap  = document.getElementById('motivazioni-articolo');
+  const lista = document.getElementById('motivazioni-lista');
+  const addBtn= document.getElementById('btn-add-motivazione');
+  const txt   = document.getElementById('txt-significato');
+  const clr   = document.getElementById('btn-clear-significato');
+  if (!chk || !box) return;
+
+  chk.addEventListener('change', () => box.classList.toggle('d-none', !chk.checked));
+  if (clr) clr.addEventListener('click', () => { txt.value = ''; txt.focus(); });
+
+  function inserisci(testo) {
+    if (!testo.trim()) return;
+    const sep = txt.value.trim() ? '\n\n' : '';
+    txt.value = txt.value.trim() + sep + testo.trim();
+  }
+
+  // Crea la riga UI di una motivazione (testo editabile + salva/inserisci/elimina)
+  function rigaMotivazione(articolo, m) {
+    const row = document.createElement('div');
+    row.className = 'border rounded bg-white p-2';
+    row.dataset.id = m.id || '';
+    row.innerHTML = `
+      <textarea class="form-control form-control-sm mot-testo" rows="3">${(m.testo || '').replace(/</g,'&lt;')}</textarea>
+      <div class="d-flex gap-1 mt-1 justify-content-end">
+        <button type="button" class="btn btn-sm btn-primary mot-inserisci"><i class="bi bi-arrow-down"></i> Inserisci</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary mot-salva"><i class="bi bi-save"></i> Salva nel catalogo</button>
+        <button type="button" class="btn btn-sm btn-outline-danger mot-elimina"><i class="bi bi-trash"></i></button>
+      </div>
+      <small class="mot-stato text-muted"></small>`;
+    const ta    = row.querySelector('.mot-testo');
+    const stato = row.querySelector('.mot-stato');
+
+    row.querySelector('.mot-inserisci').addEventListener('click', () => inserisci(ta.value));
+
+    row.querySelector('.mot-salva').addEventListener('click', async () => {
+      const testo = ta.value.trim();
+      if (!testo) return;
+      const body = new URLSearchParams({ testo });
+      try {
+        let res;
+        if (row.dataset.id) {
+          res = await fetch(`/significato/${row.dataset.id}/modifica`, { method:'POST', headers:{'X-Requested-With':'fetch'}, body });
+        } else {
+          body.append('articolo', articolo);
+          res = await fetch('/significato/aggiungi', { method:'POST', headers:{'X-Requested-With':'fetch'}, body });
+        }
+        const d = await res.json();
+        if (d.ok) {
+          if (d.id) row.dataset.id = d.id;
+          // aggiorna la cache locale
+          SIGN_CAT[articolo] = SIGN_CAT[articolo] || [];
+          const ex = SIGN_CAT[articolo].find(x => String(x.id) === String(row.dataset.id));
+          if (ex) ex.testo = testo; else SIGN_CAT[articolo].push({ id: Number(row.dataset.id), testo });
+          stato.textContent = '✓ salvato nel catalogo'; setTimeout(() => stato.textContent = '', 1500);
+        } else { stato.textContent = '⚠️ ' + (d.errore || 'errore'); }
+      } catch (_) { stato.textContent = '⚠️ errore di rete'; }
+    });
+
+    row.querySelector('.mot-elimina').addEventListener('click', async () => {
+      if (row.dataset.id) {
+        if (!confirm('Eliminare questa motivazione dal catalogo?')) return;
+        try {
+          await fetch(`/significato/${row.dataset.id}/elimina`, { method:'POST', headers:{'X-Requested-With':'fetch'} });
+          SIGN_CAT[articolo] = (SIGN_CAT[articolo] || []).filter(x => String(x.id) !== String(row.dataset.id));
+        } catch (_) {}
+      }
+      row.remove();
+    });
+    return row;
+  }
+
+  function mostraArticolo(articolo) {
+    lista.innerHTML = '';
+    (SIGN_CAT[articolo] || []).forEach(m => lista.appendChild(rigaMotivazione(articolo, m)));
+    wrap.classList.remove('d-none');
+  }
+
+  sel.addEventListener('change', () => mostraArticolo(sel.value));
+  addBtn.addEventListener('click', () => {
+    if (!sel.value) { sel.focus(); return; }
+    lista.appendChild(rigaMotivazione(sel.value, { id: '', testo: '' }));
+  });
 })();
 
 // Formattazione € all'italiana

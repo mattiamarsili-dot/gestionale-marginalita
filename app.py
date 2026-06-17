@@ -23,12 +23,14 @@ from pdf_extractor import estrai_totale_pdf
 from drive_sync import drive_configurato
 from pdf_filler import (
     PDF_TEMPLATES, MODULI_SEMPRE_ATTIVI, moduli_ordinati,
-    compila_pdf, nome_file_consigliato,
+    compila_pdf, nome_file_consigliato, numero_preventivo,
 )
 from presets import (
     seed_presets, preset_per_categoria, get_preset, lista_preset,
     crea_preset, aggiorna_preset, elimina_preset, categorie_note,
     significato_per_categoria,
+    seed_significato_catalogo, significato_catalogo, SIGNIFICATO_ARTICOLI,
+    aggiungi_motivazione, aggiorna_motivazione, elimina_motivazione,
 )
 
 # ── Periodi predefiniti ────────────────────────────────────────────────────────
@@ -75,6 +77,7 @@ try:
     migrate_db()
     backfill_clienti()
     seed_presets()
+    seed_significato_catalogo()
 except Exception as _db_err:
     import sys, traceback
     print("ERRORE AVVIO DB:", _db_err, file=sys.stderr)
@@ -242,23 +245,30 @@ def nuova_pratica():
 
         return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id))
 
-    # Cliente preselezionato (arrivo dalla scheda cliente)
-    cliente_sel = None
-    cliente_id = request.args.get("cliente_id")
+    # GET — crea subito una bozza vuota e apre le due schede (paziente da scegliere
+    # nella scheda Codifica). Se si arriva da una scheda cliente, lo precolleghiamo
+    # e copiamo la ASL dall'anagrafica.
+    cliente_id = request.args.get("cliente_id") or None
+    nome_paziente, asl = "", ""
     with get_db() as conn:
+        cur = conn.cursor()
         _, prov_default = provvigione_corrente(conn)
         if cliente_id:
-            cur = conn.cursor()
-            cur.execute(
-                f"SELECT id, cognome, nome FROM clienti WHERE id = {_PH}", (cliente_id,)
-            )
-            cliente_sel = cur.fetchone()
-    return render_template(
-        "nuova_pratica.html",
-        oggi=datetime.now().strftime("%Y-%m-%d"),
-        prov_default=prov_default,
-        cliente_sel=cliente_sel,
-    )
+            cur.execute(f"SELECT cognome, nome, asl FROM clienti WHERE id = {_PH}", (cliente_id,))
+            c = cur.fetchone()
+            if c:
+                nome_paziente = (c["cognome"] + (f" {c['nome']}" if c["nome"] else "")).strip()
+                asl = c["asl"] or ""
+            else:
+                cliente_id = None
+        cur.execute(
+            f"INSERT INTO pratiche (nome_paziente, cliente_id, data_pratica, importo_asl, "
+            f"importo_privato, provvigione_pct, asl_destinataria) "
+            f"VALUES ({_PH}, {_PH}, {_PH}, 0, 0, {_PH}, {_PH})",
+            (nome_paziente, cliente_id, datetime.now().strftime("%Y-%m-%d"), prov_default, asl),
+        )
+        pratica_id = last_inserted_id(cur)
+    return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id))
 
 
 # ── Dettaglio pratica ─────────────────────────────────────────────────────────
@@ -311,6 +321,8 @@ def dettaglio_pratica(pratica_id):
         moduli_attivi=moduli_attivi,
         preset_categorie=preset_per_categoria(),
         significato_categorie=significato_per_categoria(),
+        sign_catalogo=significato_catalogo(),
+        sign_articoli=SIGNIFICATO_ARTICOLI,
         soglia_ok=MARGINE_SOGLIA_OK,
         soglia_warn=MARGINE_SOGLIA_WARN,
     )
@@ -678,6 +690,33 @@ def elimina_pratica(pratica_id):
     return redirect(url_for("dashboard"))
 
 
+# ── Catalogo significato terapeutico (globale, editabile via AJAX) ────────────
+
+@app.route("/significato/aggiungi", methods=["POST"])
+def significato_aggiungi():
+    articolo = (request.form.get("articolo") or "").strip()
+    testo    = (request.form.get("testo") or "").strip()
+    if articolo not in SIGNIFICATO_ARTICOLI or not testo:
+        return jsonify({"ok": False, "errore": "Articolo o testo non validi"}), 400
+    mot_id = aggiungi_motivazione(articolo, testo)
+    return jsonify({"ok": True, "id": mot_id, "articolo": articolo, "testo": testo})
+
+
+@app.route("/significato/<int:mot_id>/modifica", methods=["POST"])
+def significato_modifica(mot_id):
+    testo = (request.form.get("testo") or "").strip()
+    if not testo:
+        return jsonify({"ok": False, "errore": "Testo vuoto"}), 400
+    aggiorna_motivazione(mot_id, testo)
+    return jsonify({"ok": True, "id": mot_id, "testo": testo})
+
+
+@app.route("/significato/<int:mot_id>/elimina", methods=["POST"])
+def significato_elimina(mot_id):
+    elimina_motivazione(mot_id)
+    return jsonify({"ok": True, "id": mot_id})
+
+
 # ── API: estrai totale da PDF ─────────────────────────────────────────────────
 
 @app.route("/api/estrai-pdf", methods=["POST"])
@@ -793,6 +832,13 @@ def aggiorna_dati_moduli(pratica_id):
     valori = [(request.form.get(c) or "").strip() for c in _PRATICA_MODULO_FIELDS]
     set_clause = ", ".join(f"{c} = {_PH}" for c in _PRATICA_MODULO_FIELDS)
     params = list(valori)
+    # Paziente / collegamento anagrafica (scelti nella scheda Codifica): aggiornati
+    # solo se il form li invia, così non sovrascriviamo per errore.
+    if "nome_paziente" in request.form:
+        set_clause += f", nome_paziente = {_PH}"
+        params.append((request.form.get("nome_paziente") or "").strip())
+        set_clause += f", cliente_id = {_PH}"
+        params.append(request.form.get("cliente_id") or None)
     # L'IVA non è più nell'interfaccia: la aggiorniamo solo se il form la invia,
     # altrimenti resta il valore esistente (default 4).
     iva_raw = request.form.get("iva_percentuale")
@@ -841,6 +887,20 @@ def genera_modulo(pratica_id, template_id):
     if PDF_TEMPLATES[template_id].get("richiede_cliente") and not cliente_d:
         # Senza cliente collegato non c'è anagrafica da inserire nel modulo
         return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) + "#moduli")
+
+    # N° pratica generato in automatico alla prima generazione di un preventivo,
+    # poi salvato sulla pratica così resta stabile (per le pratiche già create lo
+    # si inserisce a mano dalla scheda Codifica).
+    if (PDF_TEMPLATES[template_id].get("categoria") == "preventivo"
+            and not (pratica_d.get("numero_pratica") or "").strip()):
+        num = numero_preventivo(pratica_d, cliente_d)
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                f"UPDATE pratiche SET numero_pratica = {_PH} WHERE id = {_PH}",
+                (num, pratica_id),
+            )
+        pratica_d["numero_pratica"] = num
 
     try:
         pdf_bytes = compila_pdf(template_id, pratica_d, cliente_d, righe)
@@ -1069,7 +1129,12 @@ def cliente_nuovo():
             )
             cliente_id = last_inserted_id(cur)
         return redirect(url_for("cliente_dettaglio", cliente_id=cliente_id))
-    return render_template("cliente_form.html", cliente={}, errore=None, modifica=False, centri=CENTRI)
+    # Precompila cognome/nome se arriva dal campo paziente di una pratica
+    prefill = {
+        "cognome": (request.args.get("cognome") or "").strip(),
+        "nome":    (request.args.get("nome") or "").strip(),
+    }
+    return render_template("cliente_form.html", cliente=prefill, errore=None, modifica=False, centri=CENTRI)
 
 
 @app.route("/cliente/<int:cliente_id>")
@@ -1141,14 +1206,14 @@ def api_clienti():
         if q:
             like = f"%{q}%"
             cur.execute(
-                f"""SELECT id, cognome, nome, codice_fiscale FROM clienti
+                f"""SELECT id, cognome, nome, codice_fiscale, asl FROM clienti
                     WHERE cognome LIKE {_PH} OR nome LIKE {_PH} OR codice_fiscale LIKE {_PH}
                     ORDER BY cognome, nome LIMIT 20""",
                 (like, like, like),
             )
         else:
             cur.execute(
-                "SELECT id, cognome, nome, codice_fiscale FROM clienti "
+                "SELECT id, cognome, nome, codice_fiscale, asl FROM clienti "
                 "ORDER BY cognome, nome LIMIT 20"
             )
         risultati = [dict(r) for r in cur.fetchall()]
