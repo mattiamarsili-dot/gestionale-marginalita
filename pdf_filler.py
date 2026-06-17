@@ -19,32 +19,93 @@ TEMPLATES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets
 #   stato: "ok"      → mappatura completa, generabile
 #          "parziale"→ generabile ma alcune sezioni restano vuote (es. righe ausili)
 #          "todo"    → non ancora mappato
+# Ordine delle categorie nell'elenco moduli: prima i preventivi, poi le deleghe,
+# infine prescrizioni e autocertificazioni.
+CATEGORIA_ORDINE = {"preventivo": 0, "delega": 1, "prescrizione": 2, "autocert": 3}
+
 PDF_TEMPLATES = {
-    "autocert-asl-rm3": {
-        "label": "Autocertificazione + Delega ASL RM3",
-        "file": "autocert-asl-rm3.pdf",
-        "stato": "ok",
-        "richiede_cliente": True,
-    },
     "preventivo-sapio": {
         "label": "Preventivo Sapio Life",
         "file": "preventivo-sapio-v1.pdf",
         "stato": "ok",  # anagrafica + righe ausili + totali
         "richiede_cliente": True,
+        "categoria": "preventivo",
+        "sempre_attivo": True,
+    },
+    "preventivo": {
+        "label": "Preventivo generico",
+        "file": "Preventivo.pdf",
+        "stato": "ok",  # anagrafica + tabella ausili + totali (campi AcroForm dedicati)
+        "richiede_cliente": True,
+        "categoria": "preventivo",
+        "sempre_attivo": True,
+    },
+    "delega-rm2": {
+        "label": "Delega ASL RM2",
+        "file": "Delega RM2.pdf",
+        "stato": "ok",  # delegante (cliente) + dati pratica
+        "richiede_cliente": True,
+        "categoria": "delega",
+    },
+    "delega-generica": {
+        "label": "Autocertificazione + Delega generica",
+        "file": "Delega Generica.pdf",
+        "stato": "ok",  # stessa famiglia campi di autocert-asl-rm3
+        "richiede_cliente": True,
+        "categoria": "delega",
     },
     "prescrizione-gen": {
         "label": "Prescrizione presidi (Allegato 3)",
         "file": "Prescrizione Gen.pdf",
         "stato": "ok",  # anagrafica + righe ausili + significato terapeutico
         "richiede_cliente": True,
+        "categoria": "prescrizione",
+    },
+    "prescrizione-hbg": {
+        "label": "Prescrizione HBG",
+        "file": "Prescrizione HBG.pdf",
+        "stato": "ok",  # anagrafica + righe (iso/qtà) + significato terapeutico
+        "richiede_cliente": True,
+        "categoria": "prescrizione",
+    },
+    "prescrizione-santalucia": {
+        "label": "Prescrizione Santa Lucia",
+        "file": "PrescrizioneSanta lucia.pdf",
+        "stato": "ok",  # anagrafica (field*_1/Text1 per posizione) + righe + significato
+        "richiede_cliente": True,
+        "categoria": "prescrizione",
+    },
+    "autocert-asl-rm3": {
+        "label": "Autocertificazione + Delega ASL RM3",
+        "file": "autocert-asl-rm3.pdf",
+        "stato": "ok",
+        "richiede_cliente": True,
+        "categoria": "autocert",
     },
 }
 
-# Numero massimo di righe ausili stampabili
+# Moduli sempre attivi sulla pratica (non disattivabili): i preventivi.
+MODULI_SEMPRE_ATTIVI = {tid for tid, m in PDF_TEMPLATES.items() if m.get("sempre_attivo")}
+
+
+def moduli_ordinati() -> list:
+    """Lista dei moduli (con id) ordinati per categoria: preventivi → deleghe → resto."""
+    items = [{"id": tid, **meta} for tid, meta in PDF_TEMPLATES.items()]
+    items.sort(key=lambda m: (CATEGORIA_ORDINE.get(m.get("categoria"), 9), m["label"]))
+    return items
+
+# Numero massimo di righe ausili stampabili per modulo
 _SAPIO_MAX_RIGHE = 16
 _PRESCR_MAX_RIGHE = 15        # righe 0..14 sul modulo Allegato 3
 _PRESCR_SIGN_RIGHE = 6        # righe del significato terapeutico
 _PRESCR_SIGN_WIDTH = 95       # caratteri per riga del significato terapeutico
+_HBG_MAX_RIGHE = 16           # righe 0..15 sul modulo HBG
+_HBG_SIGN_RIGHE = 16          # righe del significato terapeutico HBG
+_HBG_SIGN_WIDTH = 95
+_SL_MAX_RIGHE = 12            # righe 0..11 sul modulo Santa Lucia
+_SL_SIGN_RIGHE = 6           # righe del significato terapeutico Santa Lucia
+_SL_SIGN_WIDTH = 95
+_PREV_MAX_RIGHE = 16         # righe 0..15 sul preventivo generico
 
 
 # ── Formattazione valori ──────────────────────────────────────────────────────
@@ -136,91 +197,283 @@ def _asl(pratica: dict, cliente: dict) -> str:
     return (pratica.get("asl_destinataria") or cliente.get("asl") or "").strip()
 
 
+# ── Vista canonica dei dati (sorgente unica per tutti i moduli) ───────────────
+
+def dati_canonici(pratica: dict, cliente: dict) -> dict:
+    """
+    Normalizza e pre-formatta tutti i dati cliente+pratica che servono ai moduli.
+    Ogni template mappa solo `nome_campo_PDF → chiave_canonica`, senza ripetere
+    la logica di estrazione/formattazione. Le date sono già 'gg/mm/aaaa'.
+    """
+    cliente = cliente or {}
+    pratica = pratica or {}
+    oggi = date.today().strftime("%d/%m/%Y")
+    recapiti = (cliente.get("telefono") or "").strip()
+    if cliente.get("email"):
+        recapiti = f"{recapiti}  {cliente['email']}".strip()
+    return {
+        "nome":             _nome_completo(cliente),
+        "cognome":          (cliente.get("cognome") or "").strip(),
+        "nome_proprio":     (cliente.get("nome") or "").strip(),
+        "cf":               (cliente.get("codice_fiscale") or "").strip(),
+        "nato_data":        _fmt_data(cliente.get("data_nascita")),
+        "nato_luogo":       (cliente.get("luogo_nascita") or "").strip(),
+        "provincia":        (cliente.get("provincia") or "").strip(),
+        "via":              _via_completa(cliente),     # via + civico
+        "citta":            _citta_completa(cliente),   # città (prov)
+        "comune":           (cliente.get("residenza_citta") or "").strip(),
+        "cap":              (cliente.get("residenza_cap") or "").strip(),
+        "telefono":         (cliente.get("telefono") or "").strip(),
+        "email":            (cliente.get("email") or "").strip(),
+        "recapiti":         recapiti,
+        "asl":              _asl(pratica, cliente),
+        "centro":           (cliente.get("centro") or "").strip(),
+        "medico_curante":   (cliente.get("medico_curante") or "").strip(),
+        "decorrenza_residenza":    _fmt_data(cliente.get("decorrenza_residenza")),
+        "documento_tipo_numero":   (cliente.get("documento_tipo_numero") or "").strip(),
+        "documento_data_rilascio": _fmt_data(cliente.get("documento_data_rilascio")),
+        "data_prescrizione": _fmt_data(pratica.get("data_pratica")),
+        "medico_struttura": (pratica.get("medico_struttura") or "").strip(),
+        "ausilio":          (pratica.get("ausilio") or "").strip(),
+        "diagnosi":         (pratica.get("diagnosi") or "").strip(),
+        "sign_terapeutico": (pratica.get("sign_terapeutico") or "").strip(),
+        "oggi":             oggi,
+        "luogo_data":       f"Roma, {oggi}",
+        "numero_preventivo": numero_preventivo(pratica, cliente),
+    }
+
+
+def _mappa_righe(righe, max_n, *, iso=None, descrizione=None, qta=None,
+                 prezzo_unitario=None, prezzo_totale=None) -> dict:
+    """
+    Mappa le righe ausili sui campi AcroForm. Ogni colonna è opzionale e riceve
+    una funzione `i → nome_campo` (i pattern di indice variano fra i moduli).
+    Restituisce {nome_campo: valore_formattato}.
+    """
+    fm = {}
+    for i, r in enumerate(righe[:max_n]):
+        q = r.get("qta") or 0
+        p = r.get("prezzo_unitario") or 0
+        if iso:             fm[iso(i)] = (r.get("codice_iso") or "").strip()
+        if descrizione:     fm[descrizione(i)] = (r.get("descrizione") or "").strip()
+        if qta:             fm[qta(i)] = _fmt_qta(q)
+        if prezzo_unitario: fm[prezzo_unitario(i)] = _euro(p)
+        if prezzo_totale:   fm[prezzo_totale(i)] = _euro(q * p)
+    return fm
+
+
 # ── Costruzione field map per template ────────────────────────────────────────
 
 def build_field_map(template_id: str, pratica: dict, cliente: dict, righe: list = None) -> dict:
-    cliente = cliente or {}
-    pratica = pratica or {}
     righe = righe or []
-    oggi = date.today().strftime("%d/%m/%Y")
+    D = dati_canonici(pratica, cliente)
 
     if template_id == "autocert-asl-rm3":
-        nome = _nome_completo(cliente)
-        recapiti = (cliente.get("telefono") or "").strip()
-        if cliente.get("email"):
-            recapiti = f"{recapiti}  {cliente['email']}".strip()
         return {
             # Autocertificazione
-            "autocert_asl": _asl(pratica, cliente),
-            "autocert_sottoscritto": nome,
-            "autocert_codice_fiscale": (cliente.get("codice_fiscale") or "").strip(),
-            "autocert_recapiti": recapiti,
-            "autocert_medico_struttura": (pratica.get("medico_struttura") or "").strip(),
-            "autocert_data_prescrizione": _fmt_data(pratica.get("data_pratica")),
-            "autocert_nato_data": _fmt_data(cliente.get("data_nascita")),
-            "autocert_nato_luogo": (cliente.get("luogo_nascita") or "").strip(),
-            "autocert_residente_via": _via_completa(cliente),
-            "autocert_residente_citta": _citta_completa(cliente),
-            "autocert_decorrenza_residenza_data": _fmt_data(cliente.get("decorrenza_residenza")),
-            "autocert_luogo_data": f"Roma, {oggi}",
+            "autocert_asl": D["asl"],
+            "autocert_sottoscritto": D["nome"],
+            "autocert_codice_fiscale": D["cf"],
+            "autocert_recapiti": D["recapiti"],
+            "autocert_medico_struttura": D["medico_struttura"],
+            "autocert_data_prescrizione": D["data_prescrizione"],
+            "autocert_nato_data": D["nato_data"],
+            "autocert_nato_luogo": D["nato_luogo"],
+            "autocert_residente_via": D["via"],
+            "autocert_residente_citta": D["citta"],
+            "autocert_decorrenza_residenza_data": D["decorrenza_residenza"],
+            "autocert_luogo_data": D["luogo_data"],
             # Delega RM3 (delegante = il cliente)
-            "delega_rm3_dichiarante_nome": nome,
-            "delega_rm3_dichiarante_nato_luogo": (cliente.get("luogo_nascita") or "").strip(),
-            "delega_rm3_dichiarante_provincia": (cliente.get("provincia") or "").strip(),
-            "delega_rm3_dichiarante_nato_data": _fmt_data(cliente.get("data_nascita")),
-            "delega_rm3_dichiarante_residente_comune": (cliente.get("residenza_citta") or "").strip(),
-            "delega_rm3_dichiarante_residente_via": _via_completa(cliente),
-            "delega_rm3_documento_tipo_numero": (cliente.get("documento_tipo_numero") or "").strip(),
-            "delega_rm3_documento_data_rilascio": _fmt_data(cliente.get("documento_data_rilascio")),
-            "delega_rm3_oggetto_richiesta": (pratica.get("ausilio") or "").strip(),
-            "delega_rm3_data_firma": oggi,
-            "delega_rm3_data_consenso": oggi,
+            "delega_rm3_dichiarante_nome": D["nome"],
+            "delega_rm3_dichiarante_nato_luogo": D["nato_luogo"],
+            "delega_rm3_dichiarante_provincia": D["provincia"],
+            "delega_rm3_dichiarante_nato_data": D["nato_data"],
+            "delega_rm3_dichiarante_residente_comune": D["comune"],
+            "delega_rm3_dichiarante_residente_via": D["via"],
+            "delega_rm3_documento_tipo_numero": D["documento_tipo_numero"],
+            "delega_rm3_documento_data_rilascio": D["documento_data_rilascio"],
+            "delega_rm3_oggetto_richiesta": D["ausilio"],
+            "delega_rm3_data_firma": D["oggi"],
+            "delega_rm3_data_consenso": D["oggi"],
+        }
+
+    if template_id == "delega-generica":
+        # Stessa famiglia di campi di autocert-asl-rm3, con qualche extra.
+        # Il blocco "delegato" (feild1_1..feild14_1) lo compila a mano l'operatore.
+        return {
+            "autocert_sottoscritto": D["nome"],
+            "autocert_codice_fiscale": D["cf"],
+            "autocert_asl": D["asl"],
+            "autocert_recapiti": D["recapiti"],
+            "autocert_medico_struttura": D["medico_struttura"],
+            "autocert_data_prescrizione": D["data_prescrizione"],
+            "autocert_nato_data": D["nato_data"],
+            "autocert_nato_luogo": D["nato_luogo"],
+            "autocert_residente_via": D["via"],
+            "autocert_residente_citta": D["citta"],
+            "autocert_decorrenza_residenza_data": D["decorrenza_residenza"],
+            "autocert_luogo_data": D["luogo_data"],
+            "autocert_data": D["oggi"],
+            "autocert_numero_preventivo": D["numero_preventivo"],
+            "Autocert_ausilio": D["ausilio"],
+            "delega_rm3_dichiarante_nome": D["nome"],
+            "delega_rm3_dichiarante_nato_luogo": D["nato_luogo"],
+            "delega_rm3_dichiarante_provincia": D["provincia"],
+            "delega_rm3_dichiarante_nato_data": D["nato_data"],
+            "delega_rm3_dichiarante_residente_comune": D["comune"],
+            "delega_rm3_dichiarante_residente_via": D["via"],
+            "delega_rm3_documento_tipo_numero": D["documento_tipo_numero"],
+            "delega_rm3_documento_data_rilascio": D["documento_data_rilascio"],
+            "delega_rm3_oggetto_richiesta": D["ausilio"],
+            "delega_rm3_data_firma": D["oggi"],
+            "delega_rm3_data_consenso": D["oggi"],
+        }
+
+    if template_id == "delega-rm2":
+        # delegante = il cliente; il blocco delegato_* lo compila a mano l'operatore.
+        return {
+            "delega_rm2_delegante_cognome_nome": D["nome"],
+            "delega_rm2_delegante_cf": D["cf"],
+            "delega_rm2_delegante_nato_luogo": D["nato_luogo"],
+            "delega_rm2_delegante_nato_data": D["nato_data"],
+            "delega_rm2_delegante_residente_citta": D["citta"],
+            "delega_rm2_delegante_residente_via": D["via"],
+            "delega_rm2_delegante_residenza_data": D["decorrenza_residenza"],
+            "delega_rm2_delegante_telefono_email": D["recapiti"],
+            "delega_rm2_delegante_documento_tipo_numero": D["documento_tipo_numero"],
+            "delega_rm2_delegante_documento_rilascio_data": D["documento_data_rilascio"],
+            "delega_rm2_delegante_Medico_strttura": D["medico_struttura"],  # refuso nel template
+            "delega_rm2_delegante_ausilio": D["ausilio"],
+            "delega_rm2_delegante_data_prescrizione": D["data_prescrizione"],
+            "delega_rm2_data_firma": D["oggi"],
         }
 
     if template_id == "preventivo-sapio":
-        fm = {
-            "preventivo_assistito": _nome_completo(cliente),
-            "preventivo_nato_luogo": (cliente.get("luogo_nascita") or "").strip(),
-            "preventivo_nato_data": _fmt_data(cliente.get("data_nascita")),
-            # ATTENZIONE: nel template Sapio i due campi sono invertiti rispetto al
-            # nome → il campo *_citta è la riga "RESIDENTE IN:" (in alto, l'indirizzo),
-            # *_via è la riga sottostante (il comune). Riempiamo di conseguenza.
-            "preventivo_residente_citta": _via_completa(cliente),   # riga "RESIDENTE IN:" = indirizzo
-            "preventivo_residente_via": _citta_completa(cliente),    # riga sotto = comune (prov)
-            "preventivo_telefono": (cliente.get("telefono") or "").strip(),
-            "preventivo_asl": _asl(pratica, cliente),
-            "preventivo_data": oggi,                                 # data di compilazione del modulo
-            "preventivo_numero": numero_preventivo(pratica, cliente),
-            "preventivo_ref_struttura": (pratica.get("medico_struttura") or "").strip(),
-        }
         # Righe e totali NON vanno nell'AcroForm: vengono disegnati con un overlay
-        # uniforme (vedi _overlay_preventivo_tabella) perché le celle del template
-        # hanno altezze diverse e il viewer le centra in modo incoerente.
+        # uniforme (vedi _overlay_preventivo) perché le celle del template hanno
+        # altezze diverse e il viewer le centra in modo incoerente.
+        return {
+            "preventivo_assistito": D["nome"],
+            "preventivo_nato_luogo": D["nato_luogo"],
+            "preventivo_nato_data": D["nato_data"],
+            # ATTENZIONE: nel template Sapio i due campi sono invertiti rispetto al
+            # nome → *_citta è la riga "RESIDENTE IN:" (indirizzo), *_via è il comune.
+            "preventivo_residente_citta": D["via"],
+            "preventivo_residente_via": D["citta"],
+            "preventivo_telefono": D["telefono"],
+            "preventivo_asl": D["asl"],
+            "preventivo_data": D["oggi"],
+            "preventivo_numero": D["numero_preventivo"],
+            "preventivo_ref_struttura": D["medico_struttura"],
+        }
+
+    if template_id == "preventivo":
+        # Preventivo generico: campi AcroForm dedicati per ogni cella → riempimento
+        # diretto (niente overlay). Totali calcolati dalle righe.
+        fm = {
+            "Cognome nome": D["nome"],
+            "Data Nascita": D["nato_data"],
+            "Luogo Nascita": D["nato_luogo"],
+            "Ind. Residenza": D["via"],
+            "Città residenziali": D["citta"],
+            "ASL appart": D["asl"],
+            "Cellulare": D["telefono"],
+            "Centro": D["centro"],
+            "N. Preventivo": D["numero_preventivo"],
+            "Data": D["oggi"],
+        }
+        fm.update(_mappa_righe(
+            righe, _PREV_MAX_RIGHE,
+            iso=lambda i: f"Codici ISO.0.{i}.0",
+            descrizione=lambda i: f"Descrizione.0.{i}.0",
+            qta=lambda i: f"Q.tà.{i}.0",
+            prezzo_unitario=lambda i: f"Prezzo Uni.{i}.0",
+            prezzo_totale=lambda i: f"Prezzo Tot.{i}.0",
+        ))
+        imponibile = sum((r.get("qta") or 0) * (r.get("prezzo_unitario") or 0)
+                         for r in righe[:_PREV_MAX_RIGHE])
+        iva_pct = pratica.get("iva_percentuale")
+        iva_pct = 4.0 if iva_pct in (None, "") else float(iva_pct)
+        iva = imponibile * (iva_pct / 100.0)
+        fm["Tot. Imponib"] = _euro(imponibile)
+        fm["Iva"] = _euro(iva)
+        fm["Tot. Lordo"] = _euro(imponibile + iva)
         return fm
 
     if template_id == "prescrizione-gen":
         fm = {
-            "Cognome": (cliente.get("cognome") or "").strip(),
-            "Nome": (cliente.get("nome") or "").strip(),
-            "Data Nascita": _fmt_data(cliente.get("data_nascita")),
-            "Luogo Nasc": (cliente.get("luogo_nascita") or "").strip(),
-            "Resid. via": _via_completa(cliente),
-            "Comune Res": (cliente.get("residenza_citta") or "").strip(),
-            "Provinc": (cliente.get("provincia") or "").strip(),
-            "C.F": (cliente.get("codice_fiscale") or "").strip(),
-            "Telefono": (cliente.get("telefono") or "").strip(),
-            "Patologia": (pratica.get("diagnosi") or "").strip(),
+            "Cognome": D["cognome"],
+            "Nome": D["nome_proprio"],
+            "Data Nascita": D["nato_data"],
+            "Luogo Nasc": D["nato_luogo"],
+            "Resid. via": D["via"],
+            "Comune Res": D["comune"],
+            "Provinc": D["provincia"],
+            "C.F": D["cf"],
+            "Telefono": D["telefono"],
+            "Patologia": D["diagnosi"],
         }
         # Righe ausili (0..14). La riga 0 ha il campo ISO con nome annidato extra.
-        for i, r in enumerate(righe[:_PRESCR_MAX_RIGHE]):
-            iso_field = "Cod. ISO.0.0.0.0" if i == 0 else f"Cod. ISO.{i}.0"
-            fm[f"Q.tà.{i}.0"] = _fmt_qta(r.get("qta") or 0)
-            fm[f"Descrizione LEA.{i}.0"] = (r.get("descrizione") or "").strip()
-            fm[iso_field] = (r.get("codice_iso") or "").strip()
+        fm.update(_mappa_righe(
+            righe, _PRESCR_MAX_RIGHE,
+            iso=lambda i: "Cod. ISO.0.0.0.0" if i == 0 else f"Cod. ISO.{i}.0",
+            descrizione=lambda i: f"Descrizione LEA.{i}.0",
+            qta=lambda i: f"Q.tà.{i}.0",
+        ))
         # Significato terapeutico: testo lungo spezzato su max 6 righe
-        for i, riga in enumerate(_wrap_lines(pratica.get("sign_terapeutico"),
+        for i, riga in enumerate(_wrap_lines(D["sign_terapeutico"],
                                              _PRESCR_SIGN_WIDTH, _PRESCR_SIGN_RIGHE)):
             fm[f"Signf. Terapeutico.{i}.0"] = riga
+        return fm
+
+    if template_id == "prescrizione-hbg":
+        fm = {
+            "prescrizione_hbg_cognome_nome": D["nome"],
+            "prescrizione_hbg_nato_data": D["nato_data"],
+            "prescrizione_hbg_nato_luogo": D["nato_luogo"],
+            "prescrizione_hbg_provincia": D["provincia"],
+            "prescrizione_hbg_provincia_CAP": D["cap"],
+            "prescrizione_hbg_residente_citta": D["comune"],
+            "prescrizione_hbg_residente_via": D["via"],
+            "prescrizione_hbg_telefono": D["telefono"],
+        }
+        # Righe: solo codice ISO + quantità (nessuna colonna descrizione).
+        # NB: il campo ISO ha un doppio spazio nel nome ("_iso  .{i}.0").
+        fm.update(_mappa_righe(
+            righe, _HBG_MAX_RIGHE,
+            iso=lambda i: f"Text1prescrizione_hbg_riga01_iso  .{i}.0",
+            qta=lambda i: f"prescrizione_hbg_riga01_qta.{i}.0",
+        ))
+        for i, riga in enumerate(_wrap_lines(D["sign_terapeutico"],
+                                             _HBG_SIGN_WIDTH, _HBG_SIGN_RIGHE)):
+            fm[f"prescrizione_hbg_sign_01.{i}.0"] = riga
+        return fm
+
+    if template_id == "prescrizione-santalucia":
+        # Anagrafica su campi generici field0_1..field7_1 + Text1, identificati per
+        # posizione nel modulo (riga e ordine sx→dx). NB: la diagnosi NON ha un campo
+        # AcroForm su questo modulo (solo righe da scrivere a mano).
+        fm = {
+            "field0_1": D["cognome"],
+            "field1_1": D["nome_proprio"],
+            "field2_1": D["nato_data"],
+            "field3_1": D["nato_luogo"],
+            "field4_1": D["via"],        # Residenza Via/P.zza
+            "field5_1": D["comune"],     # Comune
+            "field6_1": D["provincia"],  # Prov.
+            "field7_1": D["telefono"],
+            "Text1": D["cf"],            # Codice Fiscale
+        }
+        fm.update(_mappa_righe(
+            righe, _SL_MAX_RIGHE,
+            iso=lambda i: f"Cod. ISO 0.0.{i}.0",
+            descrizione=lambda i: f"Descrizione LEA.0.0.{i}.0",
+            # quirk del template: la riga 10 ha un livello di annidamento extra
+            qta=lambda i: "Q_tà.10.0.0.0" if i == 10 else f"Q_tà.{i}.0",
+        ))
+        for i, riga in enumerate(_wrap_lines(D["sign_terapeutico"],
+                                             _SL_SIGN_WIDTH, _SL_SIGN_RIGHE)):
+            fm[f"Sign. Terapeutico.0.{i}"] = riga
         return fm
 
     raise ValueError(f"Template sconosciuto: {template_id}")

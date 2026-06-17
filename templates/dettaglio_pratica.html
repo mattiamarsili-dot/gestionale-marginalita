@@ -44,7 +44,7 @@
           </div>
           <div class="col-6 col-md-3">
             <div class="dettaglio-label">Importo ASL (netto IVA)</div>
-            <div class="dettaglio-val fw-bold text-primary">€ {{ "%.2f"|format(pratica.importo_asl) }}</div>
+            <div class="dettaglio-val fw-bold text-primary">€ <span id="top-importo-asl">{{ "%.2f"|format(pratica.importo_asl) }}</span></div>
           </div>
           {% if pratica.note %}
           <div class="col-6 col-md-3">
@@ -94,14 +94,9 @@
                 <input type="text" name="asl_destinataria" class="form-control form-control-sm"
                        value="{{ pratica.asl_destinataria or '' }}" placeholder="{{ cliente.asl if cliente else 'es. RM 2' }}">
               </div>
-              <div class="col-8 col-sm-3">
+              <div class="col-12 col-sm-4">
                 <label class="form-label form-label-sm mb-1">Medico / struttura</label>
                 <input type="text" name="medico_struttura" class="form-control form-control-sm" value="{{ pratica.medico_struttura or '' }}">
-              </div>
-              <div class="col-4 col-sm-1">
-                <label class="form-label form-label-sm mb-1">IVA %</label>
-                <input type="number" name="iva_percentuale" step="0.01" min="0" class="form-control form-control-sm"
-                       value="{{ pratica.iva_percentuale if pratica.iva_percentuale is not none else 4 }}">
               </div>
               <div class="col-12">
                 <label class="form-label form-label-sm mb-1">Ausilio (oggetto richiesta)</label>
@@ -208,8 +203,7 @@
           </div>
 
           <div class="card-body p-0">
-            {% if righe %}
-            <table class="table mb-0 align-middle">
+            <table class="table mb-0 align-middle {% if not righe %}d-none{% endif %}" id="tabella-righe">
               <thead class="table-light">
                 <tr>
                   <th>Cod. ISO</th>
@@ -222,19 +216,17 @@
               </thead>
               <tbody>
                 {% for r in righe %}
-                <tr>
+                <tr data-riga-id="{{ r.id }}">
                   <td class="text-muted small">{{ r.codice_iso or '—' }}</td>
                   <td>{{ r.descrizione or '—' }}</td>
                   <td class="text-center">{{ (r.qta or 0) | int }}</td>
                   <td class="text-end">€ {{ "%.2f"|format(r.prezzo_unitario or 0) }}</td>
                   <td class="text-end fw-semibold">€ {{ "%.2f"|format((r.qta or 0) * (r.prezzo_unitario or 0)) }}</td>
                   <td class="text-end" style="width:40px">
-                    <form method="post" action="{{ url_for('elimina_riga', riga_id=r.id) }}"
-                          onsubmit="return confirm('Rimuovere questa riga?')">
-                      <button type="submit" class="btn btn-link btn-sm p-0 text-danger" title="Rimuovi">
-                        <i class="bi bi-x-circle"></i>
-                      </button>
-                    </form>
+                    <button type="button" class="btn btn-link btn-sm p-0 text-danger js-elimina-riga"
+                            data-riga-id="{{ r.id }}" title="Rimuovi">
+                      <i class="bi bi-x-circle"></i>
+                    </button>
                   </td>
                 </tr>
                 {% endfor %}
@@ -242,23 +234,22 @@
               <tfoot class="table-light">
                 <tr>
                   <td colspan="4" class="text-end fw-bold text-muted small">IMPONIBILE AUSILI</td>
-                  <td class="text-end fw-bold">€ {{ "%.2f"|format(tot_ausili) }}</td>
+                  <td class="text-end fw-bold" id="tot-ausili-cell">€ {{ "%.2f"|format(tot_ausili) }}</td>
                   <td></td>
                 </tr>
               </tfoot>
             </table>
-            {% else %}
-            <div class="text-center text-muted py-3 small">
+            <div id="righe-vuote" class="text-center text-muted py-3 small {% if righe %}d-none{% endif %}">
               Nessuna riga ausilio — usa <strong>Inserisci set</strong> o <strong>Riga singola</strong>. Servono per il preventivo e la prescrizione.
             </div>
-            {% endif %}
           </div>
         </div>
 
         <!-- Moduli PDF -->
-        <div class="card" id="moduli">
-          <div class="card-header bg-dark text-white py-3">
-            <i class="bi bi-file-earmark-pdf me-2"></i>Genera moduli PDF
+        <div class="card" id="moduli" data-moduli-url="{{ url_for('aggiorna_moduli_attivi', pratica_id=pratica.id) }}">
+          <div class="card-header bg-dark text-white py-3 d-flex align-items-center justify-content-between">
+            <span><i class="bi bi-file-earmark-pdf me-2"></i>Moduli da compilare</span>
+            <span class="small text-white-50">Spunta i moduli che servono per questa pratica</span>
           </div>
           <div class="card-body">
             {% if not cliente %}
@@ -269,14 +260,22 @@
               <a href="{{ url_for('modifica_pratica', pratica_id=pratica.id) }}">Collega un cliente</a>.
             </div>
             {% endif %}
-            <div class="row g-2">
+            <div class="row g-2" id="moduli-lista">
               {% for m in moduli %}
+              {% set attivo = m.id in moduli_attivi %}
               <div class="col-12 col-sm-6">
-                <div class="d-flex align-items-center justify-content-between border rounded p-2">
-                  <div class="me-2">
-                    <div class="fw-semibold small">{{ m.label }}</div>
+                <div class="d-flex align-items-center justify-content-between border rounded p-2 modulo-item {% if not attivo %}opacity-50{% endif %}"
+                     data-modulo-id="{{ m.id }}">
+                  <div class="form-check me-2 mb-0">
+                    <input class="form-check-input modulo-check" type="checkbox" value="{{ m.id }}"
+                           id="chk-{{ m.id }}" {% if attivo %}checked{% endif %}
+                           {% if m.sempre_attivo %}disabled{% endif %}>
+                    <label class="form-check-label fw-semibold small" for="chk-{{ m.id }}">{{ m.label }}</label>
+                    {% if m.sempre_attivo %}
+                    <span class="badge bg-success-subtle text-success" style="font-size:.65em"><i class="bi bi-pin-angle-fill"></i> sempre attivo</span>
+                    {% endif %}
                     {% if m.stato == 'parziale' %}
-                    <span class="badge bg-warning-subtle text-warning" style="font-size:.65em">sezione ausili in arrivo</span>
+                    <span class="badge bg-warning-subtle text-warning d-block" style="font-size:.65em">compilazione parziale</span>
                     {% endif %}
                   </div>
                   {% if m.richiede_cliente and not cliente %}
@@ -285,13 +284,16 @@
                   </button>
                   {% else %}
                   <a href="{{ url_for('genera_modulo', pratica_id=pratica.id, template_id=m.id) }}"
-                     class="btn btn-sm btn-primary text-nowrap">
+                     class="btn btn-sm btn-primary text-nowrap modulo-genera {% if not attivo %}d-none{% endif %}">
                     <i class="bi bi-download me-1"></i>Genera
                   </a>
                   {% endif %}
                 </div>
               </div>
               {% endfor %}
+            </div>
+            <div class="text-muted small mt-2" id="moduli-vuoto-hint" {% if moduli_attivi %}style="display:none"{% endif %}>
+              Nessun modulo selezionato: spunta quelli necessari per abilitare la generazione.
             </div>
           </div>
         </div>
@@ -381,31 +383,49 @@
 
           <!-- Analisi margine -->
           <div class="col-12 col-lg-5">
-            <div class="card">
+            <div class="card" id="card-margine"
+                 data-asl-url="{{ url_for('aggiorna_importo_asl', pratica_id=pratica.id) }}"
+                 data-prov-pct="{{ pratica.provvigione_pct }}"
+                 data-costo="{{ margine.costo }}"
+                 data-tot-ausili="{{ tot_ausili }}"
+                 data-soglia-ok="{{ soglia_ok }}"
+                 data-soglia-warn="{{ soglia_warn }}">
               <div class="card-header bg-primary text-white py-3">
                 <i class="bi bi-calculator me-2"></i>Analisi Margine
               </div>
               <div class="card-body">
-                <div id="riepilogo-margine">
-                  <div class="riga-calc">
-                    <span>Ricavi (ASL)</span>
-                    <span class="fw-semibold">€ {{ "%.2f"|format(margine.ricavi) }}</span>
+                <!-- Importo ASL: precompilato dai codici, modificabile -->
+                <div class="mb-3">
+                  <label class="form-label form-label-sm mb-1 d-flex justify-content-between align-items-end">
+                    <span>Importo ASL (ricavi)</span>
+                    <a href="#" id="usa-totale-codici" class="small text-decoration-none {% if not tot_ausili %}d-none{% endif %}">
+                      <i class="bi bi-magic"></i> usa totale codici (€ <span id="lbl-tot-codici">{{ "%.2f"|format(tot_ausili) }}</span>)
+                    </a>
+                  </label>
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text">€</span>
+                    <input type="number" step="0.01" min="0" id="inp-importo-asl" class="form-control"
+                           value="{{ "%.2f"|format(pratica.importo_asl) }}">
                   </div>
+                  <small class="text-muted" id="asl-stato"></small>
+                </div>
+
+                <div id="riepilogo-margine">
                   <div class="riga-calc text-danger">
                     <span>Costo fornitori</span>
                     <span>— € {{ "%.2f"|format(margine.costo) }}</span>
                   </div>
                   <div class="riga-calc text-muted">
-                    <span>Provvigione {{ margine.provvigione_pct | int }}%</span>
-                    <span>— € {{ "%.2f"|format(margine.provvigione) }}</span>
+                    <span id="m-prov-label">Provvigione {{ margine.provvigione_pct | int }}%</span>
+                    <span id="m-provvigione">— € {{ "%.2f"|format(margine.provvigione) }}</span>
                   </div>
                   <div class="riga-calc text-muted">
                     <span>Struttura 5%</span>
-                    <span>— € {{ "%.2f"|format(margine.struttura) }}</span>
+                    <span id="m-struttura">— € {{ "%.2f"|format(margine.struttura) }}</span>
                   </div>
                   <div class="riga-calc totale mt-1 pt-1">
                     <span>MOL</span>
-                    <span class="{% if margine.mol >= 0 %}text-success{% else %}text-danger{% endif %}">
+                    <span id="m-mol" class="{% if margine.mol >= 0 %}text-success{% else %}text-danger{% endif %}">
                       € {{ "%.2f"|format(margine.mol) }}
                     </span>
                   </div>
@@ -413,13 +433,13 @@
 
                 <div class="mt-4 text-center">
                   {% set pct = margine.margine_pct %}
-                  <div class="fs-1 fw-bold {% if pct >= soglia_ok %}text-success{% elif pct >= soglia_warn %}text-warning{% else %}text-danger{% endif %}">
+                  <div id="m-pct" class="fs-1 fw-bold {% if pct >= soglia_ok %}text-success{% elif pct >= soglia_warn %}text-warning{% else %}text-danger{% endif %}">
                     {{ "%.1f"|format(pct) }}%
                   </div>
                   <div class="text-muted small mb-2">Margine totale</div>
                   <div class="progress-margine">
                     {% set w = [[pct, 100] | min, 0] | max %}
-                    <div class="progress-bar {% if pct >= soglia_ok %}bg-success{% elif pct >= soglia_warn %}bg-warning{% else %}bg-danger{% endif %}"
+                    <div id="m-bar" class="progress-bar {% if pct >= soglia_ok %}bg-success{% elif pct >= soglia_warn %}bg-warning{% else %}bg-danger{% endif %}"
                          style="width: {{ w }}%"></div>
                   </div>
                   <div class="d-flex justify-content-end mt-1">
@@ -427,7 +447,7 @@
                   </div>
                 </div>
 
-                <div class="mt-3">
+                <div class="mt-3" id="m-alert-wrap">
                   {% if pct >= soglia_ok %}
                   <div class="alert alert-success py-2 small mb-0"><i class="bi bi-check-circle-fill me-1"></i> Pratica sostenibile.</div>
                   {% elif pct >= soglia_warn %}
@@ -505,6 +525,159 @@
     txt.focus();
   });
   clr.addEventListener('click', () => { txt.value = ''; txt.focus(); });
+})();
+
+// Formattazione € all'italiana
+function eur(n) {
+  return '€ ' + (Number(n) || 0).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+function eurPlain(n) {
+  return (Number(n) || 0).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+// ── Eliminazione riga ausilio senza ricaricare la pagina ─────────────────────
+(function () {
+  const tabella   = document.getElementById('tabella-righe');
+  const vuote     = document.getElementById('righe-vuote');
+  const totCell   = document.getElementById('tot-ausili-cell');
+  const card      = document.getElementById('card-margine');
+  if (!tabella) return;
+
+  function aggiornaTotali(tot, n) {
+    if (totCell) totCell.textContent = eur(tot);
+    // aggiorna l'aiuto "usa totale codici" nella scheda marginalità
+    const lblTot = document.getElementById('lbl-tot-codici');
+    const link   = document.getElementById('usa-totale-codici');
+    if (card) card.dataset.totAusili = tot;
+    if (lblTot) lblTot.textContent = eurPlain(tot);
+    if (link) link.classList.toggle('d-none', !tot);
+    if (n === 0) { tabella.classList.add('d-none'); if (vuote) vuote.classList.remove('d-none'); }
+  }
+
+  tabella.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.js-elimina-riga');
+    if (!btn) return;
+    if (!confirm('Rimuovere questa riga?')) return;
+    const id = btn.dataset.rigaId;
+    btn.disabled = true;
+    try {
+      const res = await fetch(`/riga/${id}/elimina`, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'fetch' },
+      });
+      const d = await res.json();
+      if (d.ok) {
+        const tr = tabella.querySelector(`tr[data-riga-id="${id}"]`);
+        if (tr) tr.remove();
+        aggiornaTotali(d.tot_ausili, d.n_righe);
+      } else {
+        btn.disabled = false;
+      }
+    } catch (_) {
+      btn.disabled = false;
+      alert('Errore di rete: riga non rimossa.');
+    }
+  });
+})();
+
+// ── Selezione manuale dei moduli da compilare ────────────────────────────────
+(function () {
+  const card = document.getElementById('moduli');
+  if (!card) return;
+  const url  = card.dataset.moduliUrl;
+  const hint = document.getElementById('moduli-vuoto-hint');
+
+  function salva() {
+    const scelti = Array.from(card.querySelectorAll('.modulo-check:checked')).map(c => c.value);
+    const body = new URLSearchParams();
+    scelti.forEach(v => body.append('modulo[]', v));
+    fetch(url, { method: 'POST', headers: { 'X-Requested-With': 'fetch' }, body }).catch(() => {});
+    if (hint) hint.style.display = scelti.length ? 'none' : '';
+  }
+
+  card.querySelectorAll('.modulo-check').forEach(chk => {
+    chk.addEventListener('change', () => {
+      const item   = chk.closest('.modulo-item');
+      const genera = item ? item.querySelector('.modulo-genera') : null;
+      item && item.classList.toggle('opacity-50', !chk.checked);
+      if (genera) genera.classList.toggle('d-none', !chk.checked);
+      salva();
+    });
+  });
+})();
+
+// ── Importo ASL editabile con ricalcolo margine live + salvataggio ───────────
+(function () {
+  const card = document.getElementById('card-margine');
+  if (!card) return;
+  const inp     = document.getElementById('inp-importo-asl');
+  const usaTot  = document.getElementById('usa-totale-codici');
+  const stato   = document.getElementById('asl-stato');
+  const aslUrl  = card.dataset.aslUrl;
+  const provPct = parseFloat(card.dataset.provPct) || 0.16;
+  const costo   = parseFloat(card.dataset.costo) || 0;
+  const sogliaOk   = parseFloat(card.dataset.sogliaOk) || 20;
+  const sogliaWarn = parseFloat(card.dataset.sogliaWarn) || 10;
+  let timer = null;
+
+  function classeMargine(pct) {
+    if (pct >= sogliaOk) return ['text-success', 'bg-success', 'alert-success',
+      '<i class="bi bi-check-circle-fill me-1"></i> Pratica sostenibile.'];
+    if (pct >= sogliaWarn) return ['text-warning', 'bg-warning', 'alert-warning',
+      '<i class="bi bi-exclamation-triangle-fill me-1"></i> Margine sotto soglia minima.'];
+    return ['text-danger', 'bg-danger', 'alert-danger',
+      '<i class="bi bi-x-circle-fill me-1"></i> Margine critico!'];
+  }
+
+  async function ricalcola() {
+    const asl = parseFloat(inp.value) || 0;
+    try {
+      const res = await fetch(`/api/calcola-margine?asl=${asl}&costo=${costo}&provvigione_pct=${provPct}`);
+      const d = await res.json();
+      document.getElementById('m-provvigione').textContent = '— ' + eur(d.provvigione);
+      document.getElementById('m-struttura').textContent   = '— ' + eur(d.struttura);
+      const mol = document.getElementById('m-mol');
+      mol.textContent = eur(d.mol);
+      mol.className = d.mol >= 0 ? 'text-success' : 'text-danger';
+
+      const pct = d.margine_pct;
+      const [txtCls, barCls, alertCls, msg] = classeMargine(pct);
+      const pctEl = document.getElementById('m-pct');
+      pctEl.textContent = pct.toFixed(1).replace('.', ',') + '%';
+      pctEl.className = 'fs-1 fw-bold ' + txtCls;
+      const bar = document.getElementById('m-bar');
+      bar.style.width = Math.min(Math.max(pct, 0), 100) + '%';
+      bar.className = 'progress-bar ' + barCls;
+      document.getElementById('m-alert-wrap').innerHTML =
+        `<div class="alert ${alertCls} py-2 small mb-0">${msg}</div>`;
+    } catch (_) {}
+  }
+
+  async function salva() {
+    const asl = parseFloat(inp.value) || 0;
+    const body = new URLSearchParams({ importo_asl: asl });
+    try {
+      await fetch(aslUrl, { method: 'POST', headers: { 'X-Requested-With': 'fetch' }, body });
+      if (stato) { stato.textContent = '✓ salvato'; setTimeout(() => stato.textContent = '', 1500); }
+      const top = document.getElementById('top-importo-asl');
+      if (top) top.textContent = asl.toFixed(2);
+    } catch (_) {
+      if (stato) stato.textContent = '⚠️ non salvato';
+    }
+  }
+
+  inp.addEventListener('input', () => {
+    clearTimeout(timer);
+    ricalcola();
+    timer = setTimeout(salva, 600);
+  });
+
+  if (usaTot) usaTot.addEventListener('click', (e) => {
+    e.preventDefault();
+    inp.value = parseFloat(card.dataset.totAusili || 0).toFixed(2);
+    ricalcola();
+    salva();
+  });
 })();
 </script>
 {% endblock %}

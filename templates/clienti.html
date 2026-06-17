@@ -2,19 +2,20 @@
 {% block title %}Clienti — Gestionale Marginalità{% endblock %}
 
 {% block content %}
-<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
   <div>
     <h4 class="fw-bold mb-0"><i class="bi bi-people-fill me-2"></i>Clienti</h4>
     <small class="text-muted">{{ clienti|length }} clienti in anagrafica</small>
   </div>
   <div class="d-flex gap-2">
     <form method="get" class="d-flex" role="search">
+      {% if centro %}<input type="hidden" name="centro" value="{{ centro }}">{% endif %}
       <div class="input-group">
         <span class="input-group-text"><i class="bi bi-search"></i></span>
         <input type="text" name="q" value="{{ q }}" class="form-control"
                placeholder="Cerca per cognome, nome o CF…" autofocus>
         {% if q %}
-        <a href="{{ url_for('clienti') }}" class="btn btn-outline-secondary" title="Pulisci">
+        <a href="{{ url_for('clienti', centro=centro or None) }}" class="btn btn-outline-secondary" title="Pulisci">
           <i class="bi bi-x-lg"></i>
         </a>
         {% endif %}
@@ -26,52 +27,74 @@
   </div>
 </div>
 
-<div class="card">
-  <div class="card-body p-0">
-    {% if clienti %}
-    <table class="table table-hover mb-0 align-middle">
-      <thead class="table-light">
-        <tr>
-          <th>Cliente</th>
-          <th>Codice Fiscale</th>
-          <th>Telefono</th>
-          <th>ASL</th>
-          <th class="text-center">Pratiche</th>
-          <th class="text-end">Azioni</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for c in clienti %}
-        <tr>
-          <td>
-            <a href="{{ url_for('cliente_dettaglio', cliente_id=c.id) }}" class="fw-semibold text-decoration-none">
-              {{ c.cognome }}{% if c.nome %} {{ c.nome }}{% endif %}
-            </a>
-          </td>
-          <td class="text-muted">{{ c.codice_fiscale or '—' }}</td>
-          <td class="text-muted">{{ c.telefono or '—' }}</td>
-          <td class="text-muted">{{ c.asl or '—' }}</td>
-          <td class="text-center">
-            {% if c.num_pratiche %}
-            <span class="badge bg-primary-subtle text-primary">{{ c.num_pratiche }}</span>
-            {% else %}<span class="text-muted">0</span>{% endif %}
-          </td>
-          <td class="text-end">
-            <a href="{{ url_for('cliente_modifica', cliente_id=c.id) }}"
-               class="btn btn-sm btn-outline-secondary" title="Modifica">
-              <i class="bi bi-pencil"></i>
-            </a>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <div class="text-center text-muted py-5">
-      <i class="bi bi-people opacity-25 fs-1 d-block mb-2"></i>
-      {% if q %}Nessun cliente trovato per "{{ q }}".{% else %}Nessun cliente in anagrafica.{% endif %}
-    </div>
-    {% endif %}
-  </div>
+<!-- Filtro per centro -->
+<div class="d-flex flex-wrap gap-2 mb-4">
+  <a href="{{ url_for('clienti', q=q or None) }}"
+     class="btn btn-sm {{ 'btn-primary' if not centro else 'btn-outline-secondary' }}">Tutti i centri</a>
+  {% for c in centri %}
+  <a href="{{ url_for('clienti', q=q or None, centro=c) }}"
+     class="btn btn-sm {{ 'btn-primary' if centro == c else 'btn-outline-secondary' }}">{{ c }}</a>
+  {% endfor %}
+  <a href="{{ url_for('clienti', q=q or None, centro='Senza centro') }}"
+     class="btn btn-sm {{ 'btn-primary' if centro == 'Senza centro' else 'btn-outline-secondary' }}">Senza centro</a>
 </div>
+
+{% if gruppi %}
+  {% for nome_centro, elenco in gruppi %}
+  <div class="card mb-4">
+    <div class="card-header bg-light fw-semibold py-2 d-flex align-items-center justify-content-between">
+      <span><i class="bi bi-building me-2"></i>{{ nome_centro }}</span>
+      <span class="badge bg-secondary-subtle text-secondary">{{ elenco|length }}</span>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Cliente</th>
+            <th>Codice Fiscale</th>
+            <th>Telefono</th>
+            <th>ASL</th>
+            <th>Apertura</th>
+            <th class="text-center">Pratiche</th>
+            <th class="text-end">Azioni</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in elenco %}
+          <tr>
+            <td>
+              <a href="{{ url_for('cliente_dettaglio', cliente_id=c.id) }}" class="fw-semibold text-decoration-none">
+                {{ c.cognome }}{% if c.nome %} {{ c.nome }}{% endif %}
+              </a>
+            </td>
+            <td class="text-muted">{{ c.codice_fiscale or '—' }}</td>
+            <td class="text-muted">{{ c.telefono or '—' }}</td>
+            <td class="text-muted">{{ c.asl or '—' }}</td>
+            <td class="text-muted">{{ (c.creato_il|string)[:10] if c.creato_il else '—' }}</td>
+            <td class="text-center">
+              {% if c.num_pratiche %}
+              <span class="badge bg-primary-subtle text-primary">{{ c.num_pratiche }}</span>
+              {% else %}<span class="text-muted">0</span>{% endif %}
+            </td>
+            <td class="text-end">
+              <a href="{{ url_for('cliente_modifica', cliente_id=c.id) }}"
+                 class="btn btn-sm btn-outline-secondary" title="Modifica">
+                <i class="bi bi-pencil"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+<div class="card"><div class="card-body">
+  <div class="text-center text-muted py-5">
+    <i class="bi bi-people opacity-25 fs-1 d-block mb-2"></i>
+    {% if q or centro %}Nessun cliente trovato con questi filtri.{% else %}Nessun cliente in anagrafica.{% endif %}
+  </div>
+</div></div>
+{% endif %}
 {% endblock %}

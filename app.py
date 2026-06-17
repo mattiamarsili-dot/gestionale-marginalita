@@ -13,7 +13,7 @@ from config import (
     UPLOAD_FOLDER, MAX_UPLOAD_MB,
     PROVVIGIONE_PCT, PROVVIGIONE_PCT_RIDOTTA, STRUTTURA_PCT,
     PROVVIGIONE_PCT_17, PROVVIGIONE_PCT_18, SOGLIA_PROV_17, SOGLIA_PROV_18,
-    MARGINE_SOGLIA_OK, MARGINE_SOGLIA_WARN,
+    MARGINE_SOGLIA_OK, MARGINE_SOGLIA_WARN, CENTRI,
 )
 from database import (
     init_db, migrate_db, backfill_clienti, get_db, calcola_margine, provvigione_corrente,
@@ -21,7 +21,10 @@ from database import (
 )
 from pdf_extractor import estrai_totale_pdf
 from drive_sync import drive_configurato
-from pdf_filler import PDF_TEMPLATES, compila_pdf, nome_file_consigliato
+from pdf_filler import (
+    PDF_TEMPLATES, MODULI_SEMPRE_ATTIVI, moduli_ordinati,
+    compila_pdf, nome_file_consigliato,
+)
 from presets import (
     seed_presets, preset_per_categoria, get_preset, lista_preset,
     crea_preset, aggiorna_preset, elimina_preset, categorie_note,
@@ -204,7 +207,8 @@ def nuova_pratica():
         nome_paziente = request.form["nome_paziente"].strip()
         cliente_id    = request.form.get("cliente_id") or None
         data_pratica  = request.form["data_pratica"]
-        importo_asl     = float(request.form["importo_asl"])
+        # Bozza: l'importo ASL si compila nella scheda Marginalità (default 0)
+        importo_asl     = float(request.form.get("importo_asl") or 0)
         importo_privato = float(request.form.get("importo_privato") or 0)
         note            = request.form.get("note", "").strip()
 
@@ -288,10 +292,13 @@ def dettaglio_pratica(pratica_id):
     )
     # Totale imponibile righe ausili (per la sezione ausili / preventivo)
     tot_ausili = sum((r["qta"] or 0) * (r["prezzo_unitario"] or 0) for r in righe)
-    # Moduli PDF: ordinati, con etichetta e stato
-    moduli = [
-        {"id": tid, **meta} for tid, meta in PDF_TEMPLATES.items()
-    ]
+    # Moduli PDF: ordinati per categoria (preventivi → deleghe → resto)
+    moduli = moduli_ordinati()
+    # Moduli selezionati manualmente per questa pratica (id separati da virgola).
+    # I preventivi sono sempre attivi (non disattivabili).
+    moduli_attivi = {
+        m for m in (pratica["moduli_attivi"] or "").split(",") if m
+    } | set(MODULI_SEMPRE_ATTIVI)
     return render_template(
         "dettaglio_pratica.html",
         pratica=pratica,
@@ -301,6 +308,7 @@ def dettaglio_pratica(pratica_id):
         tot_ausili=tot_ausili,
         margine=margine,
         moduli=moduli,
+        moduli_attivi=moduli_attivi,
         preset_categorie=preset_per_categoria(),
         significato_categorie=significato_per_categoria(),
         soglia_ok=MARGINE_SOGLIA_OK,
@@ -601,9 +609,61 @@ def elimina_riga(riga_id):
         row = cur.fetchone()
         pratica_id = row["pratica_id"] if row else None
         cur.execute(f"DELETE FROM righe_ausili WHERE id = {_PH}", (riga_id,))
+        tot_ausili = 0.0
+        n_righe = 0
+        if pratica_id:
+            cur.execute(
+                f"SELECT COALESCE(SUM(qta * prezzo_unitario), 0) AS tot, COUNT(*) AS n "
+                f"FROM righe_ausili WHERE pratica_id = {_PH}",
+                (pratica_id,),
+            )
+            r = cur.fetchone()
+            tot_ausili = float(r["tot"] or 0)
+            n_righe = int(r["n"] or 0)
+
+    # Richiesta AJAX (fetch): niente reload, rispondiamo coi totali aggiornati
+    if request.headers.get("X-Requested-With") == "fetch":
+        return jsonify({"ok": True, "tot_ausili": tot_ausili, "n_righe": n_righe})
+
     if pratica_id:
         return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) + "#ausili")
     return redirect(url_for("dashboard"))
+
+
+@app.route("/pratica/<int:pratica_id>/importo-asl", methods=["POST"])
+def aggiorna_importo_asl(pratica_id):
+    """Aggiorna l'importo ASL (precompilato dai codici, ma modificabile)."""
+    try:
+        importo = float(request.form.get("importo_asl") or 0)
+    except ValueError:
+        importo = 0.0
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"UPDATE pratiche SET importo_asl = {_PH} WHERE id = {_PH}",
+            (importo, pratica_id),
+        )
+    if request.headers.get("X-Requested-With") == "fetch":
+        return jsonify({"ok": True, "importo_asl": importo})
+    torna = request.form.get("torna", url_for("dettaglio_pratica", pratica_id=pratica_id) + "#tab-margine")
+    return redirect(torna)
+
+
+@app.route("/pratica/<int:pratica_id>/moduli-attivi", methods=["POST"])
+def aggiorna_moduli_attivi(pratica_id):
+    """Salva quali moduli PDF sono attivi per la pratica (selezione manuale)."""
+    scelti = {m for m in request.form.getlist("modulo[]") if m in PDF_TEMPLATES}
+    scelti |= set(MODULI_SEMPRE_ATTIVI)  # i preventivi restano sempre attivi
+    valore = ",".join(scelti)
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"UPDATE pratiche SET moduli_attivi = {_PH} WHERE id = {_PH}",
+            (valore, pratica_id),
+        )
+    if request.headers.get("X-Requested-With") == "fetch":
+        return jsonify({"ok": True, "moduli_attivi": scelti})
+    return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) + "#moduli")
 
 
 # ── Elimina pratica ───────────────────────────────────────────────────────────
@@ -731,16 +791,23 @@ _PRATICA_MODULO_FIELDS = [
 @app.route("/pratica/<int:pratica_id>/dati-moduli", methods=["POST"])
 def aggiorna_dati_moduli(pratica_id):
     valori = [(request.form.get(c) or "").strip() for c in _PRATICA_MODULO_FIELDS]
-    try:
-        iva = float(request.form.get("iva_percentuale") or 4)
-    except ValueError:
-        iva = 4
     set_clause = ", ".join(f"{c} = {_PH}" for c in _PRATICA_MODULO_FIELDS)
+    params = list(valori)
+    # L'IVA non è più nell'interfaccia: la aggiorniamo solo se il form la invia,
+    # altrimenti resta il valore esistente (default 4).
+    iva_raw = request.form.get("iva_percentuale")
+    if iva_raw is not None:
+        try:
+            iva = float(iva_raw or 4)
+        except ValueError:
+            iva = 4
+        set_clause += f", iva_percentuale = {_PH}"
+        params.append(iva)
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute(
-            f"UPDATE pratiche SET {set_clause}, iva_percentuale = {_PH} WHERE id = {_PH}",
-            tuple(valori) + (iva, pratica_id),
+            f"UPDATE pratiche SET {set_clause} WHERE id = {_PH}",
+            tuple(params) + (pratica_id,),
         )
     return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) + "#moduli")
 
@@ -873,7 +940,7 @@ def preset_elimina(preset_id):
 CLIENTE_FIELDS = [
     "cognome", "nome", "codice_fiscale", "data_nascita", "luogo_nascita",
     "provincia", "residenza_via", "residenza_civico", "residenza_citta",
-    "residenza_cap", "telefono", "email", "asl", "medico_curante",
+    "residenza_cap", "telefono", "email", "asl", "centro", "medico_curante",
     "decorrenza_residenza", "documento_tipo_numero", "documento_data_rilascio",
     "note",
 ]
@@ -892,33 +959,98 @@ def _leggi_cliente_dal_form(form) -> dict:
     return dati
 
 
+# Ordina i centri: prima quelli in CENTRI (nell'ordine della costante), poi gli
+# altri valori a mano in ordine alfabetico, infine "Senza centro" in coda.
+def _raggruppa_per_centro(righe) -> list:
+    """Raggruppa una lista di righe (dict-like con chiave 'centro') in
+    [(nome_centro, [righe…]), …] ordinato secondo CENTRI, preservando l'ordine
+    interno già stabilito dalla query (es. data di apertura)."""
+    gruppi: dict[str, list] = {}
+    for r in righe:
+        nome = (r["centro"] or "").strip() or "Senza centro"
+        gruppi.setdefault(nome, []).append(r)
+
+    def chiave(nome: str):
+        if nome == "Senza centro":
+            return (2, "")
+        if nome in CENTRI:
+            return (0, CENTRI.index(nome))
+        return (1, nome.lower())
+
+    return [(nome, gruppi[nome]) for nome in sorted(gruppi, key=chiave)]
+
+
 @app.route("/clienti")
 def clienti():
     q = (request.args.get("q") or "").strip()
+    centro = (request.args.get("centro") or "").strip()
+    where, params = [], []
+    if q:
+        like = f"%{q}%"
+        where.append(f"(c.cognome LIKE {_PH} OR c.nome LIKE {_PH} OR c.codice_fiscale LIKE {_PH})")
+        params += [like, like, like]
+    if centro:
+        where.append(f"COALESCE(c.centro, '') = {_PH}")
+        params.append("" if centro == "Senza centro" else centro)
+    where_sql = ("WHERE " + " AND ".join(where)) if where else ""
     with get_db() as conn:
         cur = conn.cursor()
-        if q:
-            like = f"%{q}%"
-            cur.execute(
-                f"""SELECT c.*, COUNT(p.id) AS num_pratiche
-                    FROM clienti c
-                    LEFT JOIN pratiche p ON p.cliente_id = c.id
-                    WHERE c.cognome LIKE {_PH} OR c.nome LIKE {_PH}
-                       OR c.codice_fiscale LIKE {_PH}
-                    GROUP BY c.id
-                    ORDER BY c.cognome, c.nome""",
-                (like, like, like),
-            )
-        else:
-            cur.execute(
-                """SELECT c.*, COUNT(p.id) AS num_pratiche
-                   FROM clienti c
-                   LEFT JOIN pratiche p ON p.cliente_id = c.id
-                   GROUP BY c.id
-                   ORDER BY c.cognome, c.nome"""
-            )
+        # Ordine: per centro (i NULL/vuoti in fondo), poi data di apertura (creato_il) decrescente
+        cur.execute(
+            f"""SELECT c.*, COUNT(p.id) AS num_pratiche
+                FROM clienti c
+                LEFT JOIN pratiche p ON p.cliente_id = c.id
+                {where_sql}
+                GROUP BY c.id
+                ORDER BY (c.centro IS NULL OR c.centro = ''), c.centro, c.creato_il DESC, c.cognome""",
+            tuple(params),
+        )
         elenco = cur.fetchall()
-    return render_template("clienti.html", clienti=elenco, q=q)
+    gruppi = _raggruppa_per_centro(elenco)
+    return render_template(
+        "clienti.html", clienti=elenco, gruppi=gruppi, q=q,
+        centro=centro, centri=CENTRI,
+    )
+
+
+@app.route("/pratiche")
+def pratiche():
+    """Scheda di tutte le pratiche, raggruppate per Centro (del cliente) e
+    ordinate per data, con la stessa ricerca dei clienti."""
+    q = (request.args.get("q") or "").strip()
+    centro = (request.args.get("centro") or "").strip()
+    where, params = [], []
+    if q:
+        like = f"%{q}%"
+        where.append(
+            f"(p.nome_paziente LIKE {_PH} OR c.cognome LIKE {_PH} OR c.nome LIKE {_PH} "
+            f"OR c.codice_fiscale LIKE {_PH} OR p.numero_pratica LIKE {_PH})"
+        )
+        params += [like, like, like, like, like]
+    if centro:
+        where.append(f"COALESCE(c.centro, '') = {_PH}")
+        params.append("" if centro == "Senza centro" else centro)
+    where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"""SELECT p.*, c.centro, c.cognome, c.nome, c.codice_fiscale,
+                       COALESCE(SUM(pr.importo), 0) AS costo_totale
+                FROM pratiche p
+                LEFT JOIN clienti c    ON c.id = p.cliente_id
+                LEFT JOIN preventivi pr ON pr.pratica_id = p.id
+                {where_sql}
+                GROUP BY p.id, c.id
+                ORDER BY (c.centro IS NULL OR c.centro = ''), c.centro,
+                         p.data_pratica DESC""",
+            tuple(params),
+        )
+        elenco = cur.fetchall()
+    gruppi = _raggruppa_per_centro(elenco)
+    return render_template(
+        "pratiche.html", pratiche=elenco, gruppi=gruppi, q=q,
+        centro=centro, centri=CENTRI,
+    )
 
 
 @app.route("/cliente/nuovo", methods=["GET", "POST"])
@@ -926,7 +1058,7 @@ def cliente_nuovo():
     if request.method == "POST":
         dati = _leggi_cliente_dal_form(request.form)
         if not dati["cognome"]:
-            return render_template("cliente_form.html", cliente=dati, errore="Il cognome è obbligatorio.", modifica=False)
+            return render_template("cliente_form.html", cliente=dati, errore="Il cognome è obbligatorio.", modifica=False, centri=CENTRI)
         cols = ", ".join(CLIENTE_FIELDS)
         ph = ", ".join([_PH] * len(CLIENTE_FIELDS))
         with get_db() as conn:
@@ -937,7 +1069,7 @@ def cliente_nuovo():
             )
             cliente_id = last_inserted_id(cur)
         return redirect(url_for("cliente_dettaglio", cliente_id=cliente_id))
-    return render_template("cliente_form.html", cliente={}, errore=None, modifica=False)
+    return render_template("cliente_form.html", cliente={}, errore=None, modifica=False, centri=CENTRI)
 
 
 @app.route("/cliente/<int:cliente_id>")
@@ -967,7 +1099,7 @@ def cliente_modifica(cliente_id):
         dati = _leggi_cliente_dal_form(request.form)
         if not dati["cognome"]:
             dati["id"] = cliente_id
-            return render_template("cliente_form.html", cliente=dati, errore="Il cognome è obbligatorio.", modifica=True)
+            return render_template("cliente_form.html", cliente=dati, errore="Il cognome è obbligatorio.", modifica=True, centri=CENTRI)
         set_clause = ", ".join(f"{c} = {_PH}" for c in CLIENTE_FIELDS)
         with get_db() as conn:
             cur = conn.cursor()
@@ -983,7 +1115,7 @@ def cliente_modifica(cliente_id):
         cliente = cur.fetchone()
         if not cliente:
             return "Cliente non trovato", 404
-    return render_template("cliente_form.html", cliente=cliente, errore=None, modifica=True)
+    return render_template("cliente_form.html", cliente=cliente, errore=None, modifica=True, centri=CENTRI)
 
 
 @app.route("/cliente/<int:cliente_id>/elimina", methods=["POST"])

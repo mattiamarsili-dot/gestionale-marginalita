@@ -20,6 +20,16 @@ SOGLIA_PROV_18  = 350_000.0  # € fatturato ASL annuo → scatta 18%
 MARGINE_SOGLIA_OK   = 20.0  # % verde
 MARGINE_SOGLIA_WARN = 10.0  # % giallo
 
+# ── Centri di appartenenza ──────────────────────────────────────────────────
+# Valori della tendina "Centro" sulla scheda cliente. Modificabile liberamente:
+# aggiungere/rimuovere voci qui aggiorna sia il form sia i filtri.
+CENTRI = [
+    "Santa Lucia",
+    "HBG",
+    "Nemo",
+    "Altro",
+]
+
 # ── App ───────────────────────────────────────────────────────────────────────
 SECRET_KEY    = os.environ.get("SECRET_KEY", "dev-only-change-in-prod")
 ACCESS_CODE   = os.environ.get("ACCESS_CODE", "")   # vuoto = nessun login in sviluppo

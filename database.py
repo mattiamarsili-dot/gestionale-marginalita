@@ -67,6 +67,7 @@ _SQLITE_SCHEMA = """
         telefono                TEXT,
         email                   TEXT,
         asl                     TEXT,
+        centro                  TEXT,
         medico_curante          TEXT,
         decorrenza_residenza    DATE,
         documento_tipo_numero   TEXT,
@@ -93,6 +94,7 @@ _SQLITE_SCHEMA = """
         diagnosi         TEXT,
         sign_terapeutico TEXT,
         iva_percentuale  REAL NOT NULL DEFAULT 4,
+        moduli_attivi    TEXT,
         creato_il        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (cliente_id) REFERENCES clienti(id)
     );
@@ -159,6 +161,7 @@ _POSTGRES_SCHEMA = """
         telefono                TEXT,
         email                   TEXT,
         asl                     TEXT,
+        centro                  TEXT,
         medico_curante          TEXT,
         decorrenza_residenza    DATE,
         documento_tipo_numero   TEXT,
@@ -185,6 +188,7 @@ _POSTGRES_SCHEMA = """
         diagnosi         TEXT,
         sign_terapeutico TEXT,
         iva_percentuale  REAL NOT NULL DEFAULT 4,
+        moduli_attivi    TEXT,
         creato_il        TIMESTAMPTZ DEFAULT NOW()
     );
 
@@ -269,10 +273,13 @@ def migrate_db():
             cur.execute(
                 "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS cliente_id INTEGER REFERENCES clienti(id)"
             )
+            cur.execute(
+                "ALTER TABLE clienti ADD COLUMN IF NOT EXISTS centro TEXT"
+            )
             for col in [
                 "numero_pratica TEXT", "ausilio TEXT", "asl_destinataria TEXT",
                 "medico_struttura TEXT", "diagnosi TEXT", "sign_terapeutico TEXT",
-                "iva_percentuale REAL NOT NULL DEFAULT 4",
+                "iva_percentuale REAL NOT NULL DEFAULT 4", "moduli_attivi TEXT",
             ]:
                 cur.execute(f"ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS {col}")
         else:
@@ -283,6 +290,7 @@ def migrate_db():
                 "ALTER TABLE pratiche ADD COLUMN data_fatturazione DATE",
                 "ALTER TABLE pratiche ADD COLUMN importo_privato REAL NOT NULL DEFAULT 0",
                 "ALTER TABLE pratiche ADD COLUMN cliente_id INTEGER REFERENCES clienti(id)",
+                "ALTER TABLE clienti ADD COLUMN centro TEXT",
                 "ALTER TABLE pratiche ADD COLUMN numero_pratica TEXT",
                 "ALTER TABLE pratiche ADD COLUMN ausilio TEXT",
                 "ALTER TABLE pratiche ADD COLUMN asl_destinataria TEXT",
@@ -290,6 +298,7 @@ def migrate_db():
                 "ALTER TABLE pratiche ADD COLUMN diagnosi TEXT",
                 "ALTER TABLE pratiche ADD COLUMN sign_terapeutico TEXT",
                 "ALTER TABLE pratiche ADD COLUMN iva_percentuale REAL NOT NULL DEFAULT 4",
+                "ALTER TABLE pratiche ADD COLUMN moduli_attivi TEXT",
             ]:
                 try:
                     cur.execute(ddl)
@@ -301,6 +310,12 @@ def migrate_db():
         try:
             cur.execute(
                 "CREATE INDEX IF NOT EXISTS idx_pratiche_cliente ON pratiche(cliente_id)"
+            )
+        except Exception:
+            pass
+        try:
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_clienti_centro ON clienti(centro)"
             )
         except Exception:
             pass

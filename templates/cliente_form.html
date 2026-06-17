@@ -106,6 +106,19 @@
               <input type="email" name="email" class="form-control" value="{{ cliente.email or '' }}">
             </div>
             <div class="col-12 col-sm-6">
+              <label class="form-label">Centro di appartenenza</label>
+              {% set centro_corrente = cliente.centro or '' %}
+              <select name="centro" class="form-select">
+                <option value="">— Nessuno —</option>
+                {% for c in centri %}
+                <option value="{{ c }}" {{ 'selected' if centro_corrente == c }}>{{ c }}</option>
+                {% endfor %}
+                {% if centro_corrente and centro_corrente not in centri %}
+                <option value="{{ centro_corrente }}" selected>{{ centro_corrente }}</option>
+                {% endif %}
+              </select>
+            </div>
+            <div class="col-12 col-sm-6">
               <label class="form-label">ASL di appartenenza</label>
               <input type="text" name="asl" class="form-control" value="{{ cliente.asl or '' }}" placeholder="Es. RM 2">
             </div>

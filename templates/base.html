@@ -21,6 +21,9 @@
         <a class="nav-link ms-2 {% if request.endpoint in ['clienti', 'cliente_nuovo', 'cliente_dettaglio', 'cliente_modifica'] %}active{% endif %}" href="{{ url_for('clienti') }}">
           <i class="bi bi-people-fill me-1"></i>Clienti
         </a>
+        <a class="nav-link ms-2 {% if request.endpoint == 'pratiche' %}active{% endif %}" href="{{ url_for('pratiche') }}">
+          <i class="bi bi-folder2-open me-1"></i>Pratiche
+        </a>
         <a class="nav-link ms-2 {% if request.endpoint in ['presets', 'preset_nuovo', 'preset_modifica'] %}active{% endif %}" href="{{ url_for('presets') }}">
           <i class="bi bi-collection me-1"></i>Preset
         </a>

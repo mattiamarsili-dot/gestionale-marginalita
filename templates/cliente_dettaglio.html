@@ -36,6 +36,7 @@
           {{ riga("Luogo di nascita", cliente.luogo_nascita) }}
           {{ riga("Telefono", cliente.telefono) }}
           {{ riga("Email", cliente.email) }}
+          {{ riga("Centro di appartenenza", cliente.centro) }}
           {{ riga("ASL", cliente.asl) }}
           {{ riga("Medico curante", cliente.medico_curante) }}
           {{ riga("Residenza", (cliente.residenza_via ~ ' ' ~ (cliente.residenza_civico or '')) if cliente.residenza_via else None) }}
