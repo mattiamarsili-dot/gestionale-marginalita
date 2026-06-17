@@ -15,22 +15,24 @@
         <i class="bi bi-bar-chart-fill me-2"></i>Gestionale Marginalità
       </a>
       <div class="navbar-nav ms-auto d-flex align-items-center">
-        <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
-          <i class="bi bi-speedometer2 me-1"></i>Dashboard
-        </a>
-        <a class="nav-link ms-2 {% if request.endpoint in ['clienti', 'cliente_nuovo', 'cliente_dettaglio', 'cliente_modifica'] %}active{% endif %}" href="{{ url_for('clienti') }}">
-          <i class="bi bi-people-fill me-1"></i>Clienti
-        </a>
-        <a class="nav-link ms-2 {% if request.endpoint == 'pratiche' %}active{% endif %}" href="{{ url_for('pratiche') }}">
-          <i class="bi bi-folder2-open me-1"></i>Pratiche
-        </a>
-        <a class="nav-link ms-2 {% if request.endpoint in ['presets', 'preset_nuovo', 'preset_modifica'] %}active{% endif %}" href="{{ url_for('presets') }}">
-          <i class="bi bi-collection me-1"></i>Preset
-        </a>
-        <a class="nav-link ms-2 {% if request.endpoint == 'fatturati' %}active{% endif %}" href="{{ url_for('fatturati') }}">
-          <i class="bi bi-receipt me-1"></i>Fatturati
-        </a>
-        <a class="nav-link btn-nuova ms-2 {% if request.endpoint == 'nuova_pratica' %}active{% endif %}" href="{{ url_for('nuova_pratica') }}">
+        <div class="nav-schede">
+          <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
+            <i class="bi bi-speedometer2 me-1"></i>Dashboard
+          </a>
+          <a class="nav-link {% if request.endpoint in ['clienti', 'cliente_nuovo', 'cliente_dettaglio', 'cliente_modifica'] %}active{% endif %}" href="{{ url_for('clienti') }}">
+            <i class="bi bi-people-fill me-1"></i>Clienti
+          </a>
+          <a class="nav-link {% if request.endpoint in ['pratiche', 'dettaglio_pratica', 'modifica_pratica'] %}active{% endif %}" href="{{ url_for('pratiche') }}">
+            <i class="bi bi-folder2-open me-1"></i>Pratiche
+          </a>
+          <a class="nav-link {% if request.endpoint == 'fatturati' %}active{% endif %}" href="{{ url_for('fatturati') }}">
+            <i class="bi bi-receipt me-1"></i>Fatturati
+          </a>
+          <a class="nav-link {% if request.endpoint in ['presets', 'preset_nuovo', 'preset_modifica'] %}active{% endif %}" href="{{ url_for('presets') }}">
+            <i class="bi bi-collection me-1"></i>Preset
+          </a>
+        </div>
+        <a class="nav-link btn-nuova ms-3 {% if request.endpoint == 'nuova_pratica' %}active{% endif %}" href="{{ url_for('nuova_pratica') }}">
           <i class="bi bi-plus-circle-fill me-1"></i>Nuova Pratica
         </a>
         {% if session.get('autenticato') %}

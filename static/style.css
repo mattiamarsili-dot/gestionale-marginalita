@@ -24,7 +24,11 @@ body {
 }
 .navbar-brand { font-size: 1.15rem; letter-spacing: .3px; }
 .nav-link { color: rgba(255,255,255,.85) !important; font-size: .9rem; border-radius: 6px; padding: .45rem .8rem !important; transition: background .2s; }
-.nav-link:hover, .nav-link.active { background: rgba(255,255,255,.15); color: #fff !important; }
+.nav-link:hover { background: rgba(255,255,255,.15); color: #fff !important; }
+/* Schede di navigazione affiancate (controllo segmentato) */
+.nav-schede { display: inline-flex; gap: 4px; padding: 4px; background: rgba(0,0,0,.15); border-radius: 10px; }
+.nav-schede .nav-link.active { background: #fff !important; color: var(--primary) !important; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.nav-schede .nav-link.active:hover { background: #fff !important; color: var(--primary) !important; }
 .btn-nuova { background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.35) !important; }
 .btn-nuova:hover { background: rgba(255,255,255,.35) !important; }
 
