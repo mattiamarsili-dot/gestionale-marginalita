@@ -533,13 +533,28 @@ _CENTER_HINTS = ("prezzo_unitario", "prezzo_totale", "_qta", "totale_imponibile"
                  "preventivo_iva", "totale_lordo")
 
 
-def _restyle_form_fields(writer, filled_names: set, center_hints=(), font_size: int = _FORM_FONT_SIZE):
+def _qualified_name(o) -> str:
+    """Nome qualificato del widget (concatena i /T di campo e antenati)."""
+    parts, cur = [], o
+    while cur is not None:
+        t = cur.get("/T")
+        if t is not None:
+            parts.append(str(t))
+        p = cur.get("/Parent")
+        cur = p.get_object() if p else None
+    return ".".join(reversed(parts))
+
+
+def _prepara_stile_campi(writer, filled_names: set, center_hints=(), font_size: int = _FORM_FONT_SIZE):
     """
-    Migliora la resa dei campi compilati:
-    - font a dimensione fissa uniforme nel /DA (coerente coi template nativi)
-    - allineamento orizzontale centrato (/Q=1) per i campi indicati in center_hints
-    - rimuove l'appearance stream esistente (/AP) così il viewer la rigenera con
-      il nuovo stile (insieme a NeedAppearances)
+    Imposta font e allineamento sui campi DA COMPILARE, *prima* della compilazione,
+    così pypdf genera l'appearance stream (/AP) già con lo stile giusto e il testo
+    resta visibile in tutti i viewer (Anteprima, stampa…), senza dipendere da
+    NeedAppearances:
+    - /DA a dimensione font uniforme (coerente coi template nativi, 10pt)
+    - /Q=1 (centrato) per i campi indicati in center_hints (importi e q.tà)
+    Il match avviene sul nome QUALIFICATO, così copre anche i campi annidati
+    (es. "Cod. ISO.0.0", "Signf. Terapeutico.0.0").
     """
     import re
     from pypdf.generic import NameObject, NumberObject, TextStringObject
@@ -547,40 +562,30 @@ def _restyle_form_fields(writer, filled_names: set, center_hints=(), font_size: 
     for page in writer.pages:
         for a in (page.get("/Annots") or []):
             o = a.get_object()
-            nm = str(o.get("/T") or "")
-            if not nm or nm not in filled_names:
+            qn = _qualified_name(o)
+            if not qn or qn not in filled_names:
                 continue
             da = o.get("/DA")
             if da:
                 new_da = re.sub(r"(/[A-Za-z0-9]+)\s+[\d.]+\s+Tf", rf"\1 {font_size} Tf", str(da))
-                o[NameObject("/DA")] = TextStringObject(new_da)
-            if any(h in nm for h in center_hints):
+            else:
+                new_da = f"0 0 0 rg /Helv {font_size} Tf"
+            o[NameObject("/DA")] = TextStringObject(new_da)
+            if any(h in qn for h in center_hints):
                 o[NameObject("/Q")] = NumberObject(1)
-            if "/AP" in o:
-                del o[NameObject("/AP")]
 
 
 # ── Overlay tabella preventivo (resa uniforme) ────────────────────────────────
 
 def _field_rects(reader) -> dict:
     """{nome_qualificato: (x0, y0, x1, y1)} di tutti i widget della prima pagina."""
-    def qn(o):
-        parts, cur = [], o
-        while cur is not None:
-            t = cur.get("/T")
-            if t is not None:
-                parts.append(str(t))
-            p = cur.get("/Parent")
-            cur = p.get_object() if p else None
-        return ".".join(reversed(parts))
-
     rects = {}
     for a in (reader.pages[0].get("/Annots") or []):
         o = a.get_object()
         r = o.get("/Rect")
         if r is None:
             continue
-        rects[qn(o)] = tuple(float(v) for v in r)
+        rects[_qualified_name(o)] = tuple(float(v) for v in r)
     return rects
 
 
@@ -710,11 +715,15 @@ def compila_pdf(template_id: str, pratica: dict, cliente: dict, righe: list = No
             import sys
             print("WARN overlay preventivo non riuscito:", _ov_err, file=sys.stderr)
     else:
+        # 1) stile (font/allineamento) sui campi da compilare
+        # 2) compilazione: pypdf genera l'/AP con quello stile → visibile ovunque
+        _prepara_stile_campi(writer, set(field_map.keys()), center_hints=_CENTER_HINTS)
         for page in writer.pages:
-            writer.update_page_form_field_values(page, field_map)
-        _restyle_form_fields(writer, set(field_map.keys()), center_hints=_CENTER_HINTS)
+            writer.update_page_form_field_values(page, field_map, auto_regenerate=False)
 
-    # NeedAppearances: forza i viewer a rigenerare l'aspetto con il nuovo stile
+    # NeedAppearances come fallback: i viewer che lo onorano rigenerano dal /DA
+    # (stessa dimensione), gli altri usano l'/AP già generato. In entrambi i casi
+    # il testo è visibile e coerente.
     try:
         writer.set_need_appearances_writer(True)
     except Exception:
