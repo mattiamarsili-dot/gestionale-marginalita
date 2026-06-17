@@ -108,15 +108,15 @@
             <div class="col-12 col-sm-6">
               <label class="form-label">Centro di appartenenza</label>
               {% set centro_corrente = cliente.centro or '' %}
-              <select name="centro" class="form-select">
-                <option value="">— Nessuno —</option>
+              <input type="text" name="centro" class="form-control" list="centri-list"
+                     value="{{ centro_corrente }}" placeholder="Scegli o digita un nuovo centro"
+                     autocomplete="off">
+              <datalist id="centri-list">
                 {% for c in centri %}
-                <option value="{{ c }}" {{ 'selected' if centro_corrente == c }}>{{ c }}</option>
+                <option value="{{ c }}"></option>
                 {% endfor %}
-                {% if centro_corrente and centro_corrente not in centri %}
-                <option value="{{ centro_corrente }}" selected>{{ centro_corrente }}</option>
-                {% endif %}
-              </select>
+              </datalist>
+              <div class="form-text">Seleziona un centro esistente oppure scrivine uno nuovo.</div>
             </div>
             <div class="col-12 col-sm-6">
               <label class="form-label">ASL di appartenenza</label>
