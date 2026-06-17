@@ -118,7 +118,7 @@
               </div>
               <div class="col-12 col-sm-6">
                 <label class="form-label form-label-sm mb-1">Medico / struttura</label>
-                <input type="text" name="medico_struttura" class="form-control form-control-sm" value="{{ pratica.medico_struttura or '' }}">
+                <input type="text" name="medico_struttura" id="cod-medico" class="form-control form-control-sm" value="{{ pratica.medico_struttura or '' }}">
               </div>
               <div class="col-12 col-sm-6">
                 <label class="form-label form-label-sm mb-1">Ausilio (oggetto richiesta)</label>
@@ -203,6 +203,11 @@
                 <i class="bi bi-plus-lg me-1"></i>Riga singola
               </button>
               {% if righe %}
+              <button type="button" id="btn-elimina-sel" class="btn btn-sm btn-danger text-nowrap d-none"
+                      data-bulk-url="{{ url_for('elimina_righe_multiple', pratica_id=pratica.id) }}"
+                      title="Elimina i codici selezionati">
+                <i class="bi bi-trash me-1"></i>Elimina selezionati (<span id="n-sel">0</span>)
+              </button>
               <form method="post" action="{{ url_for('svuota_righe', pratica_id=pratica.id) }}"
                     onsubmit="return confirm('Cancellare tutti i codici in elenco?');">
                 <button type="submit" class="btn btn-sm btn-outline-light text-nowrap" title="Cancella tutti i codici">
@@ -243,9 +248,12 @@
             <table class="table mb-0 align-middle {% if not righe %}d-none{% endif %}" id="tabella-righe">
               <thead class="table-light">
                 <tr>
+                  <th class="text-center" style="width:32px">
+                    <input type="checkbox" class="form-check-input" id="chk-all" title="Seleziona tutto">
+                  </th>
                   <th>Cod. ISO</th>
                   <th>Descrizione</th>
-                  <th class="text-center">Q.tà</th>
+                  <th class="text-center" style="width:90px">Q.tà</th>
                   <th class="text-end">Prezzo unit.</th>
                   <th class="text-end">Totale</th>
                   <th></th>
@@ -254,11 +262,18 @@
               <tbody>
                 {% for r in righe %}
                 <tr data-riga-id="{{ r.id }}">
+                  <td class="text-center">
+                    <input type="checkbox" class="form-check-input js-sel-riga" value="{{ r.id }}">
+                  </td>
                   <td class="text-muted small">{{ r.codice_iso or '—' }}</td>
                   <td>{{ r.descrizione or '—' }}</td>
-                  <td class="text-center">{{ (r.qta or 0) | int }}</td>
+                  <td class="text-center">
+                    <input type="number" step="1" min="0" value="{{ (r.qta or 0) | int }}"
+                           class="form-control form-control-sm text-center js-qta mx-auto" style="width:70px"
+                           data-riga-id="{{ r.id }}" data-prezzo="{{ r.prezzo_unitario or 0 }}">
+                  </td>
                   <td class="text-end">€ {{ "%.2f"|format(r.prezzo_unitario or 0) }}</td>
-                  <td class="text-end fw-semibold">€ {{ "%.2f"|format((r.qta or 0) * (r.prezzo_unitario or 0)) }}</td>
+                  <td class="text-end fw-semibold js-riga-tot">€ {{ "%.2f"|format((r.qta or 0) * (r.prezzo_unitario or 0)) }}</td>
                   <td class="text-end" style="width:40px">
                     <button type="button" class="btn btn-link btn-sm p-0 text-danger js-elimina-riga"
                             data-riga-id="{{ r.id }}" title="Rimuovi">
@@ -270,7 +285,7 @@
               </tbody>
               <tfoot class="table-light">
                 <tr>
-                  <td colspan="4" class="text-end fw-bold text-muted small">IMPONIBILE AUSILI</td>
+                  <td colspan="5" class="text-end fw-bold text-muted small">IMPONIBILE AUSILI</td>
                   <td class="text-end fw-bold" id="tot-ausili-cell">€ {{ "%.2f"|format(tot_ausili) }}</td>
                   <td></td>
                 </tr>
@@ -548,6 +563,7 @@
   const hidden   = document.getElementById('cod-cliente-id');
   const dropdown = document.getElementById('cod-cliente-dropdown');
   const aslInput = document.getElementById('cod-asl');
+  const medicoInput = document.getElementById('cod-medico');
   const nuovoLink= document.getElementById('cod-nuovo-cliente');
   if (!input) return;
   let timer = null;
@@ -583,8 +599,9 @@
         btn.addEventListener('click', () => {
           input.value = nome;
           hidden.value = c.id;
-          // ASL copiata da anagrafica se il campo è vuoto
+          // ASL e medico copiati da anagrafica se i campi sono vuoti
           if (aslInput && !aslInput.value.trim() && c.asl) aslInput.value = c.asl;
+          if (medicoInput && !medicoInput.value.trim() && c.medico_curante) medicoInput.value = c.medico_curante;
           nascondi();
         });
         dropdown.appendChild(btn);
@@ -707,13 +724,17 @@ function eurPlain(n) {
   return (Number(n) || 0).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
-// ── Eliminazione riga ausilio senza ricaricare la pagina ─────────────────────
+// ── Righe ausili: qta editabile, selezione multipla, eliminazione live ───────
 (function () {
   const tabella   = document.getElementById('tabella-righe');
   const vuote     = document.getElementById('righe-vuote');
   const totCell   = document.getElementById('tot-ausili-cell');
   const card      = document.getElementById('card-margine');
   if (!tabella) return;
+
+  const chkAll  = document.getElementById('chk-all');
+  const btnDel  = document.getElementById('btn-elimina-sel');
+  const nSelLbl = document.getElementById('n-sel');
 
   function aggiornaTotali(tot, n) {
     if (totCell) totCell.textContent = eur(tot);
@@ -726,6 +747,93 @@ function eurPlain(n) {
     if (n === 0) { tabella.classList.add('d-none'); if (vuote) vuote.classList.remove('d-none'); }
   }
 
+  // ── Selezione multipla ─────────────────────────────────────────────────────
+  function checkboxRighe() { return Array.from(tabella.querySelectorAll('.js-sel-riga')); }
+  function selezionate()   { return checkboxRighe().filter(c => c.checked); }
+
+  function aggiornaSelezione() {
+    const sel = selezionate();
+    if (nSelLbl) nSelLbl.textContent = sel.length;
+    if (btnDel)  btnDel.classList.toggle('d-none', sel.length === 0);
+    if (chkAll) {
+      const tutte = checkboxRighe();
+      chkAll.checked = tutte.length > 0 && sel.length === tutte.length;
+      chkAll.indeterminate = sel.length > 0 && sel.length < tutte.length;
+    }
+  }
+
+  if (chkAll) {
+    chkAll.addEventListener('change', () => {
+      checkboxRighe().forEach(c => { c.checked = chkAll.checked; });
+      aggiornaSelezione();
+    });
+  }
+
+  tabella.addEventListener('change', (e) => {
+    if (e.target.classList.contains('js-sel-riga')) aggiornaSelezione();
+  });
+
+  if (btnDel) {
+    btnDel.addEventListener('click', async () => {
+      const ids = selezionate().map(c => c.value);
+      if (!ids.length) return;
+      if (!confirm(`Eliminare ${ids.length} ${ids.length === 1 ? 'riga' : 'righe'} selezionate?`)) return;
+      btnDel.disabled = true;
+      const body = new URLSearchParams();
+      ids.forEach(id => body.append('riga_id[]', id));
+      try {
+        const res = await fetch(btnDel.dataset.bulkUrl, {
+          method: 'POST',
+          headers: { 'X-Requested-With': 'fetch' },
+          body,
+        });
+        const d = await res.json();
+        if (d.ok) {
+          (d.eliminati || ids).forEach(id => {
+            const tr = tabella.querySelector(`tr[data-riga-id="${id}"]`);
+            if (tr) tr.remove();
+          });
+          aggiornaTotali(d.tot_ausili, d.n_righe);
+          aggiornaSelezione();
+        }
+      } catch (_) {
+        alert('Errore di rete: righe non rimosse.');
+      } finally {
+        btnDel.disabled = false;
+      }
+    });
+  }
+
+  // ── Q.tà editabile inline ──────────────────────────────────────────────────
+  tabella.addEventListener('change', async (e) => {
+    const inp = e.target.closest('.js-qta');
+    if (!inp) return;
+    let qta = parseInt(inp.value, 10);
+    if (isNaN(qta) || qta < 0) { qta = 0; inp.value = 0; }
+    const id = inp.dataset.rigaId;
+    inp.disabled = true;
+    const body = new URLSearchParams({ qta });
+    try {
+      const res = await fetch(`/riga/${id}/qta`, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'fetch' },
+        body,
+      });
+      const d = await res.json();
+      if (d.ok) {
+        const tr = inp.closest('tr');
+        const cell = tr && tr.querySelector('.js-riga-tot');
+        if (cell) cell.textContent = eur(d.riga_tot);
+        aggiornaTotali(d.tot_ausili, d.n_righe);
+      }
+    } catch (_) {
+      alert('Errore di rete: quantità non salvata.');
+    } finally {
+      inp.disabled = false;
+    }
+  });
+
+  // ── Eliminazione singola (icona x) ─────────────────────────────────────────
   tabella.addEventListener('click', async (e) => {
     const btn = e.target.closest('.js-elimina-riga');
     if (!btn) return;
@@ -742,6 +850,7 @@ function eurPlain(n) {
         const tr = tabella.querySelector(`tr[data-riga-id="${id}"]`);
         if (tr) tr.remove();
         aggiornaTotali(d.tot_ausili, d.n_righe);
+        aggiornaSelezione();
       } else {
         btn.disabled = false;
       }

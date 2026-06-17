@@ -247,25 +247,26 @@ def nuova_pratica():
 
     # GET — crea subito una bozza vuota e apre le due schede (paziente da scegliere
     # nella scheda Codifica). Se si arriva da una scheda cliente, lo precolleghiamo
-    # e copiamo la ASL dall'anagrafica.
+    # e copiamo ASL e medico curante dall'anagrafica.
     cliente_id = request.args.get("cliente_id") or None
-    nome_paziente, asl = "", ""
+    nome_paziente, asl, medico = "", "", ""
     with get_db() as conn:
         cur = conn.cursor()
         _, prov_default = provvigione_corrente(conn)
         if cliente_id:
-            cur.execute(f"SELECT cognome, nome, asl FROM clienti WHERE id = {_PH}", (cliente_id,))
+            cur.execute(f"SELECT cognome, nome, asl, medico_curante FROM clienti WHERE id = {_PH}", (cliente_id,))
             c = cur.fetchone()
             if c:
                 nome_paziente = (c["cognome"] + (f" {c['nome']}" if c["nome"] else "")).strip()
                 asl = c["asl"] or ""
+                medico = c["medico_curante"] or ""
             else:
                 cliente_id = None
         cur.execute(
             f"INSERT INTO pratiche (nome_paziente, cliente_id, data_pratica, importo_asl, "
-            f"importo_privato, provvigione_pct, asl_destinataria) "
-            f"VALUES ({_PH}, {_PH}, {_PH}, 0, 0, {_PH}, {_PH})",
-            (nome_paziente, cliente_id, datetime.now().strftime("%Y-%m-%d"), prov_default, asl),
+            f"importo_privato, provvigione_pct, asl_destinataria, medico_struttura) "
+            f"VALUES ({_PH}, {_PH}, {_PH}, 0, 0, {_PH}, {_PH}, {_PH})",
+            (nome_paziente, cliente_id, datetime.now().strftime("%Y-%m-%d"), prov_default, asl, medico),
         )
         pratica_id = last_inserted_id(cur)
     return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id))
@@ -610,6 +611,63 @@ def svuota_righe(pratica_id):
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute(f"DELETE FROM righe_ausili WHERE pratica_id = {_PH}", (pratica_id,))
+    return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) + "#ausili")
+
+
+@app.route("/riga/<int:riga_id>/qta", methods=["POST"])
+def aggiorna_qta_riga(riga_id):
+    """Aggiorna la quantità di una riga ausilio e restituisce i totali ricalcolati."""
+    try:
+        qta = float(request.form.get("qta") or 0)
+    except ValueError:
+        qta = 0
+    if qta < 0:
+        qta = 0
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT pratica_id, prezzo_unitario FROM righe_ausili WHERE id = {_PH}", (riga_id,))
+        row = cur.fetchone()
+        if not row:
+            return jsonify({"ok": False}), 404
+        pratica_id = row["pratica_id"]
+        prezzo = row["prezzo_unitario"] or 0
+        cur.execute(f"UPDATE righe_ausili SET qta = {_PH} WHERE id = {_PH}", (qta, riga_id))
+        cur.execute(
+            f"SELECT COALESCE(SUM(qta * prezzo_unitario), 0) AS tot, COUNT(*) AS n "
+            f"FROM righe_ausili WHERE pratica_id = {_PH}",
+            (pratica_id,),
+        )
+        r = cur.fetchone()
+        tot_ausili = float(r["tot"] or 0)
+        n_righe = int(r["n"] or 0)
+    return jsonify({"ok": True, "qta": qta, "riga_tot": qta * float(prezzo),
+                    "tot_ausili": tot_ausili, "n_righe": n_righe})
+
+
+@app.route("/pratica/<int:pratica_id>/righe/elimina", methods=["POST"])
+def elimina_righe_multiple(pratica_id):
+    """Elimina in blocco le righe ausili selezionate (lista di id)."""
+    ids = [int(x) for x in request.form.getlist("riga_id[]") if x.isdigit()]
+    tot_ausili = 0.0
+    n_righe = 0
+    with get_db() as conn:
+        cur = conn.cursor()
+        if ids:
+            ph = ", ".join([_PH] * len(ids))
+            cur.execute(
+                f"DELETE FROM righe_ausili WHERE pratica_id = {_PH} AND id IN ({ph})",
+                (pratica_id, *ids),
+            )
+        cur.execute(
+            f"SELECT COALESCE(SUM(qta * prezzo_unitario), 0) AS tot, COUNT(*) AS n "
+            f"FROM righe_ausili WHERE pratica_id = {_PH}",
+            (pratica_id,),
+        )
+        r = cur.fetchone()
+        tot_ausili = float(r["tot"] or 0)
+        n_righe = int(r["n"] or 0)
+    if request.headers.get("X-Requested-With") == "fetch":
+        return jsonify({"ok": True, "eliminati": ids, "tot_ausili": tot_ausili, "n_righe": n_righe})
     return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) + "#ausili")
 
 
@@ -1206,14 +1264,14 @@ def api_clienti():
         if q:
             like = f"%{q}%"
             cur.execute(
-                f"""SELECT id, cognome, nome, codice_fiscale, asl FROM clienti
+                f"""SELECT id, cognome, nome, codice_fiscale, asl, medico_curante FROM clienti
                     WHERE cognome LIKE {_PH} OR nome LIKE {_PH} OR codice_fiscale LIKE {_PH}
                     ORDER BY cognome, nome LIMIT 20""",
                 (like, like, like),
             )
         else:
             cur.execute(
-                "SELECT id, cognome, nome, codice_fiscale, asl FROM clienti "
+                "SELECT id, cognome, nome, codice_fiscale, asl, medico_curante FROM clienti "
                 "ORDER BY cognome, nome LIMIT 20"
             )
         risultati = [dict(r) for r in cur.fetchall()]

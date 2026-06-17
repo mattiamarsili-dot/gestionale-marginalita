@@ -94,17 +94,25 @@ def moduli_ordinati() -> list:
     items.sort(key=lambda m: (CATEGORIA_ORDINE.get(m.get("categoria"), 9), m["label"]))
     return items
 
+# Dimensione font unica per tutti i campi compilati (i template sono nativamente
+# Arial 10pt: usiamo la stessa misura per il rendering /DA e per il calcolo del
+# mandata a capo, così tutto il testo del modulo è coerente e non sfora le caselle).
+_FORM_FONT_SIZE = 10
+
 # Numero massimo di righe ausili stampabili per modulo
 _SAPIO_MAX_RIGHE = 16
 _PRESCR_MAX_RIGHE = 15        # righe 0..14 sul modulo Allegato 3
-_PRESCR_SIGN_RIGHE = 6        # righe del significato terapeutico
-_PRESCR_SIGN_WIDTH = 95       # caratteri per riga del significato terapeutico
+# Significato terapeutico: mandata a capo in base alla larghezza REALE del campo
+# (in punti, meno ~6pt di margine interno) misurata col font, anziché a conteggio
+# caratteri — così vale sia per testo minuscolo sia maiuscolo (larghezze diverse).
+_PRESCR_SIGN_RIGHE = 6        # righe del significato (campo largo 521 pt)
+_PRESCR_SIGN_WIDTH_PT = 515.0
 _HBG_MAX_RIGHE = 16           # righe 0..15 sul modulo HBG
-_HBG_SIGN_RIGHE = 16          # righe del significato terapeutico HBG
-_HBG_SIGN_WIDTH = 95
+_HBG_SIGN_RIGHE = 16          # righe del significato HBG (campo largo 375 pt)
+_HBG_SIGN_WIDTH_PT = 369.0
 _SL_MAX_RIGHE = 12            # righe 0..11 sul modulo Santa Lucia
-_SL_SIGN_RIGHE = 6           # righe del significato terapeutico Santa Lucia
-_SL_SIGN_WIDTH = 95
+_SL_SIGN_RIGHE = 6           # righe del significato Santa Lucia (campo largo 520 pt)
+_SL_SIGN_WIDTH_PT = 514.0
 _PREV_MAX_RIGHE = 16         # righe 0..15 sul preventivo generico
 
 
@@ -173,6 +181,41 @@ def _wrap_lines(text: str, width: int, maxlines: int) -> list:
     if not text:
         return []
     return textwrap.wrap(text, width=width)[:maxlines]
+
+
+def _wrap_lines_pt(text: str, width_pt: float, maxlines: int,
+                   font: str = "Helvetica", size: float = 10.0) -> list:
+    """Spezza il testo in righe in base alla larghezza reale del campo (in punti),
+    misurando ogni riga con le metriche del font. Più affidabile del conteggio
+    caratteri quando il testo mischia maiuscole/minuscole (larghezze diverse)."""
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+    text = (text or "").strip()
+    if not text:
+        return []
+
+    def fits(s: str) -> bool:
+        return stringWidth(s, font, size) <= width_pt
+
+    righe, corrente = [], ""
+    for parola in text.split():
+        candidato = parola if not corrente else f"{corrente} {parola}"
+        if fits(candidato):
+            corrente = candidato
+            continue
+        if corrente:
+            righe.append(corrente)
+            corrente = ""
+        # parola più lunga della riga: spezzala a forza per carattere
+        while not fits(parola):
+            n = len(parola)
+            while n > 1 and not fits(parola[:n]):
+                n -= 1
+            righe.append(parola[:n])
+            parola = parola[n:]
+        corrente = parola
+    if corrente:
+        righe.append(corrente)
+    return righe[:maxlines]
 
 
 def _nome_completo(cliente: dict) -> str:
@@ -420,9 +463,11 @@ def build_field_map(template_id: str, pratica: dict, cliente: dict, righe: list 
             descrizione=lambda i: f"Descrizione LEA.{i}.0",
             qta=lambda i: f"Q.tà.{i}.0",
         ))
-        # Significato terapeutico: testo lungo spezzato su max 6 righe
-        for i, riga in enumerate(_wrap_lines(D["sign_terapeutico"],
-                                             _PRESCR_SIGN_WIDTH, _PRESCR_SIGN_RIGHE)):
+        # Significato terapeutico: testo lungo spezzato su max 6 righe, a capo
+        # per larghezza reale del campo (Arial 10pt) così non sfora il bordo.
+        for i, riga in enumerate(_wrap_lines_pt(D["sign_terapeutico"],
+                                                _PRESCR_SIGN_WIDTH_PT, _PRESCR_SIGN_RIGHE,
+                                                size=_FORM_FONT_SIZE)):
             fm[f"Signf. Terapeutico.{i}.0"] = riga
         return fm
 
@@ -444,8 +489,9 @@ def build_field_map(template_id: str, pratica: dict, cliente: dict, righe: list 
             iso=lambda i: f"Text1prescrizione_hbg_riga01_iso  .{i}.0",
             qta=lambda i: f"prescrizione_hbg_riga01_qta.{i}.0",
         ))
-        for i, riga in enumerate(_wrap_lines(D["sign_terapeutico"],
-                                             _HBG_SIGN_WIDTH, _HBG_SIGN_RIGHE)):
+        for i, riga in enumerate(_wrap_lines_pt(D["sign_terapeutico"],
+                                                _HBG_SIGN_WIDTH_PT, _HBG_SIGN_RIGHE,
+                                                size=_FORM_FONT_SIZE)):
             fm[f"prescrizione_hbg_sign_01.{i}.0"] = riga
         return fm
 
@@ -471,8 +517,9 @@ def build_field_map(template_id: str, pratica: dict, cliente: dict, righe: list 
             # quirk del template: la riga 10 ha un livello di annidamento extra
             qta=lambda i: "Q_tà.10.0.0.0" if i == 10 else f"Q_tà.{i}.0",
         ))
-        for i, riga in enumerate(_wrap_lines(D["sign_terapeutico"],
-                                             _SL_SIGN_WIDTH, _SL_SIGN_RIGHE)):
+        for i, riga in enumerate(_wrap_lines_pt(D["sign_terapeutico"],
+                                                _SL_SIGN_WIDTH_PT, _SL_SIGN_RIGHE,
+                                                size=_FORM_FONT_SIZE)):
             fm[f"Sign. Terapeutico.0.{i}"] = riga
         return fm
 
@@ -486,10 +533,10 @@ _CENTER_HINTS = ("prezzo_unitario", "prezzo_totale", "_qta", "totale_imponibile"
                  "preventivo_iva", "totale_lordo")
 
 
-def _restyle_form_fields(writer, filled_names: set, center_hints=(), font_size: int = 11):
+def _restyle_form_fields(writer, filled_names: set, center_hints=(), font_size: int = _FORM_FONT_SIZE):
     """
     Migliora la resa dei campi compilati:
-    - font a dimensione fissa più leggibile (default 11pt nel /DA)
+    - font a dimensione fissa uniforme nel /DA (coerente coi template nativi)
     - allineamento orizzontale centrato (/Q=1) per i campi indicati in center_hints
     - rimuove l'appearance stream esistente (/AP) così il viewer la rigenera con
       il nuovo stile (insieme a NeedAppearances)
