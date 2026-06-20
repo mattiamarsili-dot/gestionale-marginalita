@@ -1195,6 +1195,46 @@ def cliente_nuovo():
     return render_template("cliente_form.html", cliente=prefill, errore=None, modifica=False, centri=CENTRI)
 
 
+# Campi mostrati nel form mobile rapido (sottoinsieme essenziale di CLIENTE_FIELDS).
+# Gli altri campi anagrafici (documento, email, note, decorrenza) restano vuoti
+# e si completano poi dalla scheda cliente.
+_MOBILE_FIELDS = [
+    "cognome", "nome", "codice_fiscale", "data_nascita", "luogo_nascita",
+    "residenza_via", "residenza_civico", "residenza_citta", "provincia",
+    "residenza_cap", "telefono", "asl", "medico_curante", "centro",
+]
+
+
+@app.route("/mobile")
+def mobile_qr():
+    """Pagina desktop con il QR da inquadrare col tablet per aprire il form rapido."""
+    mobile_url = url_for("mobile_nuovo", _external=True)
+    return render_template("mobile_qr.html", mobile_url=mobile_url)
+
+
+@app.route("/mobile/nuovo", methods=["GET", "POST"])
+def mobile_nuovo():
+    """Form rapido ottimizzato per tablet: compila l'anagrafica essenziale,
+    salva il cliente e apre subito la bozza pratica collegata."""
+    if request.method == "POST":
+        dati = _leggi_cliente_dal_form(request.form)  # legge tutti i CLIENTE_FIELDS
+        if not dati["cognome"]:
+            return render_template("mobile_nuovo.html", cliente=dati,
+                                   errore="Il cognome è obbligatorio.", centri=CENTRI)
+        cols = ", ".join(CLIENTE_FIELDS)
+        ph = ", ".join([_PH] * len(CLIENTE_FIELDS))
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                f"INSERT INTO clienti ({cols}) VALUES ({ph})",
+                tuple(dati[c] for c in CLIENTE_FIELDS),
+            )
+            cliente_id = last_inserted_id(cur)
+        # Crea la bozza pratica per questo cliente (copia ASL/medico) e la apre
+        return redirect(url_for("nuova_pratica", cliente_id=cliente_id))
+    return render_template("mobile_nuovo.html", cliente={}, errore=None, centri=CENTRI)
+
+
 @app.route("/cliente/<int:cliente_id>")
 def cliente_dettaglio(cliente_id):
     with get_db() as conn:

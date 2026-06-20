@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Form rapido da tablet — Gestionale Marginalità{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
+
+    <div class="d-flex align-items-center mb-4 gap-3">
+      <a href="{{ url_for('clienti') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i>
+      </a>
+      <div>
+        <h4 class="fw-bold mb-0">Form rapido da tablet</h4>
+        <small class="text-muted">Inquadra il QR col tablet per aprire il form di inserimento veloce</small>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-body text-center p-4">
+        <div id="qrcode" class="d-inline-block p-3 bg-white rounded-3 border"></div>
+
+        <p class="text-muted small mt-3 mb-1">Oppure apri direttamente questo indirizzo:</p>
+        <div class="input-group">
+          <input type="text" id="mobile-url" class="form-control text-center" value="{{ mobile_url }}" readonly>
+          <button class="btn btn-outline-primary" type="button" id="btn-copia" title="Copia">
+            <i class="bi bi-clipboard"></i>
+          </button>
+          <a class="btn btn-primary" href="{{ mobile_url }}" target="_blank" rel="noopener" title="Apri">
+            <i class="bi bi-box-arrow-up-right"></i>
+          </a>
+        </div>
+
+        <p class="text-muted small mt-3 mb-0">
+          <i class="bi bi-info-circle me-1"></i>
+          Il form salva l'anagrafica e apre subito la bozza pratica collegata.
+        </p>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
+<script>
+  const url = {{ mobile_url | tojson }};
+  new QRCode(document.getElementById('qrcode'), {
+    text: url, width: 240, height: 240,
+    colorDark: '#0d6efd', colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M,
+  });
+  document.getElementById('btn-copia').addEventListener('click', async () => {
+    const inp = document.getElementById('mobile-url');
+    try { await navigator.clipboard.writeText(inp.value); }
+    catch (_) { inp.select(); document.execCommand('copy'); }
+    const btn = document.getElementById('btn-copia');
+    btn.innerHTML = '<i class="bi bi-check2"></i>';
+    setTimeout(() => { btn.innerHTML = '<i class="bi bi-clipboard"></i>'; }, 1500);
+  });
+</script>
+{% endblock %}
