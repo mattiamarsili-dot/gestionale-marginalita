@@ -1,0 +1,21 @@
+{# Tendina con opzione "Aggiungi nuovo…": scegli un valore esistente oppure ne
+   digiti uno nuovo (che viene aggiunto come opzione e inviato col form). La
+   persistenza nelle selezioni successive avviene salvando il record: il valore
+   entra nel DB e ricompare nelle opzioni (vedi opzioni_centri/opzioni_asl). #}
+{% macro select_add(name, valore, opzioni, vuoto='— Nessuno —', nuovo='Nuovo valore', cls='form-select', el_id='') %}
+  {% set val = (valore or '')|string %}
+  <div class="select-add">
+    <select name="{{ name }}" {% if el_id %}id="{{ el_id }}"{% endif %} class="{{ cls }} js-select-add">
+      <option value="">{{ vuoto }}</option>
+      {% for o in opzioni %}
+      <option value="{{ o }}" {{ 'selected' if val == o }}>{{ o }}</option>
+      {% endfor %}
+      {% if val and val not in opzioni %}
+      <option value="{{ val }}" selected>{{ val }}</option>
+      {% endif %}
+      <option value="__add__">➕ Aggiungi nuovo…</option>
+    </select>
+    <input type="text" class="form-control mt-2 d-none js-add-input"
+           placeholder="{{ nuovo }}" autocomplete="off">
+  </div>
+{% endmacro %}

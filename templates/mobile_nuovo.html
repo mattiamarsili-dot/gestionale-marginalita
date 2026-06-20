@@ -1,3 +1,4 @@
+{% from "_widgets.html" import select_add %}
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -133,8 +134,7 @@
             </div>
             <div class="col-12 col-md-6">
               <label>ASL di appartenenza</label>
-              <input type="text" name="asl" class="form-control" placeholder="Es. RM 2"
-                     autocomplete="off" value="{{ cliente.asl or '' }}">
+              {{ select_add('asl', cliente.asl, asl_opzioni, nuovo='Nuova ASL (es. RM2)') }}
             </div>
             <div class="col-12 col-md-6">
               <label>Medico curante</label>
@@ -143,12 +143,7 @@
             </div>
             <div class="col-12 col-md-6">
               <label>Centro di appartenenza</label>
-              <input type="text" name="centro" class="form-control" list="centri-list"
-                     autocomplete="off" placeholder="Scegli o digita un nuovo centro"
-                     value="{{ cliente.centro or '' }}">
-              <datalist id="centri-list">
-                {% for c in centri %}<option value="{{ c }}"></option>{% endfor %}
-              </datalist>
+              {{ select_add('centro', cliente.centro, centri, nuovo='Nuovo centro') }}
             </div>
           </div>
         </div>
@@ -168,6 +163,7 @@
     </div>
   </div>
 
+  <script src="{{ url_for('static', filename='select-add.js') }}"></script>
   <script>
     // Normalizza CF e provincia in maiuscolo mentre si scrive (anche con Scribble)
     document.querySelectorAll('input[name="codice_fiscale"], input[name="provincia"]').forEach(function (el) {

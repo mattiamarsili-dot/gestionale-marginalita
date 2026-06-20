@@ -20,14 +20,25 @@ SOGLIA_PROV_18  = 350_000.0  # € fatturato ASL annuo → scatta 18%
 MARGINE_SOGLIA_OK   = 20.0  # % verde
 MARGINE_SOGLIA_WARN = 10.0  # % giallo
 
-# ── Centri di appartenenza ──────────────────────────────────────────────────
-# Valori della tendina "Centro" sulla scheda cliente. Modificabile liberamente:
-# aggiungere/rimuovere voci qui aggiorna sia il form sia i filtri.
+# ── Centri e ASL (liste "seme" delle tendine) ───────────────────────────────
+# Valori di partenza delle tendine "Centro" e "ASL". Le liste mostrate nei form
+# sono queste UNITE ai valori già salvati nel DB (vedi opzioni_centri/opzioni_asl
+# in app.py): aggiungendo un nuovo centro/ASL e salvando, quel valore ricompare
+# nelle selezioni successive. Qui si modificano solo i valori di partenza.
 CENTRI = [
     "Santa Lucia",
     "HBG",
     "Nemo",
-    "Altro",
+    "PTV",
+    "Campus",
+    "Gemelli",
+    "Policlinico",
+    "ASL",
+]
+
+ASL_OPZIONI = [
+    "RM1", "RM2", "RM3", "RM4", "RM5", "RM6",
+    "FR", "VT", "LT",
 ]
 
 # ── App ───────────────────────────────────────────────────────────────────────

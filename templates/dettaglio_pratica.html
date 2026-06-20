@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_widgets.html" import select_add %}
 {% block title %}{{ pratica.nome_paziente or 'Nuova pratica' }} — Gestionale Marginalità{% endblock %}
 
 {% block content %}
@@ -113,8 +114,7 @@
               </div>
               <div class="col-6 col-sm-3">
                 <label class="form-label form-label-sm mb-1">ASL destinataria</label>
-                <input type="text" name="asl_destinataria" id="cod-asl" class="form-control form-control-sm"
-                       value="{{ pratica.asl_destinataria or (cliente.asl if cliente else '') }}" placeholder="es. RM 2">
+                {{ select_add('asl_destinataria', pratica.asl_destinataria or (cliente.asl if cliente else ''), asl_opzioni, vuoto='— Nessuna —', nuovo='Nuova ASL', cls='form-select form-select-sm', el_id='cod-asl') }}
               </div>
               <div class="col-12 col-sm-6">
                 <label class="form-label form-label-sm mb-1">Medico / struttura</label>

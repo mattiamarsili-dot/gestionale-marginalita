@@ -13,7 +13,7 @@ from config import (
     UPLOAD_FOLDER, MAX_UPLOAD_MB,
     PROVVIGIONE_PCT, PROVVIGIONE_PCT_RIDOTTA, STRUTTURA_PCT,
     PROVVIGIONE_PCT_17, PROVVIGIONE_PCT_18, SOGLIA_PROV_17, SOGLIA_PROV_18,
-    MARGINE_SOGLIA_OK, MARGINE_SOGLIA_WARN, CENTRI,
+    MARGINE_SOGLIA_OK, MARGINE_SOGLIA_WARN, CENTRI, ASL_OPZIONI,
 )
 from database import (
     init_db, migrate_db, backfill_clienti, get_db, calcola_margine, provvigione_corrente,
@@ -326,6 +326,7 @@ def dettaglio_pratica(pratica_id):
         sign_articoli=SIGNIFICATO_ARTICOLI,
         soglia_ok=MARGINE_SOGLIA_OK,
         soglia_warn=MARGINE_SOGLIA_WARN,
+        asl_opzioni=opzioni_asl(),
     )
 
 
@@ -1077,6 +1078,37 @@ def _leggi_cliente_dal_form(form) -> dict:
     return dati
 
 
+# ── Opzioni tendine Centro / ASL ─────────────────────────────────────────────
+# Le tendine mostrano i valori "seme" (config) UNITI a quelli già salvati nel DB,
+# così un nuovo centro/ASL aggiunto e salvato resta disponibile nelle selezioni
+# successive. I nomi colonna sono costanti interne (non input utente).
+def _opzioni(seed, query, params=()) -> list:
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(query, params)
+        usati = [(r["v"] or "").strip() for r in cur.fetchall()]
+    seen = {s.lower() for s in seed}
+    extra = []
+    for u in usati:
+        if u and u.lower() not in seen:
+            seen.add(u.lower())
+            extra.append(u)
+    return list(seed) + sorted(extra, key=str.lower)
+
+
+def opzioni_centri() -> list:
+    return _opzioni(CENTRI, "SELECT DISTINCT centro AS v FROM clienti WHERE COALESCE(centro,'') <> ''")
+
+
+def opzioni_asl() -> list:
+    # unione di clienti.asl e pratiche.asl_destinataria (entrambi rappresentano la ASL)
+    return _opzioni(
+        ASL_OPZIONI,
+        "SELECT asl AS v FROM clienti WHERE COALESCE(asl,'') <> '' "
+        "UNION SELECT asl_destinataria AS v FROM pratiche WHERE COALESCE(asl_destinataria,'') <> ''",
+    )
+
+
 # Ordina i centri: prima quelli in CENTRI (nell'ordine della costante), poi gli
 # altri valori a mano in ordine alfabetico, infine "Senza centro" in coda.
 def _raggruppa_per_centro(righe) -> list:
@@ -1127,7 +1159,7 @@ def clienti():
     gruppi = _raggruppa_per_centro(elenco)
     return render_template(
         "clienti.html", clienti=elenco, gruppi=gruppi, q=q,
-        centro=centro, centri=CENTRI,
+        centro=centro, centri=opzioni_centri(),
     )
 
 
@@ -1167,7 +1199,7 @@ def pratiche():
     gruppi = _raggruppa_per_centro(elenco)
     return render_template(
         "pratiche.html", pratiche=elenco, gruppi=gruppi, q=q,
-        centro=centro, centri=CENTRI,
+        centro=centro, centri=opzioni_centri(),
     )
 
 
@@ -1176,7 +1208,7 @@ def cliente_nuovo():
     if request.method == "POST":
         dati = _leggi_cliente_dal_form(request.form)
         if not dati["cognome"]:
-            return render_template("cliente_form.html", cliente=dati, errore="Il cognome è obbligatorio.", modifica=False, centri=CENTRI)
+            return render_template("cliente_form.html", cliente=dati, errore="Il cognome è obbligatorio.", modifica=False, centri=opzioni_centri(), asl_opzioni=opzioni_asl())
         cols = ", ".join(CLIENTE_FIELDS)
         ph = ", ".join([_PH] * len(CLIENTE_FIELDS))
         with get_db() as conn:
@@ -1192,7 +1224,7 @@ def cliente_nuovo():
         "cognome": (request.args.get("cognome") or "").strip(),
         "nome":    (request.args.get("nome") or "").strip(),
     }
-    return render_template("cliente_form.html", cliente=prefill, errore=None, modifica=False, centri=CENTRI)
+    return render_template("cliente_form.html", cliente=prefill, errore=None, modifica=False, centri=opzioni_centri(), asl_opzioni=opzioni_asl())
 
 
 # Campi mostrati nel form mobile rapido (sottoinsieme essenziale di CLIENTE_FIELDS).
@@ -1220,7 +1252,8 @@ def mobile_nuovo():
         dati = _leggi_cliente_dal_form(request.form)  # legge tutti i CLIENTE_FIELDS
         if not dati["cognome"]:
             return render_template("mobile_nuovo.html", cliente=dati,
-                                   errore="Il cognome è obbligatorio.", centri=CENTRI)
+                                   errore="Il cognome è obbligatorio.",
+                                   centri=opzioni_centri(), asl_opzioni=opzioni_asl())
         cols = ", ".join(CLIENTE_FIELDS)
         ph = ", ".join([_PH] * len(CLIENTE_FIELDS))
         with get_db() as conn:
@@ -1232,7 +1265,7 @@ def mobile_nuovo():
             cliente_id = last_inserted_id(cur)
         # Crea la bozza pratica per questo cliente (copia ASL/medico) e la apre
         return redirect(url_for("nuova_pratica", cliente_id=cliente_id))
-    return render_template("mobile_nuovo.html", cliente={}, errore=None, centri=CENTRI)
+    return render_template("mobile_nuovo.html", cliente={}, errore=None, centri=opzioni_centri(), asl_opzioni=opzioni_asl())
 
 
 @app.route("/cliente/<int:cliente_id>")
@@ -1262,7 +1295,7 @@ def cliente_modifica(cliente_id):
         dati = _leggi_cliente_dal_form(request.form)
         if not dati["cognome"]:
             dati["id"] = cliente_id
-            return render_template("cliente_form.html", cliente=dati, errore="Il cognome è obbligatorio.", modifica=True, centri=CENTRI)
+            return render_template("cliente_form.html", cliente=dati, errore="Il cognome è obbligatorio.", modifica=True, centri=opzioni_centri(), asl_opzioni=opzioni_asl())
         set_clause = ", ".join(f"{c} = {_PH}" for c in CLIENTE_FIELDS)
         with get_db() as conn:
             cur = conn.cursor()
@@ -1278,7 +1311,7 @@ def cliente_modifica(cliente_id):
         cliente = cur.fetchone()
         if not cliente:
             return "Cliente non trovato", 404
-    return render_template("cliente_form.html", cliente=cliente, errore=None, modifica=True, centri=CENTRI)
+    return render_template("cliente_form.html", cliente=cliente, errore=None, modifica=True, centri=opzioni_centri(), asl_opzioni=opzioni_asl())
 
 
 @app.route("/cliente/<int:cliente_id>/elimina", methods=["POST"])
