@@ -283,94 +283,77 @@ def init_db():
             conn.executescript(schema)
 
 def migrate_db():
-    """Aggiunge colonne mancanti a DB già esistenti (idempotente)."""
-    with get_db() as conn:
-        cur = conn.cursor()
-        if _IS_POSTGRES:
-            cur.execute(
-                "ALTER TABLE preventivi ADD COLUMN IF NOT EXISTS drive_file_id TEXT"
-            )
-            cur.execute(
-                "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS provvigione_pct REAL DEFAULT 0.16"
-            )
-            cur.execute(
-                "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS fatturata BOOLEAN NOT NULL DEFAULT FALSE"
-            )
-            cur.execute(
-                "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS data_fatturazione DATE"
-            )
-            cur.execute(
-                "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS importo_privato REAL NOT NULL DEFAULT 0"
-            )
-            cur.execute(
-                "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS cliente_id INTEGER REFERENCES clienti(id)"
-            )
-            cur.execute(
-                "ALTER TABLE clienti ADD COLUMN IF NOT EXISTS centro TEXT"
-            )
-            cur.execute(
-                "ALTER TABLE clienti ADD COLUMN IF NOT EXISTS residente_dal_anno TEXT"
-            )
-            for col in [
-                "ha_tutore BOOLEAN NOT NULL DEFAULT FALSE",
-                "tutore_nome TEXT", "tutore_cf TEXT",
-                "tutore_documento_tipo_numero TEXT",
-                "tutore_documento_rilascio_luogo TEXT",
-                "tutore_documento_rilascio_data DATE",
-                "da_verificare BOOLEAN NOT NULL DEFAULT FALSE",
-            ]:
-                cur.execute(f"ALTER TABLE clienti ADD COLUMN IF NOT EXISTS {col}")
-            for col in [
-                "numero_pratica TEXT", "ausilio TEXT", "asl_destinataria TEXT",
-                "medico_struttura TEXT", "diagnosi TEXT", "sign_terapeutico TEXT",
-                "iva_percentuale REAL NOT NULL DEFAULT 4", "moduli_attivi TEXT",
-            ]:
-                cur.execute(f"ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS {col}")
-        else:
-            for ddl in [
-                "ALTER TABLE preventivi ADD COLUMN drive_file_id TEXT",
-                "ALTER TABLE pratiche ADD COLUMN provvigione_pct REAL DEFAULT 0.16",
-                "ALTER TABLE pratiche ADD COLUMN fatturata INTEGER NOT NULL DEFAULT 0",
-                "ALTER TABLE pratiche ADD COLUMN data_fatturazione DATE",
-                "ALTER TABLE pratiche ADD COLUMN importo_privato REAL NOT NULL DEFAULT 0",
-                "ALTER TABLE pratiche ADD COLUMN cliente_id INTEGER REFERENCES clienti(id)",
-                "ALTER TABLE clienti ADD COLUMN centro TEXT",
-                "ALTER TABLE clienti ADD COLUMN residente_dal_anno TEXT",
-                "ALTER TABLE clienti ADD COLUMN ha_tutore INTEGER NOT NULL DEFAULT 0",
-                "ALTER TABLE clienti ADD COLUMN tutore_nome TEXT",
-                "ALTER TABLE clienti ADD COLUMN tutore_cf TEXT",
-                "ALTER TABLE clienti ADD COLUMN tutore_documento_tipo_numero TEXT",
-                "ALTER TABLE clienti ADD COLUMN tutore_documento_rilascio_luogo TEXT",
-                "ALTER TABLE clienti ADD COLUMN tutore_documento_rilascio_data DATE",
-                "ALTER TABLE clienti ADD COLUMN da_verificare INTEGER NOT NULL DEFAULT 0",
-                "ALTER TABLE pratiche ADD COLUMN numero_pratica TEXT",
-                "ALTER TABLE pratiche ADD COLUMN ausilio TEXT",
-                "ALTER TABLE pratiche ADD COLUMN asl_destinataria TEXT",
-                "ALTER TABLE pratiche ADD COLUMN medico_struttura TEXT",
-                "ALTER TABLE pratiche ADD COLUMN diagnosi TEXT",
-                "ALTER TABLE pratiche ADD COLUMN sign_terapeutico TEXT",
-                "ALTER TABLE pratiche ADD COLUMN iva_percentuale REAL NOT NULL DEFAULT 4",
-                "ALTER TABLE pratiche ADD COLUMN moduli_attivi TEXT",
-            ]:
-                try:
-                    cur.execute(ddl)
-                except Exception:
-                    pass  # colonna già presente
+    """Aggiunge colonne/indici mancanti a DB già esistenti (idempotente).
 
-        # Indice su cliente_id: creato qui (non in init_db) perché la colonna
-        # viene aggiunta dagli ALTER sopra sui DB già esistenti.
+    IMPORTANTE: ogni statement gira nella PROPRIA transazione (un `get_db()` a
+    testa). Su PostgreSQL un singolo errore aborta solo la sua transazione, non
+    inquina le altre: così una colonna problematica non fa perdere tutte le
+    successive (com'era col vecchio batch in un'unica transazione)."""
+    if _IS_POSTGRES:
+        statements = [
+            "ALTER TABLE preventivi ADD COLUMN IF NOT EXISTS drive_file_id TEXT",
+            "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS provvigione_pct REAL DEFAULT 0.16",
+            "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS fatturata BOOLEAN NOT NULL DEFAULT FALSE",
+            "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS data_fatturazione DATE",
+            "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS importo_privato REAL NOT NULL DEFAULT 0",
+            "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS cliente_id INTEGER REFERENCES clienti(id)",
+            "ALTER TABLE clienti ADD COLUMN IF NOT EXISTS centro TEXT",
+            "ALTER TABLE clienti ADD COLUMN IF NOT EXISTS residente_dal_anno TEXT",
+            "ALTER TABLE clienti ADD COLUMN IF NOT EXISTS ha_tutore BOOLEAN NOT NULL DEFAULT FALSE",
+            "ALTER TABLE clienti ADD COLUMN IF NOT EXISTS tutore_nome TEXT",
+            "ALTER TABLE clienti ADD COLUMN IF NOT EXISTS tutore_cf TEXT",
+            "ALTER TABLE clienti ADD COLUMN IF NOT EXISTS tutore_documento_tipo_numero TEXT",
+            "ALTER TABLE clienti ADD COLUMN IF NOT EXISTS tutore_documento_rilascio_luogo TEXT",
+            "ALTER TABLE clienti ADD COLUMN IF NOT EXISTS tutore_documento_rilascio_data DATE",
+            "ALTER TABLE clienti ADD COLUMN IF NOT EXISTS da_verificare BOOLEAN NOT NULL DEFAULT FALSE",
+            "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS numero_pratica TEXT",
+            "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS ausilio TEXT",
+            "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS asl_destinataria TEXT",
+            "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS medico_struttura TEXT",
+            "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS diagnosi TEXT",
+            "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS sign_terapeutico TEXT",
+            "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS iva_percentuale REAL NOT NULL DEFAULT 4",
+            "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS moduli_attivi TEXT",
+        ]
+    else:
+        statements = [
+            "ALTER TABLE preventivi ADD COLUMN drive_file_id TEXT",
+            "ALTER TABLE pratiche ADD COLUMN provvigione_pct REAL DEFAULT 0.16",
+            "ALTER TABLE pratiche ADD COLUMN fatturata INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE pratiche ADD COLUMN data_fatturazione DATE",
+            "ALTER TABLE pratiche ADD COLUMN importo_privato REAL NOT NULL DEFAULT 0",
+            "ALTER TABLE pratiche ADD COLUMN cliente_id INTEGER REFERENCES clienti(id)",
+            "ALTER TABLE clienti ADD COLUMN centro TEXT",
+            "ALTER TABLE clienti ADD COLUMN residente_dal_anno TEXT",
+            "ALTER TABLE clienti ADD COLUMN ha_tutore INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE clienti ADD COLUMN tutore_nome TEXT",
+            "ALTER TABLE clienti ADD COLUMN tutore_cf TEXT",
+            "ALTER TABLE clienti ADD COLUMN tutore_documento_tipo_numero TEXT",
+            "ALTER TABLE clienti ADD COLUMN tutore_documento_rilascio_luogo TEXT",
+            "ALTER TABLE clienti ADD COLUMN tutore_documento_rilascio_data DATE",
+            "ALTER TABLE clienti ADD COLUMN da_verificare INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE pratiche ADD COLUMN numero_pratica TEXT",
+            "ALTER TABLE pratiche ADD COLUMN ausilio TEXT",
+            "ALTER TABLE pratiche ADD COLUMN asl_destinataria TEXT",
+            "ALTER TABLE pratiche ADD COLUMN medico_struttura TEXT",
+            "ALTER TABLE pratiche ADD COLUMN diagnosi TEXT",
+            "ALTER TABLE pratiche ADD COLUMN sign_terapeutico TEXT",
+            "ALTER TABLE pratiche ADD COLUMN iva_percentuale REAL NOT NULL DEFAULT 4",
+            "ALTER TABLE pratiche ADD COLUMN moduli_attivi TEXT",
+        ]
+
+    # Indici: la colonna cliente_id viene aggiunta dagli ALTER qui sopra.
+    statements += [
+        "CREATE INDEX IF NOT EXISTS idx_pratiche_cliente ON pratiche(cliente_id)",
+        "CREATE INDEX IF NOT EXISTS idx_clienti_centro ON clienti(centro)",
+    ]
+
+    for ddl in statements:
         try:
-            cur.execute(
-                "CREATE INDEX IF NOT EXISTS idx_pratiche_cliente ON pratiche(cliente_id)"
-            )
+            with get_db() as conn:        # una transazione per statement
+                conn.cursor().execute(ddl)
         except Exception:
-            pass
-        try:
-            cur.execute(
-                "CREATE INDEX IF NOT EXISTS idx_clienti_centro ON clienti(centro)"
-            )
-        except Exception:
-            pass
+            pass  # colonna/indice già presente o non applicabile: si prosegue
 
 
 def backfill_clienti() -> int:
