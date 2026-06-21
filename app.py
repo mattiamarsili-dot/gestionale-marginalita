@@ -93,7 +93,7 @@ def _allowed_file(filename: str) -> bool:
 
 # ── Autenticazione ────────────────────────────────────────────────────────────
 
-ROUTE_PUBBLICHE = {"login", "logout", "static"}
+ROUTE_PUBBLICHE = {"login", "logout", "static", "manifest", "service_worker"}
 
 @app.before_request
 def controlla_accesso():
@@ -120,6 +120,60 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for("login"))
+
+
+# ── PWA: manifest + service worker (app installabile su telefono/tablet) ──────
+
+@app.route("/manifest.webmanifest")
+def manifest():
+    import json
+    data = {
+        "name": "Gestionale Marginalità",
+        "short_name": "Gestionale",
+        "start_url": "/",
+        "scope": "/",
+        "display": "standalone",
+        "background_color": "#ffffff",
+        "theme_color": "#0d6efd",
+        "icons": [
+            {"src": url_for("static", filename="icons/icon-192.png"), "sizes": "192x192", "type": "image/png"},
+            {"src": url_for("static", filename="icons/icon-512.png"), "sizes": "512x512", "type": "image/png"},
+            {"src": url_for("static", filename="icons/icon-maskable-512.png"), "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+        ],
+    }
+    return Response(json.dumps(data), mimetype="application/manifest+json")
+
+
+@app.route("/sw.js")
+def service_worker():
+    # Service worker minimale: cache dei soli asset statici (no pagine autenticate),
+    # sufficiente a rendere l'app installabile. Servito da root per avere scope "/".
+    js = """
+const CACHE = 'gm-v1';
+const ASSETS = [
+  '/static/style.css', '/static/select-add.js',
+  '/static/icons/icon-192.png', '/static/icons/icon-512.png',
+  '/manifest.webmanifest',
+];
+self.addEventListener('install', (e) => {
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+});
+self.addEventListener('activate', (e) => {
+  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+});
+self.addEventListener('fetch', (e) => {
+  const req = e.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+  if (url.pathname.startsWith('/static/') || url.pathname === '/manifest.webmanifest') {
+    e.respondWith(caches.match(req).then((r) => r || fetch(req)));
+  }
+});
+"""
+    resp = Response(js, mimetype="text/javascript")
+    resp.headers["Service-Worker-Allowed"] = "/"
+    resp.headers["Cache-Control"] = "no-cache"
+    return resp
 
 
 # ── Dashboard ─────────────────────────────────────────────────────────────────
