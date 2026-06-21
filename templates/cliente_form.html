@@ -84,8 +84,13 @@
               <input type="text" name="residenza_cap" class="form-control" maxlength="5"
                      value="{{ cliente.residenza_cap or '' }}">
             </div>
-            <div class="col-12 col-sm-6">
-              <label class="form-label">Decorrenza residenza <small class="text-muted">(per autocert.)</small></label>
+            <div class="col-6 col-sm-3">
+              <label class="form-label">Residente dal <small class="text-muted">(anno)</small></label>
+              <input type="number" name="residente_dal_anno" class="form-control" min="1900" max="2100" step="1"
+                     placeholder="es. 2015" value="{{ cliente.residente_dal_anno or '' }}">
+            </div>
+            <div class="col-6 col-sm-3">
+              <label class="form-label">Decorrenza residenza <small class="text-muted">(data, per autocert.)</small></label>
               <input type="date" name="decorrenza_residenza" class="form-control"
                      value="{{ cliente.decorrenza_residenza or '' }}">
             </div>

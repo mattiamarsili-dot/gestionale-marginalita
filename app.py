@@ -93,7 +93,8 @@ def _allowed_file(filename: str) -> bool:
 
 # ── Autenticazione ────────────────────────────────────────────────────────────
 
-ROUTE_PUBBLICHE = {"login", "logout", "static", "manifest", "service_worker"}
+ROUTE_PUBBLICHE = {"login", "logout", "static", "manifest", "service_worker",
+                   "modulo_paziente"}
 
 @app.before_request
 def controlla_accesso():
@@ -1009,6 +1010,20 @@ def genera_modulo(pratica_id, template_id):
         # Senza cliente collegato non c'è anagrafica da inserire nel modulo
         return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) + "#moduli")
 
+    # Per le DELEGHE chiediamo conferma della data di prescrizione: senza il
+    # parametro mostriamo una paginetta che la propone (default = data pratica)
+    # e permette di correggerla prima di generare.
+    if PDF_TEMPLATES[template_id].get("categoria") == "delega":
+        data_conf = (request.args.get("data_prescrizione") or "").strip()
+        if not data_conf:
+            return render_template(
+                "conferma_data_delega.html",
+                pratica=pratica_d, cliente=cliente_d, template_id=template_id,
+                template_label=PDF_TEMPLATES[template_id].get("label", template_id),
+                data_default=str(pratica_d.get("data_pratica") or "")[:10],
+            )
+        pratica_d["data_pratica"] = data_conf
+
     # N° pratica generato in automatico alla prima generazione di un preventivo,
     # poi salvato sulla pratica così resta stabile (per le pratiche già create lo
     # si inserisce a mano dalla scheda Codifica).
@@ -1121,7 +1136,8 @@ def preset_elimina(preset_id):
 CLIENTE_FIELDS = [
     "cognome", "nome", "codice_fiscale", "data_nascita", "luogo_nascita",
     "provincia", "residenza_via", "residenza_civico", "residenza_citta",
-    "residenza_cap", "telefono", "email", "asl", "centro", "medico_curante",
+    "residenza_cap", "residente_dal_anno", "telefono", "email", "asl", "centro",
+    "medico_curante",
     "decorrenza_residenza", "documento_tipo_numero", "documento_data_rilascio",
     # Tutore legale (delegato delle deleghe): flag + dati documento
     "ha_tutore", "tutore_nome", "tutore_cf", "tutore_documento_tipo_numero",
@@ -1246,6 +1262,7 @@ def _colonne_attive(nome: str, catalogo: list) -> list:
 def clienti():
     q = (request.args.get("q") or "").strip()
     centro = (request.args.get("centro") or "").strip()
+    solo_verificare = request.args.get("da_verificare") == "1"
     where, params = [], []
     if q:
         like = f"%{q}%"
@@ -1254,6 +1271,8 @@ def clienti():
     if centro:
         where.append(f"COALESCE(c.centro, '') = {_PH}")
         params.append("" if centro == "Senza centro" else centro)
+    if solo_verificare:
+        where.append("c.da_verificare")
     where_sql = ("WHERE " + " AND ".join(where)) if where else ""
     with get_db() as conn:
         cur = conn.cursor()
@@ -1268,10 +1287,13 @@ def clienti():
             tuple(params),
         )
         elenco = cur.fetchall()
+        cur.execute("SELECT COUNT(*) AS n FROM clienti WHERE da_verificare")
+        n_verificare = cur.fetchone()["n"]
     gruppi = _raggruppa_per_centro(elenco)
     return render_template(
         "clienti.html", clienti=elenco, gruppi=gruppi, q=q,
         centro=centro, centri=opzioni_centri(),
+        n_verificare=n_verificare, solo_verificare=solo_verificare,
         colonne_catalogo=COLONNE_CLIENTI,
         colonne_attive=_colonne_attive("clienti", COLONNE_CLIENTI),
     )
@@ -1373,7 +1395,8 @@ _MOBILE_FIELDS = [
 def mobile_qr():
     """Pagina desktop con il QR da inquadrare col tablet per aprire il form rapido."""
     mobile_url = url_for("mobile_nuovo", _external=True)
-    return render_template("mobile_qr.html", mobile_url=mobile_url)
+    paziente_url = url_for("modulo_paziente", _external=True)
+    return render_template("mobile_qr.html", mobile_url=mobile_url, paziente_url=paziente_url)
 
 
 @app.route("/mobile/nuovo", methods=["GET", "POST"])
@@ -1401,6 +1424,56 @@ def mobile_nuovo():
     return render_template("mobile_nuovo.html", cliente={}, errore=None,
                            centri=opzioni_centri(), asl_opzioni=opzioni_asl(),
                            ai_attivo=bool(ANTHROPIC_API_KEY))
+
+
+# ── Modulo pubblico per i pazienti (senza login) ─────────────────────────────
+# Campi che il paziente compila da solo: sola anagrafica di base. ASL, centro,
+# medico e il resto li completa l'operatore in fase di verifica.
+_MODULO_PAZIENTE_FIELDS = [
+    "cognome", "nome", "codice_fiscale", "data_nascita", "luogo_nascita",
+    "residenza_via", "residenza_civico", "residenza_citta", "provincia",
+    "residenza_cap", "residente_dal_anno", "telefono", "email",
+    "documento_tipo_numero", "documento_data_rilascio",
+]
+# Tutti obbligatori tranne l'email.
+_MODULO_PAZIENTE_OBBLIGATORI = [c for c in _MODULO_PAZIENTE_FIELDS if c != "email"]
+
+
+@app.route("/modulo-paziente", methods=["GET", "POST"])
+def modulo_paziente():
+    """Modulo pubblico (link condivisibile, niente login) che i pazienti
+    compilano da soli. L'invio crea un cliente con flag `da_verificare`: arriva
+    nell'anagrafica ma evidenziato come 'da verificare', l'operatore lo controlla."""
+    if request.method == "POST":
+        # Honeypot anti-bot: campo nascosto che un umano lascia vuoto.
+        if (request.form.get("azienda") or "").strip():
+            return render_template("modulo_paziente.html", inviato=True, cliente={}, errore=None)
+        dati = _leggi_cliente_dal_form(request.form)
+        if any(not dati.get(c) for c in _MODULO_PAZIENTE_OBBLIGATORI):
+            return render_template("modulo_paziente.html", cliente=dati, inviato=False,
+                                   errore="Per favore compila tutti i campi obbligatori (contrassegnati con *).")
+        if not request.form.get("consenso"):
+            return render_template("modulo_paziente.html", cliente=dati, inviato=False,
+                                   errore="Per inviare devi acconsentire al trattamento dei dati.")
+        if not dati.get("note"):
+            dati["note"] = f"Inviato dal modulo paziente il {date.today().isoformat()}"
+        cols = CLIENTE_FIELDS + ["da_verificare"]
+        ph = ", ".join([_PH] * len(cols))
+        valori = tuple(dati[c] for c in CLIENTE_FIELDS) + (True,)
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute(f"INSERT INTO clienti ({', '.join(cols)}) VALUES ({ph})", valori)
+        return render_template("modulo_paziente.html", inviato=True, cliente={}, errore=None)
+    return render_template("modulo_paziente.html", cliente={}, inviato=False, errore=None)
+
+
+@app.route("/cliente/<int:cliente_id>/verificato", methods=["POST"])
+def cliente_verificato(cliente_id):
+    """Toglie il flag 'da verificare' a un cliente arrivato dal modulo pubblico."""
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"UPDATE clienti SET da_verificare = {_PH} WHERE id = {_PH}", (False, cliente_id))
+    return redirect(request.form.get("torna") or url_for("cliente_dettaglio", cliente_id=cliente_id))
 
 
 @app.route("/cliente/<int:cliente_id>")

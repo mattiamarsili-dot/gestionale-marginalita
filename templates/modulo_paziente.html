@@ -1,0 +1,149 @@
+{% extends "base_public.html" %}
+{% block title %}Modulo dati paziente{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 640px;">
+
+  <div class="text-center mb-4">
+    <i class="bi bi-clipboard2-pulse text-primary" style="font-size:2.5rem"></i>
+    <h4 class="fw-bold mt-2 mb-1">Modulo dati paziente</h4>
+    <p class="text-muted small mb-0">Compila i tuoi dati: serviranno a preparare la pratica per l'ausilio.</p>
+  </div>
+
+  {% if inviato %}
+  <div class="card border-success">
+    <div class="card-body text-center pt-5 pb-4">
+      <i class="bi bi-check-circle-fill text-success" style="font-size:3rem"></i>
+      <h5 class="fw-bold mt-3">Grazie, dati inviati!</h5>
+      <p class="text-muted mb-0">Abbiamo ricevuto le tue informazioni.</p>
+    </div>
+    <div class="card-body border-top">
+      <h6 class="fw-bold"><i class="bi bi-paperclip me-1"></i>Documenti da inviarci</h6>
+      <p class="text-muted small mb-2">Per completare la pratica inviaci copia di:</p>
+      <ul class="small mb-3">
+        <li><strong>Verbale di Invalidità civile</strong> (oppure la <strong>richiesta inviata dal medico di base</strong>)</li>
+        <li><strong>Documento di identità</strong> (fronte/retro)</li>
+        <li><strong>Codice fiscale / Tessera sanitaria</strong></li>
+      </ul>
+      <p class="text-muted small mb-2">Puoi inviarli a uno di questi contatti:</p>
+      <div class="d-grid gap-2">
+        <a class="btn btn-success" href="https://wa.me/390656567542" target="_blank" rel="noopener">
+          <i class="bi bi-whatsapp me-1"></i>WhatsApp 06 56567542
+        </a>
+        <a class="btn btn-outline-primary" href="mailto:altramobilita@gmail.com">
+          <i class="bi bi-envelope me-1"></i>altramobilita@gmail.com
+        </a>
+      </div>
+    </div>
+    <div class="card-body border-top text-center">
+      <a href="{{ url_for('modulo_paziente') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-plus-lg me-1"></i>Invia un altro modulo
+      </a>
+    </div>
+  </div>
+  {% else %}
+
+  {% if errore %}
+  <div class="alert alert-danger py-2 small"><i class="bi bi-exclamation-triangle-fill me-1"></i>{{ errore }}</div>
+  {% endif %}
+
+  <form method="post" class="card">
+    <div class="card-body">
+      <!-- Honeypot anti-spam: lasciare vuoto (nascosto agli umani) -->
+      <div style="position:absolute; left:-5000px;" aria-hidden="true">
+        <input type="text" name="azienda" tabindex="-1" autocomplete="off">
+      </div>
+
+      <div class="row g-3">
+        <div class="col-sm-6">
+          <label class="form-label form-label-sm fw-semibold">Cognome *</label>
+          <input type="text" name="cognome" class="form-control" required value="{{ cliente.cognome or '' }}">
+        </div>
+        <div class="col-sm-6">
+          <label class="form-label form-label-sm fw-semibold">Nome *</label>
+          <input type="text" name="nome" class="form-control" required value="{{ cliente.nome or '' }}">
+        </div>
+        <div class="col-sm-7">
+          <label class="form-label form-label-sm fw-semibold">Codice fiscale *</label>
+          <input type="text" name="codice_fiscale" class="form-control text-uppercase" required value="{{ cliente.codice_fiscale or '' }}">
+        </div>
+        <div class="col-sm-5">
+          <label class="form-label form-label-sm fw-semibold">Data di nascita *</label>
+          <input type="date" name="data_nascita" class="form-control" required value="{{ cliente.data_nascita or '' }}">
+        </div>
+        <div class="col-12">
+          <label class="form-label form-label-sm fw-semibold">Luogo di nascita *</label>
+          <input type="text" name="luogo_nascita" class="form-control" required value="{{ cliente.luogo_nascita or '' }}">
+        </div>
+
+        <div class="col-12"><hr class="my-1"><span class="text-muted small fw-semibold">Residenza</span></div>
+        <div class="col-8">
+          <label class="form-label form-label-sm">Via / Piazza *</label>
+          <input type="text" name="residenza_via" class="form-control" required value="{{ cliente.residenza_via or '' }}">
+        </div>
+        <div class="col-4">
+          <label class="form-label form-label-sm">Civico *</label>
+          <input type="text" name="residenza_civico" class="form-control" required value="{{ cliente.residenza_civico or '' }}">
+        </div>
+        <div class="col-7">
+          <label class="form-label form-label-sm">Città *</label>
+          <input type="text" name="residenza_citta" class="form-control" required value="{{ cliente.residenza_citta or '' }}">
+        </div>
+        <div class="col-2">
+          <label class="form-label form-label-sm">Prov. *</label>
+          <input type="text" name="provincia" class="form-control text-uppercase" maxlength="2" required value="{{ cliente.provincia or '' }}">
+        </div>
+        <div class="col-3">
+          <label class="form-label form-label-sm">CAP *</label>
+          <input type="text" name="residenza_cap" class="form-control" inputmode="numeric" required value="{{ cliente.residenza_cap or '' }}">
+        </div>
+        <div class="col-sm-6">
+          <label class="form-label form-label-sm">Anno da cui risulti residente *</label>
+          <input type="number" name="residente_dal_anno" class="form-control" required
+                 min="1900" max="2100" step="1" placeholder="es. 2015"
+                 inputmode="numeric" value="{{ cliente.residente_dal_anno or '' }}">
+        </div>
+
+        <div class="col-12"><hr class="my-1"><span class="text-muted small fw-semibold">Documento di identità</span></div>
+        <div class="col-sm-7">
+          <label class="form-label form-label-sm">Tipo e numero *</label>
+          <input type="text" name="documento_tipo_numero" class="form-control" required
+                 placeholder="es. Carta d'identità n. AB1234567" value="{{ cliente.documento_tipo_numero or '' }}">
+        </div>
+        <div class="col-sm-5">
+          <label class="form-label form-label-sm">Data di rilascio *</label>
+          <input type="date" name="documento_data_rilascio" class="form-control" required value="{{ cliente.documento_data_rilascio or '' }}">
+        </div>
+
+        <div class="col-12"><hr class="my-1"><span class="text-muted small fw-semibold">Contatti</span></div>
+        <div class="col-sm-6">
+          <label class="form-label form-label-sm">Telefono *</label>
+          <input type="tel" name="telefono" class="form-control" required value="{{ cliente.telefono or '' }}">
+        </div>
+        <div class="col-sm-6">
+          <label class="form-label form-label-sm">Email</label>
+          <input type="email" name="email" class="form-control" value="{{ cliente.email or '' }}">
+        </div>
+
+        <div class="col-12">
+          <div class="form-check mt-2">
+            <input class="form-check-input" type="checkbox" name="consenso" id="consenso" required>
+            <label class="form-check-label small" for="consenso">
+              Acconsento al trattamento dei miei dati personali per la gestione della pratica
+              relativa alla fornitura dell'ausilio sanitario. *
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer bg-white">
+      <button type="submit" class="btn btn-primary w-100">
+        <i class="bi bi-send me-1"></i>Invia i miei dati
+      </button>
+    </div>
+  </form>
+  <p class="text-center text-muted small mt-3">I campi con * sono obbligatori.</p>
+  {% endif %}
+
+</div>
+{% endblock %}

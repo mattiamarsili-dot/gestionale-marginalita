@@ -37,6 +37,34 @@
       </div>
     </div>
 
+    <!-- Modulo pubblico da inviare ai pazienti -->
+    <div class="card border-0 shadow-sm mt-4">
+      <div class="card-header bg-warning-subtle fw-semibold py-3">
+        <i class="bi bi-clipboard2-pulse me-1"></i>Modulo da inviare ai pazienti
+      </div>
+      <div class="card-body p-4">
+        <p class="text-muted small mb-2">
+          Link pubblico (niente login) che il paziente compila da solo. I dati arrivano
+          in <strong>Clienti</strong> evidenziati come «da verificare».
+        </p>
+        <div class="input-group">
+          <input type="text" id="paziente-url" class="form-control" value="{{ paziente_url }}" readonly>
+          <button class="btn btn-outline-primary" type="button" id="btn-copia-paz" title="Copia">
+            <i class="bi bi-clipboard"></i>
+          </button>
+          <a class="btn btn-primary" href="{{ paziente_url }}" target="_blank" rel="noopener" title="Apri">
+            <i class="bi bi-box-arrow-up-right"></i>
+          </a>
+        </div>
+        {% set wa_msg = 'Ciao! Per preparare la pratica per l ausilio, compila qui i tuoi dati: ' ~ paziente_url %}
+        <a class="btn btn-success w-100 mt-3"
+           href="https://wa.me/?text={{ wa_msg | urlencode }}"
+           target="_blank" rel="noopener">
+          <i class="bi bi-whatsapp me-1"></i>Invia su WhatsApp
+        </a>
+      </div>
+    </div>
+
   </div>
 </div>
 {% endblock %}
@@ -50,13 +78,17 @@
     colorDark: '#0d6efd', colorLight: '#ffffff',
     correctLevel: QRCode.CorrectLevel.M,
   });
-  document.getElementById('btn-copia').addEventListener('click', async () => {
-    const inp = document.getElementById('mobile-url');
-    try { await navigator.clipboard.writeText(inp.value); }
-    catch (_) { inp.select(); document.execCommand('copy'); }
-    const btn = document.getElementById('btn-copia');
-    btn.innerHTML = '<i class="bi bi-check2"></i>';
-    setTimeout(() => { btn.innerHTML = '<i class="bi bi-clipboard"></i>'; }, 1500);
-  });
+  function copiaDa(btnId, inpId) {
+    document.getElementById(btnId).addEventListener('click', async () => {
+      const inp = document.getElementById(inpId);
+      try { await navigator.clipboard.writeText(inp.value); }
+      catch (_) { inp.select(); document.execCommand('copy'); }
+      const btn = document.getElementById(btnId);
+      btn.innerHTML = '<i class="bi bi-check2"></i>';
+      setTimeout(() => { btn.innerHTML = '<i class="bi bi-clipboard"></i>'; }, 1500);
+    });
+  }
+  copiaDa('btn-copia', 'mobile-url');
+  copiaDa('btn-copia-paz', 'paziente-url');
 </script>
 {% endblock %}

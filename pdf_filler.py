@@ -272,7 +272,8 @@ def dati_canonici(pratica: dict, cliente: dict) -> dict:
         "asl":              _asl(pratica, cliente),
         "centro":           (cliente.get("centro") or "").strip(),
         "medico_curante":   (cliente.get("medico_curante") or "").strip(),
-        "decorrenza_residenza":    _fmt_data(cliente.get("decorrenza_residenza")),
+        # Data piena se presente, altrimenti il solo anno dal modulo paziente
+        "decorrenza_residenza":    _fmt_data(cliente.get("decorrenza_residenza")) or (cliente.get("residente_dal_anno") or "").strip(),
         "documento_tipo_numero":   (cliente.get("documento_tipo_numero") or "").strip(),
         "documento_data_rilascio": _fmt_data(cliente.get("documento_data_rilascio")),
         # Tutore legale (= delegato delle deleghe)
@@ -746,12 +747,33 @@ def compila_pdf(template_id: str, pratica: dict, cliente: dict, righe: list = No
 
 
 def nome_file_consigliato(template_id: str, pratica: dict, cliente: dict) -> str:
-    """Es. 'AM0105.26 - ROSSI MARIO - Autocertificazione ASL RM3.pdf'."""
+    """Nome del PDF scaricato, diverso per categoria:
+      - preventivo:   '<numero preventivo> - <ASL>'      (es. 'AM0105.26 - RM2')
+      - prescrizione: 'Prescrizione - <COGNOME> - <ddmm.aa>'
+      - delega:       'Deleghe - <COGNOME> - <ddmm.aa>'
+      - altri:        '<numero> - <NOME COMPLETO> - <label>'  (comportamento storico)
+    La data è quella di creazione del file (oggi), formato ddmm.aa.
+    """
     tpl = PDF_TEMPLATES.get(template_id, {})
-    numero = numero_preventivo(pratica or {}, cliente) or f"pratica-{(pratica or {}).get('id', '')}"
-    nome = _nome_completo(cliente or {}).upper() or "CLIENTE"
-    label = tpl.get("label", template_id)
-    base = f"{numero} - {nome} - {label}".strip(" -")
+    pratica = pratica or {}
+    cliente = cliente or {}
+    cat = tpl.get("categoria")
+    cognome = (cliente.get("cognome") or "").strip().upper() or "CLIENTE"
+    oggi = date.today().strftime("%d%m.%y")  # ddmm.aa
+
+    if cat == "preventivo":
+        numero = numero_preventivo(pratica, cliente) or f"pratica-{pratica.get('id', '')}"
+        asl = _asl(pratica, cliente)
+        base = f"{numero} - {asl}".strip(" -")
+    elif cat == "prescrizione":
+        base = f"Prescrizione - {cognome} - {oggi}"
+    elif cat == "delega":
+        base = f"Deleghe - {cognome} - {oggi}"
+    else:
+        numero = numero_preventivo(pratica, cliente) or f"pratica-{pratica.get('id', '')}"
+        nome = _nome_completo(cliente).upper() or "CLIENTE"
+        base = f"{numero} - {nome} - {tpl.get('label', template_id)}".strip(" -")
+
     # rimuove caratteri problematici nei filename
     for ch in '/\\:*?"<>|':
         base = base.replace(ch, "-")

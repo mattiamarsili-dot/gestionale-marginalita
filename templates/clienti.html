@@ -29,10 +29,18 @@
   </div>
 </div>
 
+{% if n_verificare %}
+<a href="{{ url_for('clienti', da_verificare='1') }}"
+   class="alert alert-warning d-flex align-items-center justify-content-between py-2 mb-3 text-decoration-none {{ 'border-warning border-2' if solo_verificare }}">
+  <span><i class="bi bi-clipboard2-pulse me-1"></i><strong>{{ n_verificare }}</strong> {{ 'richiesta' if n_verificare == 1 else 'richieste' }} dal modulo paziente da verificare</span>
+  <span class="badge bg-warning text-dark">Mostra <i class="bi bi-arrow-right"></i></span>
+</a>
+{% endif %}
+
 <!-- Filtro per centro -->
 <div class="d-flex flex-wrap gap-2 mb-4">
   <a href="{{ url_for('clienti', q=q or None) }}"
-     class="btn btn-sm {{ 'btn-primary' if not centro else 'btn-outline-secondary' }}">Tutti i centri</a>
+     class="btn btn-sm {{ 'btn-primary' if not centro and not solo_verificare else 'btn-outline-secondary' }}">Tutti i centri</a>
   {% for c in centri %}
   <a href="{{ url_for('clienti', q=q or None, centro=c) }}"
      class="btn btn-sm {{ 'btn-primary' if centro == c else 'btn-outline-secondary' }}">{{ c }}</a>
@@ -66,6 +74,11 @@
               <a href="{{ url_for('cliente_dettaglio', cliente_id=c.id) }}" class="fw-semibold text-decoration-none">
                 {{ c.cognome }}{% if c.nome %} {{ c.nome }}{% endif %}
               </a>
+              {% if c.da_verificare %}
+              <span class="badge bg-warning text-dark ms-1" style="font-size:.65em" title="Arrivato dal modulo paziente, da verificare">
+                <i class="bi bi-clipboard2-pulse"></i> da verificare
+              </span>
+              {% endif %}
             </td>
             {% for col in colonne_catalogo if col.key in colonne_attive %}
               {% if col.key == 'cf' %}<td class="text-muted">{{ c.codice_fiscale or '—' }}</td>
@@ -87,7 +100,15 @@
                 {% else %}<span class="text-muted">0</span>{% endif %}</td>
               {% endif %}
             {% endfor %}
-            <td class="text-end">
+            <td class="text-end text-nowrap">
+              {% if c.da_verificare %}
+              <form method="post" action="{{ url_for('cliente_verificato', cliente_id=c.id) }}" class="d-inline">
+                <input type="hidden" name="torna" value="{{ request.full_path }}">
+                <button type="submit" class="btn btn-sm btn-success" title="Conferma: dati verificati">
+                  <i class="bi bi-check2-circle"></i>
+                </button>
+              </form>
+              {% endif %}
               <a href="{{ url_for('cliente_modifica', cliente_id=c.id) }}"
                  class="btn btn-sm btn-outline-secondary" title="Modifica">
                 <i class="bi bi-pencil"></i>

@@ -18,14 +18,38 @@
           <i class="bi bi-arrow-left"></i>
         </a>
         <div>
-          <h4 class="fw-bold mb-0">{{ cliente.cognome }}{% if cliente.nome %} {{ cliente.nome }}{% endif %}</h4>
+          <h4 class="fw-bold mb-0">
+            {{ cliente.cognome }}{% if cliente.nome %} {{ cliente.nome }}{% endif %}
+            {% if cliente.da_verificare %}
+            <span class="badge bg-warning text-dark align-middle" style="font-size:.5em">
+              <i class="bi bi-clipboard2-pulse"></i> da verificare
+            </span>
+            {% endif %}
+          </h4>
           <small class="text-muted">{{ cliente.codice_fiscale or 'Codice fiscale non inserito' }}</small>
         </div>
       </div>
-      <a href="{{ url_for('cliente_modifica', cliente_id=cliente.id) }}" class="btn btn-outline-primary">
-        <i class="bi bi-pencil me-1"></i>Modifica
-      </a>
+      <div class="d-flex gap-2">
+        {% if cliente.da_verificare %}
+        <form method="post" action="{{ url_for('cliente_verificato', cliente_id=cliente.id) }}">
+          <button type="submit" class="btn btn-success" title="Conferma che i dati sono corretti">
+            <i class="bi bi-check2-circle me-1"></i>Segna come verificato
+          </button>
+        </form>
+        {% endif %}
+        <a href="{{ url_for('cliente_modifica', cliente_id=cliente.id) }}" class="btn btn-outline-primary">
+          <i class="bi bi-pencil me-1"></i>Modifica
+        </a>
+      </div>
     </div>
+
+    {% if cliente.da_verificare %}
+    <div class="alert alert-warning py-2 small">
+      <i class="bi bi-info-circle me-1"></i>
+      Questi dati sono stati inviati dal paziente tramite il modulo pubblico. Controllali, completa
+      ASL/centro/medico dalla <strong>Modifica</strong>, poi premi <strong>Segna come verificato</strong>.
+    </div>
+    {% endif %}
 
     <!-- Dati anagrafici -->
     <div class="card mb-4">
