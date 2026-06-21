@@ -1,69 +1,98 @@
 """
-Esporta tutti i dati dal database (Neon o SQLite) in un file JSON con timestamp.
-Uso: python3 backup.py
+Backup completo del database (Neon o SQLite) in un unico file JSON.
+
+A differenza della versione precedente, è **schema-agnostico**: esporta TUTTE le
+tabelle elencate in TABLES con TUTTE le loro colonne (lette dal DB a runtime).
+Aggiungendo colonne nuove non serve toccare questo file; aggiungendo una tabella
+nuova basta inserirla in TABLES.
+
+Uso da terminale:
+    python3 backup.py
+
+È anche importato da app.py per il download del backup dall'app (1 click).
 """
 import json
 import os
 import sys
-from datetime import datetime
-from pathlib import Path
+from datetime import datetime, date
+from decimal import Decimal
 
-# Carica .env se presente
+# Carica .env se presente (per DATABASE_URL in locale)
 try:
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
     pass
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "")
-SQLITE_PATH  = os.environ.get("SQLITE_PATH", "gestionale.db")
+from database import get_db, _IS_POSTGRES
 
-def backup():
+# Ordine FK-safe: i genitori prima dei figli (conta per il restore).
+TABLES = [
+    "clienti",
+    "pratiche",
+    "preventivi",
+    "righe_ausili",
+    "preset_ausili",
+    "preset_righe",
+    "significato_catalogo",
+]
+
+
+def _row_to_dict(row) -> dict:
+    """Converte una riga (sqlite3.Row o dict psycopg) in dict semplice."""
+    return {k: row[k] for k in row.keys()}
+
+
+def _default(o):
+    """Serializza i tipi non-JSON (date, datetime, Decimal)."""
+    if isinstance(o, (datetime, date)):
+        return o.isoformat()
+    if isinstance(o, Decimal):
+        return float(o)
+    if isinstance(o, (bytes, bytearray)):
+        return o.decode("utf-8", "replace")
+    return str(o)
+
+
+def dump_data() -> dict:
+    """Estrae tutte le tabelle in un dict pronto da serializzare in JSON."""
+    data = {
+        "backup_date": datetime.now().isoformat(),
+        "source": "postgresql" if _IS_POSTGRES else "sqlite",
+        "tables": {},
+    }
+    with get_db() as conn:
+        cur = conn.cursor()
+        for t in TABLES:
+            try:
+                cur.execute(f"SELECT * FROM {t} ORDER BY id")
+            except Exception:
+                # Tabella non ancora presente su questo DB: la salto.
+                conn.rollback()
+                continue
+            data["tables"][t] = [_row_to_dict(r) for r in cur.fetchall()]
+    return data
+
+
+def dump_json(indent: int = 2) -> str:
+    """Backup completo come stringa JSON (usato anche dalla route di download)."""
+    return json.dumps(dump_data(), ensure_ascii=False, indent=indent, default=_default)
+
+
+def backup() -> str:
+    """Scrive il backup su file con timestamp e restituisce il nome file."""
+    data = dump_data()
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_file = f"backup_{timestamp}.json"
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(json.dumps(data, ensure_ascii=False, indent=2, default=_default))
 
-    if DATABASE_URL:
-        print(f"Connessione a PostgreSQL (Neon)...")
-        import psycopg
-        from psycopg.rows import dict_row
-        conn = psycopg.connect(DATABASE_URL, row_factory=dict_row)
-    else:
-        print(f"Connessione a SQLite ({SQLITE_PATH})...")
-        import sqlite3
-        conn = sqlite3.connect(SQLITE_PATH)
-        conn.row_factory = sqlite3.Row
+    print(f"Backup completato: {output_file}  ({data['source']})")
+    for t in TABLES:
+        if t in data["tables"]:
+            print(f"  {t:22} {len(data['tables'][t]):>5}")
+    return output_file
 
-    try:
-        cur = conn.cursor()
-
-        cur.execute("SELECT * FROM pratiche ORDER BY id")
-        pratiche = [dict(r) for r in cur.fetchall()]
-
-        cur.execute("SELECT * FROM preventivi ORDER BY id")
-        preventivi = [dict(r) for r in cur.fetchall()]
-
-        # Converti campi non serializzabili (date, datetime)
-        def serialize(obj):
-            if hasattr(obj, "isoformat"):
-                return obj.isoformat()
-            return str(obj)
-
-        data = {
-            "backup_date": datetime.now().isoformat(),
-            "source": "postgresql" if DATABASE_URL else "sqlite",
-            "pratiche": json.loads(json.dumps(pratiche, default=serialize)),
-            "preventivi": json.loads(json.dumps(preventivi, default=serialize)),
-        }
-
-        with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-
-        print(f"\nBackup completato: {output_file}")
-        print(f"  Pratiche:   {len(pratiche)}")
-        print(f"  Preventivi: {len(preventivi)}")
-
-    finally:
-        conn.close()
 
 if __name__ == "__main__":
     backup()

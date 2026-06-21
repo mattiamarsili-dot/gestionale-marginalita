@@ -90,17 +90,20 @@ Se manca `DATABASE_URL` l'app usa SQLite e perde tutti i dati cloud.
 
 ### Opzione 2 — Restore da backup locale (file JSON)
 
-Se hai eseguito `backup.py` in precedenza:
+Se hai un file di backup (scaricato dall'app o generato con `backup.py`):
 
 ```bash
 cd "/Users/mattiamarsili/Desktop/Progetti Code/Gestionale Marginalità"
 
-# Prima imposta DATABASE_URL nel file .env
-# Poi esegui il restore
+# Restore in LOCALE (SQLite): basta lanciarlo
 python3 restore.py backup_YYYYMMDD_HHMMSS.json
+
+# Restore in PRODUZIONE (Neon): prima imposta DATABASE_URL nel file .env
 ```
 
-Lo script chiede conferma prima di sovrascrivere i dati.
+Lo script ripristina **tutte le tabelle** del backup (clienti, pratiche,
+preventivi, righe ausili, preset, motivazioni) e chiede conferma prima di
+sovrascrivere. Riconosce anche i vecchi backup (formato pre-2026-06).
 
 ---
 
@@ -119,17 +122,31 @@ Render esegue automaticamente un nuovo deploy con il codice precedente.
 
 ---
 
-## Come eseguire un backup manuale
+## Come eseguire un backup
 
-Esegui questo comando dal Mac per salvare tutti i dati in un file JSON:
+Il backup è un singolo file JSON con **tutte le tabelle** (clienti, pratiche,
+preventivi, righe ausili, preset, motivazioni) e tutte le loro colonne.
+
+### Modo 1 — Dall'app (consigliato, anche da telefono)
+
+Clicca l'icona **☁︎ (scarica)** in alto a destra nella barra: scarica subito
+`backup_AAAAMMGG_HHMMSS.json` con i dati **di produzione** (Neon). Salvalo dove
+preferisci (Google Drive, email a te stesso, chiavetta).
+
+**Consigliato:** un download a settimana e sempre prima di toccare il codice.
+
+### Modo 2 — Da terminale (Mac)
 
 ```bash
 cd "/Users/mattiamarsili/Desktop/Progetti Code/Gestionale Marginalità"
-python3 backup.py
+python3 backup.py          # backup del DB locale (SQLite)
+# con DATABASE_URL nel .env → backup di produzione (Neon)
 ```
 
-Il file `backup_YYYYMMDD_HHMMSS.json` viene creato nella cartella del progetto.  
-**Consigliato:** eseguire un backup prima di ogni aggiornamento del codice.
+> **Reti di sicurezza attive, in ordine:**
+> 1. **Neon PITR** — ripristino a qualsiasi istante degli ultimi 7 giorni (automatico).
+> 2. **Backup JSON** — il download 1-click qui sopra, conservato fuori dal sistema.
+> 3. **Git** — il codice è su GitHub; i dati NO (i `backup_*.json` sono git-ignored apposta).
 
 ---
 

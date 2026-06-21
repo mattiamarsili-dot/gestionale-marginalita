@@ -19,3 +19,27 @@
            placeholder="{{ nuovo }}" autocomplete="off">
   </div>
 {% endmacro %}
+
+{# Selettore delle colonne visibili in una lista. `nome` = chiave del cookie
+   (es. 'clienti'), `catalogo` = lista di {key,label,default}, `attive` = chiavi
+   attualmente mostrate. Richiede static/colonne.js. #}
+{% macro colonne_picker(nome, catalogo, attive) %}
+  <div class="dropdown">
+    <button class="btn btn-outline-secondary dropdown-toggle text-nowrap" type="button"
+            data-bs-toggle="dropdown" data-bs-auto-close="outside" title="Scegli le colonne">
+      <i class="bi bi-layout-three-columns me-1"></i>Colonne
+    </button>
+    <div class="dropdown-menu dropdown-menu-end p-3" style="min-width:230px" id="colonne-{{ nome }}">
+      <div class="fw-semibold small text-muted mb-2">Mostra colonne</div>
+      {% for col in catalogo %}
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" value="{{ col.key }}"
+               id="col-{{ nome }}-{{ col.key }}" {{ 'checked' if col.key in attive }}>
+        <label class="form-check-label" for="col-{{ nome }}-{{ col.key }}">{{ col.label }}</label>
+      </div>
+      {% endfor %}
+      <button type="button" class="btn btn-primary btn-sm w-100 mt-3"
+              onclick="applicaColonne('{{ nome }}')">Applica</button>
+    </div>
+  </div>
+{% endmacro %}

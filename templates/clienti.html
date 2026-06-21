@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_widgets.html" import colonne_picker %}
 {% block title %}Clienti — Gestionale Marginalità{% endblock %}
 
 {% block content %}
@@ -21,6 +22,7 @@
         {% endif %}
       </div>
     </form>
+    {{ colonne_picker('clienti', colonne_catalogo, colonne_attive) }}
     <a href="{{ url_for('cliente_nuovo') }}" class="btn btn-primary text-nowrap">
       <i class="bi bi-person-plus-fill me-1"></i>Nuovo
     </a>
@@ -51,11 +53,9 @@
         <thead class="table-light">
           <tr>
             <th>Cliente</th>
-            <th>Codice Fiscale</th>
-            <th>Telefono</th>
-            <th>ASL</th>
-            <th>Apertura</th>
-            <th class="text-center">Pratiche</th>
+            {% for col in colonne_catalogo if col.key in colonne_attive %}
+            <th class="{{ 'text-center' if col.key == 'num_pratiche' }}">{{ col.label }}</th>
+            {% endfor %}
             <th class="text-end">Azioni</th>
           </tr>
         </thead>
@@ -67,15 +67,26 @@
                 {{ c.cognome }}{% if c.nome %} {{ c.nome }}{% endif %}
               </a>
             </td>
-            <td class="text-muted">{{ c.codice_fiscale or '—' }}</td>
-            <td class="text-muted">{{ c.telefono or '—' }}</td>
-            <td class="text-muted">{{ c.asl or '—' }}</td>
-            <td class="text-muted">{{ (c.creato_il|string)[:10] if c.creato_il else '—' }}</td>
-            <td class="text-center">
-              {% if c.num_pratiche %}
-              <span class="badge bg-primary-subtle text-primary">{{ c.num_pratiche }}</span>
-              {% else %}<span class="text-muted">0</span>{% endif %}
-            </td>
+            {% for col in colonne_catalogo if col.key in colonne_attive %}
+              {% if col.key == 'cf' %}<td class="text-muted">{{ c.codice_fiscale or '—' }}</td>
+              {% elif col.key == 'telefono' %}<td>
+                {% if c.telefono %}<a href="tel:{{ c.telefono|replace(' ','') }}" onclick="event.stopPropagation()" class="text-decoration-none"><i class="bi bi-telephone me-1"></i>{{ c.telefono }}</a>
+                {% else %}<span class="text-muted">—</span>{% endif %}</td>
+              {% elif col.key == 'email' %}<td class="text-muted">{{ c.email or '—' }}</td>
+              {% elif col.key == 'asl' %}<td class="text-muted">{{ c.asl or '—' }}</td>
+              {% elif col.key == 'medico' %}<td class="text-muted">{{ c.medico_curante or '—' }}</td>
+              {% elif col.key == 'nascita' %}<td class="text-muted">{{ (c.data_nascita|string)[:10] if c.data_nascita else '—' }}</td>
+              {% elif col.key == 'luogo' %}<td class="text-muted">{{ c.luogo_nascita or '—' }}</td>
+              {% elif col.key == 'residenza' %}<td>
+                {% set indirizzo = [c.residenza_via, c.residenza_civico, c.residenza_cap, c.residenza_citta, c.provincia]|select|join(' ') %}
+                {% if c.residenza_citta or c.residenza_via %}<a href="https://www.google.com/maps/search/?api=1&query={{ indirizzo|urlencode }}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="text-decoration-none"><i class="bi bi-geo-alt me-1"></i>{{ c.residenza_citta or indirizzo }}</a>
+                {% else %}<span class="text-muted">—</span>{% endif %}</td>
+              {% elif col.key == 'apertura' %}<td class="text-muted">{{ (c.creato_il|string)[:10] if c.creato_il else '—' }}</td>
+              {% elif col.key == 'num_pratiche' %}<td class="text-center">
+                {% if c.num_pratiche %}<span class="badge bg-primary-subtle text-primary">{{ c.num_pratiche }}</span>
+                {% else %}<span class="text-muted">0</span>{% endif %}</td>
+              {% endif %}
+            {% endfor %}
             <td class="text-end">
               <a href="{{ url_for('cliente_modifica', cliente_id=c.id) }}"
                  class="btn btn-sm btn-outline-secondary" title="Modifica">
@@ -97,4 +108,5 @@
   </div>
 </div></div>
 {% endif %}
+<script src="{{ url_for('static', filename='colonne.js') }}"></script>
 {% endblock %}

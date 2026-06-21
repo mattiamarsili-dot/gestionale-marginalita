@@ -970,6 +970,12 @@ def aggiorna_dati_moduli(pratica_id):
             f"UPDATE pratiche SET {set_clause} WHERE id = {_PH}",
             tuple(params) + (pratica_id,),
         )
+    if request.headers.get("X-Requested-With") == "fetch":
+        return jsonify({
+            "ok": True,
+            "nome_paziente": (request.form.get("nome_paziente") or "").strip(),
+            "cliente_id": (request.form.get("cliente_id") or "").strip(),
+        })
     return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) + "#moduli")
 
 
@@ -1197,6 +1203,45 @@ def _raggruppa_per_centro(righe) -> list:
     return [(nome, gruppi[nome]) for nome in sorted(gruppi, key=chiave)]
 
 
+# ── Colonne configurabili delle liste ────────────────────────────────────────
+# Catalogo delle colonne opzionali. "Cliente"/"Paziente" e le azioni sono fisse.
+# Default = colonne mostrate finché l'utente non personalizza (via cookie cols_*).
+
+COLONNE_CLIENTI = [
+    {"key": "cf",           "label": "Codice Fiscale", "default": True},
+    {"key": "telefono",     "label": "Telefono",       "default": True},
+    {"key": "email",        "label": "Email",          "default": False},
+    {"key": "asl",          "label": "ASL",            "default": True},
+    {"key": "medico",       "label": "Medico curante", "default": False},
+    {"key": "nascita",      "label": "Data nascita",   "default": False},
+    {"key": "luogo",        "label": "Luogo nascita",  "default": False},
+    {"key": "residenza",    "label": "Residenza",      "default": False},
+    {"key": "apertura",     "label": "Apertura",       "default": True},
+    {"key": "num_pratiche", "label": "N° pratiche",    "default": True},
+]
+
+COLONNE_PRATICHE = [
+    {"key": "data",    "label": "Data",            "default": True},
+    {"key": "numero",  "label": "N° pratica",      "default": True},
+    {"key": "asl",     "label": "Importo ASL",     "default": True},
+    {"key": "privato", "label": "Importo privato", "default": False},
+    {"key": "costo",   "label": "Costo fornitori", "default": True},
+    {"key": "mol",     "label": "MOL",             "default": False},
+    {"key": "margine", "label": "Margine %",       "default": False},
+    {"key": "stato",   "label": "Stato",           "default": True},
+]
+
+
+def _colonne_attive(nome: str, catalogo: list) -> list:
+    """Legge dal cookie cols_<nome> le colonne scelte, mantenendo l'ordine del
+    catalogo. Senza cookie usa i default. Cookie vuoto/'none' = nessuna opzionale."""
+    raw = request.cookies.get("cols_" + nome)
+    if raw is None:
+        return [c["key"] for c in catalogo if c["default"]]
+    scelte = set(raw.split(","))
+    return [c["key"] for c in catalogo if c["key"] in scelte]
+
+
 @app.route("/clienti")
 def clienti():
     q = (request.args.get("q") or "").strip()
@@ -1227,6 +1272,8 @@ def clienti():
     return render_template(
         "clienti.html", clienti=elenco, gruppi=gruppi, q=q,
         centro=centro, centri=opzioni_centri(),
+        colonne_catalogo=COLONNE_CLIENTI,
+        colonne_attive=_colonne_attive("clienti", COLONNE_CLIENTI),
     )
 
 
@@ -1262,11 +1309,29 @@ def pratiche():
                          p.data_pratica DESC""",
             tuple(params),
         )
-        elenco = cur.fetchall()
+        elenco = [dict(r) for r in cur.fetchall()]
+    # MOL e margine % per riga (per le colonne opzionali)
+    for p in elenco:
+        m = calcola_margine(
+            p.get("importo_asl") or 0,
+            p.get("costo_totale") or 0,
+            p.get("provvigione_pct") or PROVVIGIONE_PCT,
+            p.get("importo_privato") or 0,
+        )
+        p["mol"] = m["mol"]
+        p["margine_pct"] = m["margine_pct"]
+        if m["margine_pct"] >= MARGINE_SOGLIA_OK:
+            p["margine_classe"] = "success"
+        elif m["margine_pct"] >= MARGINE_SOGLIA_WARN:
+            p["margine_classe"] = "warning"
+        else:
+            p["margine_classe"] = "danger"
     gruppi = _raggruppa_per_centro(elenco)
     return render_template(
         "pratiche.html", pratiche=elenco, gruppi=gruppi, q=q,
         centro=centro, centri=opzioni_centri(),
+        colonne_catalogo=COLONNE_PRATICHE,
+        colonne_attive=_colonne_attive("pratiche", COLONNE_PRATICHE),
     )
 
 
@@ -1439,6 +1504,21 @@ def api_clienti():
             )
         risultati = [dict(r) for r in cur.fetchall()]
     return jsonify(risultati)
+
+
+# ── Backup dati ───────────────────────────────────────────────────────────────
+
+@app.route("/backup/scarica")
+def scarica_backup():
+    """Scarica un backup completo (tutte le tabelle) come file JSON."""
+    import backup as backup_mod
+    payload = backup_mod.dump_json()
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return Response(
+        payload,
+        mimetype="application/json",
+        headers={"Content-Disposition": f"attachment; filename=backup_{ts}.json"},
+    )
 
 
 # ── Avvio ─────────────────────────────────────────────────────────────────────

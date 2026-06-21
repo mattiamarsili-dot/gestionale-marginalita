@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_widgets.html" import colonne_picker %}
 {% block title %}Pratiche — Gestionale Marginalità{% endblock %}
 
 {% block content %}
@@ -21,6 +22,7 @@
         {% endif %}
       </div>
     </form>
+    {{ colonne_picker('pratiche', colonne_catalogo, colonne_attive) }}
     <a href="{{ url_for('nuova_pratica') }}" class="btn btn-primary text-nowrap">
       <i class="bi bi-plus-circle-fill me-1"></i>Nuova
     </a>
@@ -50,32 +52,36 @@
       <table class="table table-hover mb-0 align-middle">
         <thead class="table-light">
           <tr>
+            {% for col in colonne_catalogo if col.key in colonne_attive and col.key == 'data' %}
             <th>Data</th>
+            {% endfor %}
             <th>Paziente</th>
-            <th>N° pratica</th>
-            <th class="text-end">Importo ASL</th>
-            <th class="text-end">Costo fornitori</th>
-            <th class="text-center">Stato</th>
+            {% for col in colonne_catalogo if col.key in colonne_attive and col.key != 'data' %}
+            <th class="{{ 'text-center' if col.key == 'stato' else 'text-end' if col.key in ['asl','privato','costo','mol','margine'] }}">{{ col.label }}</th>
+            {% endfor %}
             <th></th>
           </tr>
         </thead>
         <tbody>
           {% for p in elenco %}
           <tr style="cursor:pointer" onclick="window.location='{{ url_for('dettaglio_pratica', pratica_id=p.id) }}'">
-            <td>{{ p.data_pratica }}</td>
+            {% if 'data' in colonne_attive %}<td>{{ p.data_pratica }}</td>{% endif %}
             <td class="fw-semibold">
               {% if p.cognome %}{{ p.cognome }}{% if p.nome %} {{ p.nome }}{% endif %}{% else %}{{ p.nome_paziente }}{% endif %}
             </td>
-            <td class="text-muted">{{ p.numero_pratica or '—' }}</td>
-            <td class="text-end">€ {{ '%.2f'|format(p.importo_asl) }}</td>
-            <td class="text-end text-muted">€ {{ '%.2f'|format(p.costo_totale) }}</td>
-            <td class="text-center">
-              {% if p.fatturata %}
-              <span class="badge bg-success-subtle text-success">Fatturata</span>
-              {% else %}
-              <span class="badge bg-secondary-subtle text-secondary">Aperta</span>
+            {% for col in colonne_catalogo if col.key in colonne_attive and col.key != 'data' %}
+              {% if col.key == 'numero' %}<td class="text-muted">{{ p.numero_pratica or '—' }}</td>
+              {% elif col.key == 'asl' %}<td class="text-end">€ {{ '%.2f'|format(p.importo_asl) }}</td>
+              {% elif col.key == 'privato' %}<td class="text-end text-muted">€ {{ '%.2f'|format(p.importo_privato or 0) }}</td>
+              {% elif col.key == 'costo' %}<td class="text-end text-muted">€ {{ '%.2f'|format(p.costo_totale) }}</td>
+              {% elif col.key == 'mol' %}<td class="text-end">€ {{ '%.2f'|format(p.mol) }}</td>
+              {% elif col.key == 'margine' %}<td class="text-end">
+                <span class="badge bg-{{ p.margine_classe }}-subtle text-{{ p.margine_classe }}">{{ '%.1f'|format(p.margine_pct) }}%</span></td>
+              {% elif col.key == 'stato' %}<td class="text-center">
+                {% if p.fatturata %}<span class="badge bg-success-subtle text-success">Fatturata</span>
+                {% else %}<span class="badge bg-secondary-subtle text-secondary">Aperta</span>{% endif %}</td>
               {% endif %}
-            </td>
+            {% endfor %}
             <td class="text-end" style="width:48px" onclick="event.stopPropagation()">
               <form method="post" action="{{ url_for('elimina_pratica', pratica_id=p.id) }}"
                     onsubmit="return confirm('Eliminare la pratica di {{ (p.cognome ~ ' ' ~ (p.nome or '')) if p.cognome else p.nome_paziente }}? L\'operazione è definitiva.');">
@@ -100,4 +106,5 @@
   </div>
 </div></div>
 {% endif %}
+<script src="{{ url_for('static', filename='colonne.js') }}"></script>
 {% endblock %}

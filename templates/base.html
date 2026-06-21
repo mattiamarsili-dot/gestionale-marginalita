@@ -42,6 +42,10 @@
         <a class="nav-link btn-nuova ms-3 {% if request.endpoint == 'nuova_pratica' %}active{% endif %}" href="{{ url_for('nuova_pratica') }}">
           <i class="bi bi-plus-circle-fill me-1"></i>Nuova Pratica
         </a>
+        <a class="nav-link ms-3 text-white-50" href="{{ url_for('scarica_backup') }}"
+           title="Scarica backup completo (.json)">
+          <i class="bi bi-cloud-download"></i>
+        </a>
         {% if session.get('autenticato') %}
         <a class="nav-link ms-3 text-white-50" href="{{ url_for('logout') }}" title="Esci">
           <i class="bi bi-box-arrow-right"></i>

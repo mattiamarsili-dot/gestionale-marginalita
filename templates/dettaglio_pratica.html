@@ -84,7 +84,7 @@
             <i class="bi bi-upc-scan me-2"></i>Codifica ASL e dati per i moduli
           </div>
           <div class="card-body">
-            <form method="post" action="{{ url_for('aggiorna_dati_moduli', pratica_id=pratica.id) }}" class="row g-2">
+            <form method="post" action="{{ url_for('aggiorna_dati_moduli', pratica_id=pratica.id) }}" class="row g-2" id="form-codifica">
               <input type="hidden" name="cliente_id" id="cod-cliente-id" value="{{ pratica.cliente_id or '' }}">
               <div class="col-12 col-sm-6">
                 <label class="form-label form-label-sm mb-1 d-flex justify-content-between align-items-end">
@@ -172,8 +172,11 @@
                 </div>
               </div>
 
-              <div class="col-12 text-end">
-                <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-save me-1"></i>Salva codifica</button>
+              <div class="col-12 d-flex align-items-center justify-content-end gap-2">
+                <small id="cod-stato" class="text-muted"></small>
+                <button type="submit" id="btn-salva-codifica" class="btn btn-sm btn-primary" disabled>
+                  <i class="bi bi-check2 me-1"></i>Salvato
+                </button>
               </div>
             </form>
           </div>
@@ -602,6 +605,8 @@
           // ASL e medico copiati da anagrafica se i campi sono vuoti
           if (aslInput && !aslInput.value.trim() && c.asl) aslInput.value = c.asl;
           if (medicoInput && !medicoInput.value.trim() && c.medico_curante) medicoInput.value = c.medico_curante;
+          // Segnala al tracker delle modifiche che paziente/cliente sono cambiati
+          hidden.dispatchEvent(new Event('change', { bubbles: true }));
           nascondi();
         });
         dropdown.appendChild(btn);
@@ -959,6 +964,94 @@ function eurPlain(n) {
     ricalcola();
     salva();
   });
+})();
+
+// ── Codifica ASL: rileva le modifiche e auto-salva (no reload) ───────────────
+(function () {
+  const form  = document.getElementById('form-codifica');
+  const btn   = document.getElementById('btn-salva-codifica');
+  const stato = document.getElementById('cod-stato');
+  const hidCliente = document.getElementById('cod-cliente-id');
+  if (!form || !btn) return;
+
+  // Snapshot dei soli campi con name (quelli che vengono inviati)
+  function snapshot() {
+    const fd = new FormData(form);
+    const parti = [];
+    for (const [k, v] of fd.entries()) parti.push(k + '=' + v);
+    return parti.join('&');
+  }
+
+  let salvato = snapshot();              // stato salvato sul server
+  let clienteIniziale = hidCliente ? hidCliente.value : '';
+  let timer = null;
+  let inFlight = false;
+
+  function sporco() { return snapshot() !== salvato; }
+
+  function aggiornaBottone() {
+    const dirty = sporco();
+    btn.disabled = !dirty || inFlight;
+    if (inFlight) {
+      btn.className = 'btn btn-sm btn-primary';
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Salvataggio…';
+    } else if (dirty) {
+      btn.className = 'btn btn-sm btn-warning';
+      btn.innerHTML = '<i class="bi bi-save me-1"></i>Salva modifiche';
+    } else {
+      btn.className = 'btn btn-sm btn-primary';
+      btn.innerHTML = '<i class="bi bi-check2 me-1"></i>Salvato';
+    }
+  }
+
+  async function salva() {
+    if (!sporco() || inFlight) return;
+    clearTimeout(timer);
+    inFlight = true;
+    aggiornaBottone();
+    if (stato) stato.textContent = '';
+    try {
+      const res = await fetch(form.action, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'fetch' },
+        body: new FormData(form),
+      });
+      const d = await res.json();
+      if (!d.ok) throw new Error();
+      // Se è cambiato il cliente collegato, ricarico: cambia la UI dipendente
+      // (card paziente, avvisi moduli, precompilazione).
+      if ((d.cliente_id || '') !== (clienteIniziale || '')) {
+        window.location = '{{ url_for("dettaglio_pratica", pratica_id=pratica.id) }}#moduli';
+        location.reload();
+        return;
+      }
+      salvato = snapshot();
+      inFlight = false;
+      aggiornaBottone();
+      if (stato) { stato.textContent = '✓ salvato'; stato.className = 'text-success small'; setTimeout(() => { if (stato) stato.textContent = ''; }, 2000); }
+      // Aggiorna il titolo in alto se è cambiato il nome paziente
+      const h = document.querySelector('h4.fw-bold');
+      if (h && d.nome_paziente) h.textContent = d.nome_paziente;
+    } catch (_) {
+      inFlight = false;
+      aggiornaBottone();
+      if (stato) { stato.textContent = '⚠️ non salvato — riprova'; stato.className = 'text-danger small'; }
+    }
+  }
+
+  // Ogni modifica: aggiorna il bottone e programma l'auto-save
+  form.addEventListener('input', () => { aggiornaBottone(); clearTimeout(timer); timer = setTimeout(salva, 1200); });
+  form.addEventListener('change', () => { aggiornaBottone(); clearTimeout(timer); timer = setTimeout(salva, 800); });
+
+  // Click sul bottone = salva subito (niente submit/reload)
+  form.addEventListener('submit', (e) => { e.preventDefault(); salva(); });
+
+  // Avvisa se si lascia la pagina con modifiche non salvate
+  window.addEventListener('beforeunload', (e) => {
+    if (sporco()) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  aggiornaBottone();
 })();
 </script>
 {% endblock %}
