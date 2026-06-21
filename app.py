@@ -14,6 +14,7 @@ from config import (
     PROVVIGIONE_PCT, PROVVIGIONE_PCT_RIDOTTA, STRUTTURA_PCT,
     PROVVIGIONE_PCT_17, PROVVIGIONE_PCT_18, SOGLIA_PROV_17, SOGLIA_PROV_18,
     MARGINE_SOGLIA_OK, MARGINE_SOGLIA_WARN, CENTRI, ASL_OPZIONI,
+    ANTHROPIC_API_KEY,
 )
 from database import (
     init_db, migrate_db, backfill_clienti, get_db, calcola_margine, provvigione_corrente,
@@ -746,7 +747,8 @@ def elimina_pratica(pratica_id):
         cur.execute(f"DELETE FROM righe_ausili WHERE pratica_id = {_PH}", (pratica_id,))
         cur.execute(f"DELETE FROM preventivi WHERE pratica_id = {_PH}", (pratica_id,))
         cur.execute(f"DELETE FROM pratiche WHERE id = {_PH}", (pratica_id,))
-    return redirect(url_for("dashboard"))
+    torna = request.form.get("torna")
+    return redirect(torna or url_for("dashboard"))
 
 
 # ── Catalogo significato terapeutico (globale, editabile via AJAX) ────────────
@@ -1264,7 +1266,8 @@ def mobile_nuovo():
         if not dati["cognome"]:
             return render_template("mobile_nuovo.html", cliente=dati,
                                    errore="Il cognome è obbligatorio.",
-                                   centri=opzioni_centri(), asl_opzioni=opzioni_asl())
+                                   centri=opzioni_centri(), asl_opzioni=opzioni_asl(),
+                                   ai_attivo=bool(ANTHROPIC_API_KEY))
         cols = ", ".join(CLIENTE_FIELDS)
         ph = ", ".join([_PH] * len(CLIENTE_FIELDS))
         with get_db() as conn:
@@ -1276,7 +1279,9 @@ def mobile_nuovo():
             cliente_id = last_inserted_id(cur)
         # Crea la bozza pratica per questo cliente (copia ASL/medico) e la apre
         return redirect(url_for("nuova_pratica", cliente_id=cliente_id))
-    return render_template("mobile_nuovo.html", cliente={}, errore=None, centri=opzioni_centri(), asl_opzioni=opzioni_asl())
+    return render_template("mobile_nuovo.html", cliente={}, errore=None,
+                           centri=opzioni_centri(), asl_opzioni=opzioni_asl(),
+                           ai_attivo=bool(ANTHROPIC_API_KEY))
 
 
 @app.route("/cliente/<int:cliente_id>")
@@ -1339,6 +1344,26 @@ def cliente_elimina(cliente_id):
 
 
 # ── API: ricerca clienti (per selettore in nuova pratica) ─────────────────────
+
+@app.route("/api/estrai-cliente", methods=["POST"])
+def api_estrai_cliente():
+    """Estrae i campi anagrafici da un messaggio in testo libero (Claude API)."""
+    testo = (request.form.get("testo") or "").strip()
+    if not testo and request.is_json:
+        testo = ((request.get_json(silent=True) or {}).get("testo") or "").strip()
+    if not testo:
+        return jsonify({"ok": False, "errore": "Testo vuoto"}), 400
+    try:
+        from ai_extract import estrai_dati_cliente
+        dati = estrai_dati_cliente(testo, opzioni_centri(), opzioni_asl())
+        return jsonify({"ok": True, "dati": dati})
+    except RuntimeError as e:
+        # Chiave non configurata
+        return jsonify({"ok": False, "errore": str(e)}), 503
+    except Exception:
+        app.logger.exception("Estrazione cliente fallita")
+        return jsonify({"ok": False, "errore": "Estrazione non riuscita"}), 500
+
 
 @app.route("/api/clienti")
 def api_clienti():

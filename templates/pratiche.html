@@ -56,6 +56,7 @@
             <th class="text-end">Importo ASL</th>
             <th class="text-end">Costo fornitori</th>
             <th class="text-center">Stato</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -74,6 +75,15 @@
               {% else %}
               <span class="badge bg-secondary-subtle text-secondary">Aperta</span>
               {% endif %}
+            </td>
+            <td class="text-end" style="width:48px" onclick="event.stopPropagation()">
+              <form method="post" action="{{ url_for('elimina_pratica', pratica_id=p.id) }}"
+                    onsubmit="return confirm('Eliminare la pratica di {{ (p.cognome ~ ' ' ~ (p.nome or '')) if p.cognome else p.nome_paziente }}? L\'operazione è definitiva.');">
+                <input type="hidden" name="torna" value="{{ request.full_path }}">
+                <button type="submit" class="btn btn-link btn-sm p-0 text-danger" title="Elimina pratica">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
             </td>
           </tr>
           {% endfor %}

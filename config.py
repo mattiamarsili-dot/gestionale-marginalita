@@ -47,6 +47,12 @@ ACCESS_CODE   = os.environ.get("ACCESS_CODE", "")   # vuoto = nessun login in sv
 UPLOAD_FOLDER = "uploads"
 MAX_UPLOAD_MB = 20
 
+# ── Estrazione anagrafica da testo (Claude API) ──────────────────────────────
+# Chiave API (Anthropic Console, fatturazione a consumo separata dagli abbonamenti).
+# Vuota = funzione "Incolla messaggio" disattivata (nessuna chiamata, nessun costo).
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+ANTHROPIC_MODEL   = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-8")
+
 # ── Database ──────────────────────────────────────────────────────────────────
 # Se DATABASE_URL è impostato (produzione) → PostgreSQL, altrimenti → SQLite
 DATABASE_URL = os.environ.get("DATABASE_URL", "")

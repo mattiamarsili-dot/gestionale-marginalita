@@ -53,6 +53,24 @@
     </div>
     {% endif %}
 
+    {% if ai_attivo %}
+    <!-- Incolla messaggio → compila automaticamente i campi -->
+    <div class="card m-card mb-3">
+      <div class="card-header" style="background:#198754">
+        <i class="bi bi-magic me-2"></i>Incolla messaggio
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-2">Incolla un messaggio con i dati del paziente: i campi qui sotto si compilano da soli (poi controlla e correggi).</p>
+        <textarea id="ai-testo" class="form-control" rows="4"
+                  placeholder="Es. Mario Rossi nato a Roma il 12/3/1950, CF RSSMRA50C12H501X, via Dei Platani 9 Roma RM, tel 333…, ASL RM2, Policlinico Tor Vergata, dott. Bianchi"></textarea>
+        <button type="button" id="ai-compila" class="btn btn-success w-100 mt-2 btn-salva">
+          <i class="bi bi-stars me-2"></i>Compila dai dati
+        </button>
+        <div id="ai-stato" class="small mt-2"></div>
+      </div>
+    </div>
+    {% endif %}
+
     <form method="post" class="m-form" id="form-mobile">
       <!-- Anagrafica -->
       <div class="card m-card mb-3">
@@ -218,7 +236,7 @@
 
   <div class="m-footer">
     <div class="m-wrap mx-auto">
-      <button type="submit" form="form-mobile" class="btn btn-primary btn-salva w-100">
+      <button type="submit" form="form-mobile" id="btn-salva-submit" class="btn btn-primary btn-salva w-100">
         <i class="bi bi-check2-circle me-2"></i>Salva e apri pratica
       </button>
     </div>
@@ -236,11 +254,68 @@
     });
     // Evita doppio invio (tap multipli sul tablet)
     document.getElementById('form-mobile').addEventListener('submit', function (e) {
-      const btn = document.querySelector('.btn-salva');
+      const btn = document.getElementById('btn-salva-submit');
       if (btn.dataset.sent) { e.preventDefault(); return; }
       btn.dataset.sent = '1';
       btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Salvataggio…';
     });
+
+    // Incolla messaggio → estrazione via Claude API e compilazione campi
+    (function () {
+      const btn = document.getElementById('ai-compila');
+      if (!btn) return;
+      const ta = document.getElementById('ai-testo');
+      const stato = document.getElementById('ai-stato');
+
+      function setField(name, val) {
+        if (!val) return;
+        const el = document.querySelector('[name="' + name + '"]');
+        if (!el) return;
+        if (el.tagName === 'SELECT') {
+          let opt = Array.prototype.find.call(el.options, o => o.value.toLowerCase() === val.toLowerCase());
+          if (!opt) {
+            opt = document.createElement('option');
+            opt.value = val; opt.textContent = val;
+            el.insertBefore(opt, el.querySelector('option[value="__add__"]'));
+          }
+          el.value = opt.value;
+        } else {
+          el.value = val;
+        }
+      }
+
+      btn.addEventListener('click', async function () {
+        const testo = (ta.value || '').trim();
+        if (!testo) { stato.className = 'small mt-2 text-muted'; stato.textContent = 'Incolla prima un messaggio.'; return; }
+        btn.disabled = true;
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Lettura…';
+        stato.className = 'small mt-2 text-muted'; stato.textContent = 'Estrazione in corso…';
+        try {
+          const res = await fetch('/api/estrai-cliente', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'fetch' },
+            body: new URLSearchParams({ testo }),
+          });
+          const d = await res.json();
+          if (d.ok) {
+            let n = 0;
+            Object.keys(d.dati).forEach(function (k) { if (d.dati[k]) { setField(k, d.dati[k]); n++; } });
+            stato.className = 'small mt-2 text-success';
+            stato.innerHTML = '<i class="bi bi-check2-circle"></i> Compilati ' + n + ' campi — controlla e salva.';
+          } else {
+            stato.className = 'small mt-2 text-danger';
+            stato.textContent = d.errore || 'Estrazione non riuscita.';
+          }
+        } catch (_) {
+          stato.className = 'small mt-2 text-danger';
+          stato.textContent = 'Errore di rete.';
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = orig;
+        }
+      });
+    })();
   </script>
 </body>
 </html>
