@@ -160,3 +160,37 @@ git push -u origin main
 | `SQLITE_PATH` | `gestionale.db` | — |
 | `DRIVE_FOLDER_ID` | *(vuoto = Drive disabilitato)* | ID cartella |
 | `GOOGLE_CREDENTIALS_JSON` | *(vuoto)* | JSON service account |
+
+---
+
+## Aggiornamento 2026-06-21 — Anagrafica, moduli PDF, mobile, AI, PWA
+
+Tutto deployato in produzione (commit corrente `efb0fcd`). Workflow git: commit su `main` → push (Render auto-deploy) → `git branch -f feat/crm-anagrafica-pdf main` → push.
+
+### Nuove funzionalità
+| Feature | File chiave | Note |
+|---|---|---|
+| Anagrafica clienti strutturata | `database.py` (tabella `clienti`), `cliente_form.html` | CF, nascita, residenza, ASL, centro, medico, documento |
+| Pratica a doppia scheda + live | `dettaglio_pratica.html` | codifica ASL/medico, righe ausili, moduli |
+| Righe ausili (LEA) | `dettaglio_pratica.html` | Q.tà editabile inline, selezione multipla + elimina, preset |
+| Compilazione moduli PDF | `pdf_filler.py` | 8 template; font uniforme 10pt; wrap significato per larghezza reale; **/AP mantenuto** (campi visibili in tutti i viewer) |
+| Tutore legale (deleghe) | `clienti.ha_tutore + tutore_*`, `pdf_filler.py` | spunta in anagrafica/mobile; Delega RM2 compila il blocco delegato col documento del tutore |
+| Tendine Centro/ASL persistenti | `config.py` (CENTRI, ASL_OPZIONI), `_widgets.html`, `static/select-add.js` | seme ∪ valori DB; "➕ Aggiungi nuovo" |
+| Copia ASL+medico in pratica | `app.py` (nuova_pratica, /api/clienti) | da anagrafica alla creazione/selezione |
+| Form rapido da tablet | `mobile_nuovo.html`, route `/mobile/nuovo` | input grandi (Scribble), salva cliente + apre pratica |
+| Pagina QR | `mobile_qr.html`, route `/mobile` | QR verso il form mobile |
+| Estrazione anagrafica da testo (AI) | `ai_extract.py`, route `/api/estrai-cliente` | Claude API (claude-opus-4-8); card "Incolla messaggio" nel form mobile; attiva solo con `ANTHROPIC_API_KEY` |
+| Elimina pratica dalla vista Pratiche | `pratiche.html` | cestino per riga (anche fatturate) |
+| PWA installabile | route `/manifest.webmanifest`, `/sw.js`, `static/icons/` | "Aggiungi a Home"; SW cache-a solo asset statici |
+
+### Env var aggiunte
+| Variabile | Sviluppo | Produzione | Scopo |
+|---|---|---|---|
+| `ANTHROPIC_API_KEY` | *(vuoto = AI off)* | da console.anthropic.com | estrazione anagrafica da testo (fatturazione API separata dagli abbonamenti) |
+| `ANTHROPIC_MODEL` | `claude-opus-4-8` | opzionale | modello estrazione |
+
+### In sospeso / prossimi passi
+- Pulire su **produzione (Neon)** i due "Pol. Tor Vergata"/"Pol. TorVergata" → `centro='PTV'` (in locale già fatto; 3 clienti). Da app o SQL.
+- Impostare `ANTHROPIC_API_KEY` su Render per attivare l'estrazione AI.
+- Migliorie online non ancora fatte: **anti-sleep (UptimeRobot)**, **dominio personalizzato**.
+- PDF: mappare il blocco delegato posizionale della **Delega Generica** al tutore (oggi solo RM2).
