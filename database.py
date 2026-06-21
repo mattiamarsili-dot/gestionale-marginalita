@@ -72,6 +72,12 @@ _SQLITE_SCHEMA = """
         decorrenza_residenza    DATE,
         documento_tipo_numero   TEXT,
         documento_data_rilascio DATE,
+        ha_tutore                       INTEGER NOT NULL DEFAULT 0,
+        tutore_nome                     TEXT,
+        tutore_cf                       TEXT,
+        tutore_documento_tipo_numero    TEXT,
+        tutore_documento_rilascio_luogo TEXT,
+        tutore_documento_rilascio_data  DATE,
         note                    TEXT,
         creato_il               TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
@@ -174,6 +180,12 @@ _POSTGRES_SCHEMA = """
         decorrenza_residenza    DATE,
         documento_tipo_numero   TEXT,
         documento_data_rilascio DATE,
+        ha_tutore                       BOOLEAN NOT NULL DEFAULT FALSE,
+        tutore_nome                     TEXT,
+        tutore_cf                       TEXT,
+        tutore_documento_tipo_numero    TEXT,
+        tutore_documento_rilascio_luogo TEXT,
+        tutore_documento_rilascio_data  DATE,
         note                    TEXT,
         creato_il               TIMESTAMPTZ DEFAULT NOW()
     );
@@ -293,6 +305,14 @@ def migrate_db():
                 "ALTER TABLE clienti ADD COLUMN IF NOT EXISTS centro TEXT"
             )
             for col in [
+                "ha_tutore BOOLEAN NOT NULL DEFAULT FALSE",
+                "tutore_nome TEXT", "tutore_cf TEXT",
+                "tutore_documento_tipo_numero TEXT",
+                "tutore_documento_rilascio_luogo TEXT",
+                "tutore_documento_rilascio_data DATE",
+            ]:
+                cur.execute(f"ALTER TABLE clienti ADD COLUMN IF NOT EXISTS {col}")
+            for col in [
                 "numero_pratica TEXT", "ausilio TEXT", "asl_destinataria TEXT",
                 "medico_struttura TEXT", "diagnosi TEXT", "sign_terapeutico TEXT",
                 "iva_percentuale REAL NOT NULL DEFAULT 4", "moduli_attivi TEXT",
@@ -307,6 +327,12 @@ def migrate_db():
                 "ALTER TABLE pratiche ADD COLUMN importo_privato REAL NOT NULL DEFAULT 0",
                 "ALTER TABLE pratiche ADD COLUMN cliente_id INTEGER REFERENCES clienti(id)",
                 "ALTER TABLE clienti ADD COLUMN centro TEXT",
+                "ALTER TABLE clienti ADD COLUMN ha_tutore INTEGER NOT NULL DEFAULT 0",
+                "ALTER TABLE clienti ADD COLUMN tutore_nome TEXT",
+                "ALTER TABLE clienti ADD COLUMN tutore_cf TEXT",
+                "ALTER TABLE clienti ADD COLUMN tutore_documento_tipo_numero TEXT",
+                "ALTER TABLE clienti ADD COLUMN tutore_documento_rilascio_luogo TEXT",
+                "ALTER TABLE clienti ADD COLUMN tutore_documento_rilascio_data DATE",
                 "ALTER TABLE pratiche ADD COLUMN numero_pratica TEXT",
                 "ALTER TABLE pratiche ADD COLUMN ausilio TEXT",
                 "ALTER TABLE pratiche ADD COLUMN asl_destinataria TEXT",

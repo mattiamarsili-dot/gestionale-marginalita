@@ -275,6 +275,13 @@ def dati_canonici(pratica: dict, cliente: dict) -> dict:
         "decorrenza_residenza":    _fmt_data(cliente.get("decorrenza_residenza")),
         "documento_tipo_numero":   (cliente.get("documento_tipo_numero") or "").strip(),
         "documento_data_rilascio": _fmt_data(cliente.get("documento_data_rilascio")),
+        # Tutore legale (= delegato delle deleghe)
+        "ha_tutore":               bool(cliente.get("ha_tutore")),
+        "tutore_nome":             (cliente.get("tutore_nome") or "").strip(),
+        "tutore_cf":               (cliente.get("tutore_cf") or "").strip(),
+        "tutore_documento_tipo_numero":    (cliente.get("tutore_documento_tipo_numero") or "").strip(),
+        "tutore_documento_rilascio_luogo": (cliente.get("tutore_documento_rilascio_luogo") or "").strip(),
+        "tutore_documento_rilascio_data":  _fmt_data(cliente.get("tutore_documento_rilascio_data")),
         "data_prescrizione": _fmt_data(pratica.get("data_pratica")),
         "medico_struttura": (pratica.get("medico_struttura") or "").strip(),
         "ausilio":          (pratica.get("ausilio") or "").strip(),
@@ -373,8 +380,12 @@ def build_field_map(template_id: str, pratica: dict, cliente: dict, righe: list 
         }
 
     if template_id == "delega-rm2":
-        # delegante = il cliente; il blocco delegato_* lo compila a mano l'operatore.
+        # delegante = il cliente; delegato = il tutore legale (se presente),
+        # altrimenti il blocco delegato resta vuoto e si compila a mano.
         return {
+            "delega_rm2_delegato_documento_tipo_numero":    D["tutore_documento_tipo_numero"],
+            "delega_rm2_delegato_documento_rilascio_luogo": D["tutore_documento_rilascio_luogo"],
+            "delega_rm2_delegato_documento_rilascio_data":  D["tutore_documento_rilascio_data"],
             "delega_rm2_delegante_cognome_nome": D["nome"],
             "delega_rm2_delegante_cf": D["cf"],
             "delega_rm2_delegante_nato_luogo": D["nato_luogo"],

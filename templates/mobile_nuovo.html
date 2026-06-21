@@ -149,9 +149,70 @@
         </div>
       </div>
 
-      <p class="text-muted small px-1">
-        Gli altri dati (documento, email, note) si completano poi dalla scheda cliente.
-      </p>
+      <!-- Documento d'identità (per le deleghe) -->
+      <div class="card m-card mb-3">
+        <div class="card-header"><i class="bi bi-card-text me-2"></i>Documento d'identità</div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-12 col-md-7">
+              <label>Tipo e numero</label>
+              <input type="text" name="documento_tipo_numero" class="form-control"
+                     autocomplete="off" placeholder="Es. CI AB1234567"
+                     value="{{ cliente.documento_tipo_numero or '' }}">
+            </div>
+            <div class="col-12 col-md-5">
+              <label>Data rilascio</label>
+              <input type="date" name="documento_data_rilascio" class="form-control"
+                     value="{{ cliente.documento_data_rilascio or '' }}">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tutore legale -->
+      <div class="card m-card mb-3">
+        <div class="card-header d-flex align-items-center gap-2">
+          <i class="bi bi-person-badge me-1"></i>Tutore legale
+          <div class="form-check form-switch ms-auto mb-0">
+            <input class="form-check-input" type="checkbox" role="switch" id="ha-tutore"
+                   name="ha_tutore" data-toggle-target="#tutore-fields-m"
+                   {{ 'checked' if cliente.ha_tutore }}>
+            <label class="form-check-label small text-white" for="ha-tutore">C'è un tutore</label>
+          </div>
+        </div>
+        <div class="card-body" id="tutore-fields-m">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label>Cognome e nome tutore</label>
+              <input type="text" name="tutore_nome" class="form-control"
+                     autocapitalize="words" autocomplete="off" value="{{ cliente.tutore_nome or '' }}">
+            </div>
+            <div class="col-12 col-md-6">
+              <label>Codice Fiscale tutore</label>
+              <input type="text" name="tutore_cf" class="form-control text-uppercase" maxlength="16"
+                     autocapitalize="characters" autocomplete="off" spellcheck="false"
+                     value="{{ cliente.tutore_cf or '' }}">
+            </div>
+            <div class="col-12">
+              <label>Documento — tipo e numero</label>
+              <input type="text" name="tutore_documento_tipo_numero" class="form-control"
+                     autocomplete="off" placeholder="Es. CI AB1234567"
+                     value="{{ cliente.tutore_documento_tipo_numero or '' }}">
+            </div>
+            <div class="col-12 col-md-7">
+              <label>Luogo di rilascio</label>
+              <input type="text" name="tutore_documento_rilascio_luogo" class="form-control"
+                     autocapitalize="words" autocomplete="off" placeholder="Es. Comune di Roma"
+                     value="{{ cliente.tutore_documento_rilascio_luogo or '' }}">
+            </div>
+            <div class="col-12 col-md-5">
+              <label>Data di rilascio</label>
+              <input type="date" name="tutore_documento_rilascio_data" class="form-control"
+                     value="{{ cliente.tutore_documento_rilascio_data or '' }}">
+            </div>
+          </div>
+        </div>
+      </div>
     </form>
   </main>
 

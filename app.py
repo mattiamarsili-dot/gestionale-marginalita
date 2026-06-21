@@ -1061,16 +1061,27 @@ CLIENTE_FIELDS = [
     "provincia", "residenza_via", "residenza_civico", "residenza_citta",
     "residenza_cap", "telefono", "email", "asl", "centro", "medico_curante",
     "decorrenza_residenza", "documento_tipo_numero", "documento_data_rilascio",
+    # Tutore legale (delegato delle deleghe): flag + dati documento
+    "ha_tutore", "tutore_nome", "tutore_cf", "tutore_documento_tipo_numero",
+    "tutore_documento_rilascio_luogo", "tutore_documento_rilascio_data",
     "note",
 ]
 # Campi data: stringa vuota → NULL (SQLite/Postgres non accettano '' su DATE)
-_CLIENTE_DATE_FIELDS = {"data_nascita", "decorrenza_residenza", "documento_data_rilascio"}
+_CLIENTE_DATE_FIELDS = {
+    "data_nascita", "decorrenza_residenza", "documento_data_rilascio",
+    "tutore_documento_rilascio_data",
+}
+# Campi checkbox: presente nel form → 1, assente → 0
+_CLIENTE_BOOL_FIELDS = {"ha_tutore"}
 
 
 def _leggi_cliente_dal_form(form) -> dict:
-    """Estrae i campi cliente dal form, normalizzando vuoti e date."""
+    """Estrae i campi cliente dal form, normalizzando vuoti, date e checkbox."""
     dati = {}
     for campo in CLIENTE_FIELDS:
+        if campo in _CLIENTE_BOOL_FIELDS:
+            dati[campo] = 1 if form.get(campo) else 0
+            continue
         val = (form.get(campo) or "").strip()
         if campo in _CLIENTE_DATE_FIELDS and not val:
             val = None

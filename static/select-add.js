@@ -50,4 +50,16 @@
       if (sel.value === '__add__') aggiungiOpzione(inp);
     });
   }, true);
+
+  // Checkbox con [data-toggle-target]: mostra/nasconde la sezione collegata
+  function applicaToggle(cb) {
+    var t = document.querySelector(cb.getAttribute('data-toggle-target'));
+    if (t) t.classList.toggle('d-none', !cb.checked);
+  }
+  document.addEventListener('change', function (e) {
+    if (e.target.matches && e.target.matches('[data-toggle-target]')) applicaToggle(e.target);
+  });
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-toggle-target]').forEach(applicaToggle);
+  });
 })();

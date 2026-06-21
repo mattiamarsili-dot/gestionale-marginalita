@@ -145,6 +145,48 @@
         </div>
       </div>
 
+      <!-- Tutore legale (delegato delle deleghe) -->
+      <div class="card mb-4">
+        <div class="card-header bg-primary text-white py-3 d-flex align-items-center gap-2">
+          <i class="bi bi-person-badge me-1"></i>Tutore legale
+          <div class="form-check form-switch ms-auto mb-0">
+            <input class="form-check-input" type="checkbox" role="switch" id="ha-tutore"
+                   name="ha_tutore" data-toggle-target="#tutore-fields"
+                   {{ 'checked' if cliente.ha_tutore }}>
+            <label class="form-check-label small" for="ha-tutore">Il cliente ha un tutore</label>
+          </div>
+        </div>
+        <div class="card-body" id="tutore-fields">
+          <p class="text-muted small mb-3">Dati del tutore usati come <strong>delegato</strong> nelle deleghe.</p>
+          <div class="row g-3">
+            <div class="col-12 col-sm-6">
+              <label class="form-label">Cognome e nome tutore</label>
+              <input type="text" name="tutore_nome" class="form-control" value="{{ cliente.tutore_nome or '' }}">
+            </div>
+            <div class="col-12 col-sm-6">
+              <label class="form-label">Codice Fiscale tutore</label>
+              <input type="text" name="tutore_cf" class="form-control text-uppercase" maxlength="16"
+                     value="{{ cliente.tutore_cf or '' }}">
+            </div>
+            <div class="col-12 col-sm-6">
+              <label class="form-label">Documento — tipo e numero</label>
+              <input type="text" name="tutore_documento_tipo_numero" class="form-control"
+                     value="{{ cliente.tutore_documento_tipo_numero or '' }}" placeholder="Es. CI AB1234567">
+            </div>
+            <div class="col-6 col-sm-3">
+              <label class="form-label">Luogo rilascio</label>
+              <input type="text" name="tutore_documento_rilascio_luogo" class="form-control"
+                     value="{{ cliente.tutore_documento_rilascio_luogo or '' }}" placeholder="Es. Comune di Roma">
+            </div>
+            <div class="col-6 col-sm-3">
+              <label class="form-label">Data rilascio</label>
+              <input type="date" name="tutore_documento_rilascio_data" class="form-control"
+                     value="{{ cliente.tutore_documento_rilascio_data or '' }}">
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="d-flex justify-content-between gap-2">
         {% if modifica %}
         <button type="submit" form="form-elimina" formnovalidate class="btn btn-outline-danger">
