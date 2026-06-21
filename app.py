@@ -1466,12 +1466,14 @@ def modulo_paziente():
             with get_db() as conn:
                 cur = conn.cursor()
                 cur.execute(f"INSERT INTO clienti ({', '.join(cols)}) VALUES ({ph})", valori)
-        except Exception as e:
+        except Exception:
             import sys, traceback
             traceback.print_exc(file=sys.stderr)
-            # DIAGNOSTICA TEMPORANEA: mostra la causa reale (da rimuovere)
-            return render_template("modulo_paziente.html", cliente=dati, inviato=False,
-                                   errore=f"Errore tecnico nel salvataggio: {type(e).__name__}: {e}")
+            return render_template(
+                "modulo_paziente.html", cliente=dati, inviato=False,
+                errore="C'è stato un problema tecnico nel salvataggio. Riprova tra poco "
+                       "oppure inviaci i dati su WhatsApp al 06 56567542.",
+            )
         return render_template("modulo_paziente.html", inviato=True, cliente={}, errore=None)
     return render_template("modulo_paziente.html", cliente={}, inviato=False, errore=None)
 
