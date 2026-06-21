@@ -1149,7 +1149,9 @@ _CLIENTE_DATE_FIELDS = {
     "data_nascita", "decorrenza_residenza", "documento_data_rilascio",
     "tutore_documento_rilascio_data",
 }
-# Campi checkbox: presente nel form → 1, assente → 0
+# Campi checkbox → Python bool. IMPORTANTE: bool (non int 0/1) perché su
+# PostgreSQL la colonna è BOOLEAN e un int provoca errore di tipo all'INSERT.
+# Su SQLite il bool è comunque memorizzato come 0/1.
 _CLIENTE_BOOL_FIELDS = {"ha_tutore"}
 
 
@@ -1158,7 +1160,7 @@ def _leggi_cliente_dal_form(form) -> dict:
     dati = {}
     for campo in CLIENTE_FIELDS:
         if campo in _CLIENTE_BOOL_FIELDS:
-            dati[campo] = 1 if form.get(campo) else 0
+            dati[campo] = bool(form.get(campo))
             continue
         val = (form.get(campo) or "").strip()
         if campo in _CLIENTE_DATE_FIELDS and not val:
@@ -1460,9 +1462,16 @@ def modulo_paziente():
         cols = CLIENTE_FIELDS + ["da_verificare"]
         ph = ", ".join([_PH] * len(cols))
         valori = tuple(dati[c] for c in CLIENTE_FIELDS) + (True,)
-        with get_db() as conn:
-            cur = conn.cursor()
-            cur.execute(f"INSERT INTO clienti ({', '.join(cols)}) VALUES ({ph})", valori)
+        try:
+            with get_db() as conn:
+                cur = conn.cursor()
+                cur.execute(f"INSERT INTO clienti ({', '.join(cols)}) VALUES ({ph})", valori)
+        except Exception as e:
+            import sys, traceback
+            traceback.print_exc(file=sys.stderr)
+            # DIAGNOSTICA TEMPORANEA: mostra la causa reale (da rimuovere)
+            return render_template("modulo_paziente.html", cliente=dati, inviato=False,
+                                   errore=f"Errore tecnico nel salvataggio: {type(e).__name__}: {e}")
         return render_template("modulo_paziente.html", inviato=True, cliente={}, errore=None)
     return render_template("modulo_paziente.html", cliente={}, inviato=False, errore=None)
 
