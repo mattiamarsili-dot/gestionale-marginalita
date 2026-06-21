@@ -275,6 +275,7 @@ def dati_canonici(pratica: dict, cliente: dict) -> dict:
         # Data piena se presente, altrimenti il solo anno dal modulo paziente
         "decorrenza_residenza":    _fmt_data(cliente.get("decorrenza_residenza")) or (cliente.get("residente_dal_anno") or "").strip(),
         "documento_tipo_numero":   (cliente.get("documento_tipo_numero") or "").strip(),
+        "documento_rilascio_luogo": (cliente.get("documento_rilascio_luogo") or "").strip(),
         "documento_data_rilascio": _fmt_data(cliente.get("documento_data_rilascio")),
         # Tutore legale (= delegato delle deleghe)
         "ha_tutore":               bool(cliente.get("ha_tutore")),
@@ -396,6 +397,7 @@ def build_field_map(template_id: str, pratica: dict, cliente: dict, righe: list 
             "delega_rm2_delegante_residenza_data": D["decorrenza_residenza"],
             "delega_rm2_delegante_telefono_email": D["recapiti"],
             "delega_rm2_delegante_documento_tipo_numero": D["documento_tipo_numero"],
+            "delega_rm2_delegante_documento_rilascio_luogo": D["documento_rilascio_luogo"],
             "delega_rm2_delegante_documento_rilascio_data": D["documento_data_rilascio"],
             "delega_rm2_delegante_Medico_strttura": D["medico_struttura"],  # refuso nel template
             "delega_rm2_delegante_ausilio": D["ausilio"],

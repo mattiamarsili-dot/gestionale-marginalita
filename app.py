@@ -1138,7 +1138,8 @@ CLIENTE_FIELDS = [
     "provincia", "residenza_via", "residenza_civico", "residenza_citta",
     "residenza_cap", "residente_dal_anno", "telefono", "email", "asl", "centro",
     "medico_curante",
-    "decorrenza_residenza", "documento_tipo_numero", "documento_data_rilascio",
+    "decorrenza_residenza", "documento_tipo_numero", "documento_rilascio_luogo",
+    "documento_data_rilascio",
     # Tutore legale (delegato delle deleghe): flag + dati documento
     "ha_tutore", "tutore_nome", "tutore_cf", "tutore_documento_tipo_numero",
     "tutore_documento_rilascio_luogo", "tutore_documento_rilascio_data",
@@ -1153,10 +1154,16 @@ _CLIENTE_DATE_FIELDS = {
 # PostgreSQL la colonna è BOOLEAN e un int provoca errore di tipo all'INSERT.
 # Su SQLite il bool è comunque memorizzato come 0/1.
 _CLIENTE_BOOL_FIELDS = {"ha_tutore"}
+# Normalizzazione maiuscole: CF/provincia/CF tutore = tutto maiuscolo;
+# gli altri testi = solo l'iniziale. Questi restano invariati.
+_CLIENTE_UPPER_FIELDS = {"codice_fiscale", "provincia", "tutore_cf"}
+_CLIENTE_NO_CAP_FIELDS = {"email", "asl", "centro", "telefono", "residenza_cap",
+                          "residente_dal_anno"}
 
 
 def _leggi_cliente_dal_form(form) -> dict:
-    """Estrae i campi cliente dal form, normalizzando vuoti, date e checkbox."""
+    """Estrae i campi cliente dal form, normalizzando vuoti, date, checkbox e
+    maiuscole (CF in maiuscolo, gli altri testi con l'iniziale maiuscola)."""
     dati = {}
     for campo in CLIENTE_FIELDS:
         if campo in _CLIENTE_BOOL_FIELDS:
@@ -1165,6 +1172,10 @@ def _leggi_cliente_dal_form(form) -> dict:
         val = (form.get(campo) or "").strip()
         if campo in _CLIENTE_DATE_FIELDS and not val:
             val = None
+        elif val and campo in _CLIENTE_UPPER_FIELDS:
+            val = val.upper()
+        elif val and campo not in _CLIENTE_NO_CAP_FIELDS and campo not in _CLIENTE_DATE_FIELDS:
+            val = val[:1].upper() + val[1:]
         dati[campo] = val
     return dati
 
@@ -1435,7 +1446,7 @@ _MODULO_PAZIENTE_FIELDS = [
     "cognome", "nome", "codice_fiscale", "data_nascita", "luogo_nascita",
     "residenza_via", "residenza_civico", "residenza_citta", "provincia",
     "residenza_cap", "residente_dal_anno", "telefono", "email",
-    "documento_tipo_numero", "documento_data_rilascio",
+    "documento_tipo_numero", "documento_rilascio_luogo", "documento_data_rilascio",
 ]
 # Tutti obbligatori tranne l'email.
 _MODULO_PAZIENTE_OBBLIGATORI = [c for c in _MODULO_PAZIENTE_FIELDS if c != "email"]

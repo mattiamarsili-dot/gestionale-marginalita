@@ -47,7 +47,7 @@
   <div class="alert alert-danger py-2 small"><i class="bi bi-exclamation-triangle-fill me-1"></i>{{ errore }}</div>
   {% endif %}
 
-  <form method="post" class="card">
+  <form method="post" class="card" id="form-modulo">
     <div class="card-body">
       <!-- Honeypot anti-spam: lasciare vuoto (nascosto agli umani) -->
       <div style="position:absolute; left:-5000px;" aria-hidden="true">
@@ -105,10 +105,15 @@
         </div>
 
         <div class="col-12"><hr class="my-1"><span class="text-muted small fw-semibold">Documento di identità</span></div>
-        <div class="col-sm-7">
+        <div class="col-12">
           <label class="form-label form-label-sm">Tipo e numero *</label>
           <input type="text" name="documento_tipo_numero" class="form-control" required
                  placeholder="es. Carta d'identità n. AB1234567" value="{{ cliente.documento_tipo_numero or '' }}">
+        </div>
+        <div class="col-sm-7">
+          <label class="form-label form-label-sm">Luogo di rilascio *</label>
+          <input type="text" name="documento_rilascio_luogo" class="form-control" required
+                 placeholder="es. Comune di Roma" value="{{ cliente.documento_rilascio_luogo or '' }}">
         </div>
         <div class="col-sm-5">
           <label class="form-label form-label-sm">Data di rilascio *</label>
@@ -143,6 +148,23 @@
     </div>
   </form>
   <p class="text-center text-muted small mt-3">I campi con * sono obbligatori.</p>
+
+  <script>
+    // Auto-maiuscole mentre si compila: CF (e Prov.) tutto maiuscolo, gli altri
+    // campi di testo con la prima lettera maiuscola. Si applica all'uscita dal
+    // campo per non spostare il cursore; il server normalizza comunque al salvataggio.
+    (function () {
+      var form = document.getElementById('form-modulo');
+      if (!form) return;
+      form.querySelectorAll('input[type=text], input[type=tel]').forEach(function (el) {
+        el.addEventListener('blur', function () {
+          if (!el.value) return;
+          if (el.classList.contains('text-uppercase')) el.value = el.value.toUpperCase();
+          else el.value = el.value.charAt(0).toUpperCase() + el.value.slice(1);
+        });
+      });
+    })();
+  </script>
   {% endif %}
 
 </div>

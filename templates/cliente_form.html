@@ -132,10 +132,15 @@
         <div class="card-header bg-primary text-white py-3"><i class="bi bi-card-text me-2"></i>Documento d'identità <small class="opacity-75">(per le deleghe)</small></div>
         <div class="card-body">
           <div class="row g-3">
-            <div class="col-12 col-sm-8">
+            <div class="col-12">
               <label class="form-label">Tipo e numero</label>
               <input type="text" name="documento_tipo_numero" class="form-control"
                      value="{{ cliente.documento_tipo_numero or '' }}" placeholder="Es. CI AB1234567">
+            </div>
+            <div class="col-12 col-sm-8">
+              <label class="form-label">Luogo di rilascio</label>
+              <input type="text" name="documento_rilascio_luogo" class="form-control"
+                     value="{{ cliente.documento_rilascio_luogo or '' }}" placeholder="Es. Comune di Roma">
             </div>
             <div class="col-12 col-sm-4">
               <label class="form-label">Data rilascio</label>
