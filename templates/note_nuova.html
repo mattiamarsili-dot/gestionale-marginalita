@@ -53,6 +53,16 @@
       border-color: var(--brand); background:#eef5ff; color: var(--brand);
       box-shadow:0 0 0 .15rem rgba(13,110,253,.15);
     }
+    /* Box priorità colorati */
+    .btn-prio {
+      border:2px solid #dee2e6; border-radius:.9rem; padding:.7rem .4rem;
+      font-weight:700; color:#475467; background:#fff; line-height:1.15;
+    }
+    .btn-prio small { color:#98a2b3; }
+    .btn-check:checked + .btn-prio.prio-media   { border-color:#3b82f6; background:#eff6ff; color:#1d4ed8; }
+    .btn-check:checked + .btn-prio.prio-alta    { border-color:#f59e0b; background:#fffbeb; color:#b45309; }
+    .btn-check:checked + .btn-prio.prio-urgente { border-color:#ef4444; background:#fef2f2; color:#b91c1c; }
+    .btn-check:checked + .btn-prio small { color:inherit; opacity:.8; }
   </style>
 </head>
 <body>
@@ -134,19 +144,28 @@
           </div>
         </div>
 
-        <div class="row g-2">
-          <div class="col-12">
-            <label>Priorità</label>
-            <select name="priorita" class="form-select">
-              {% for p in NOTE_PRIORITA %}
-              <option value="{{ p }}" {% if (nota.priorita if nota else 'Media') == p %}selected{% endif %}>{{ p }}</option>
-              {% endfor %}
-            </select>
+        <!-- Priorità: box di selezione rapida -->
+        <div class="mb-3">
+          <label>Priorità</label>
+          {% set prio_sel = (nota.priorita if nota and nota.priorita else 'Media') %}
+          <div class="choice-grid">
+            {% for p in NOTE_PRIORITA %}
+            <input type="radio" class="btn-check" name="priorita" id="prio-{{ loop.index }}"
+                   value="{{ p }}" autocomplete="off" {% if p == prio_sel %}checked{% endif %}
+                   data-giorni="{{ NOTE_PRIORITA_GIORNI[p] }}" onchange="aggiornaScadenza()">
+            <label class="btn btn-prio prio-{{ p|lower }}" for="prio-{{ loop.index }}">
+              {{ p }}
+              <small class="d-block fw-normal">{{ NOTE_PRIORITA_GIORNI[p] }} gg</small>
+            </label>
+            {% endfor %}
           </div>
-          <div class="col-12">
-            <label>Scadenza <span class="text-muted fw-normal">(facoltativa)</span></label>
-            <input type="date" name="scadenza" class="form-control" value="{{ nota.scadenza if nota else '' }}">
-          </div>
+        </div>
+
+        <div class="mb-1">
+          <label>Scadenza / avviso</label>
+          <input type="date" name="scadenza" id="scadenza" class="form-control"
+                 value="{{ nota.scadenza if nota and nota.scadenza else '' }}">
+          <div class="form-text" id="scadenza_hint">Calcolata dalla priorità: puoi modificarla a mano.</div>
         </div>
       </div>
     </div>
@@ -169,6 +188,25 @@
       box.style.display = (sel && sel.value === 'Documenti') ? '' : 'none';
     }
     aggiornaSottotipo();
+
+    // Scadenza/avviso auto-calcolata dalla priorità (Urgente 3gg, Alta 6gg, Media 14gg).
+    // Smette di aggiornare appena l'utente modifica la data a mano.
+    const scadEl = document.getElementById('scadenza');
+    let scadManuale = !!(scadEl && scadEl.value);
+    function aggiornaScadenza() {
+      if (scadManuale || !scadEl) return;
+      const sel = document.querySelector('input[name="priorita"]:checked');
+      const gg = sel ? parseInt(sel.dataset.giorni || '0', 10) : 0;
+      if (gg > 0) {
+        const d = new Date();
+        d.setDate(d.getDate() + gg);
+        scadEl.value = d.toISOString().slice(0, 10);
+      }
+    }
+    if (scadEl) {
+      scadEl.addEventListener('change', () => { scadManuale = !!scadEl.value; });
+    }
+    aggiornaScadenza();  // pre-compila al caricamento
 
     // Autocomplete nominativo: suggerisce clienti (collegabili) e nomi già usati nelle note.
     const qEl = document.getElementById('nominativo_q');

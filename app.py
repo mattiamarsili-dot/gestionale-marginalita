@@ -1,7 +1,7 @@
 import calendar
 import json
 import os
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from flask import (
     Flask, render_template, request, redirect,
     url_for, jsonify, session, Response,
@@ -1468,6 +1468,9 @@ NOTE_TIPI      = ["Assistenza", "Valutazione", "Documenti"]
 NOTE_SOTTOTIPI = ["Relazione", "Documenti", "Ordine"]
 NOTE_PRIORITA  = ["Media", "Alta", "Urgente"]
 NOTE_STATI     = ["Aperta", "In lavorazione", "Completata"]
+# Giorni entro cui la nota va gestita, per priorità: definiscono la scadenza/avviso
+# calcolata in automatico quando non viene impostata a mano.
+NOTE_PRIORITA_GIORNI = {"Media": 14, "Alta": 6, "Urgente": 3}
 
 
 def _crea_nota(form) -> int:
@@ -1481,6 +1484,13 @@ def _crea_nota(form) -> int:
     priorita   = (form.get("priorita") or "Media").strip()
     testo      = (form.get("testo") or "").strip()
     scadenza   = (form.get("scadenza") or "").strip() or None
+
+    # Avviso automatico: se non c'è una scadenza manuale, la calcoliamo dalla
+    # priorità (Urgente 3gg, Alta 6gg, Media 14gg) a partire da oggi.
+    if not scadenza:
+        giorni = NOTE_PRIORITA_GIORNI.get(priorita)
+        if giorni:
+            scadenza = (date.today() + timedelta(days=giorni)).isoformat()
 
     # Se è collegata a un cliente ma manca il nominativo, lo ricaviamo dall'anagrafica.
     if cliente_id and not nominativo:
@@ -1532,7 +1542,8 @@ def note_nuova():
         if not (request.form.get("testo") or "").strip():
             return render_template("note_nuova.html", errore="Scrivi il testo della nota.",
                                    nota=request.form, NOTE_TIPI=NOTE_TIPI,
-                                   NOTE_SOTTOTIPI=NOTE_SOTTOTIPI, NOTE_PRIORITA=NOTE_PRIORITA)
+                                   NOTE_SOTTOTIPI=NOTE_SOTTOTIPI, NOTE_PRIORITA=NOTE_PRIORITA,
+                                   NOTE_PRIORITA_GIORNI=NOTE_PRIORITA_GIORNI)
         _crea_nota(request.form)
         # Torna alla scheda cliente se collegata, altrimenti all'inbox note.
         cid = (request.form.get("cliente_id") or "").strip()
@@ -1549,7 +1560,7 @@ def note_nuova():
             cliente = cur.fetchone()
     return render_template("note_nuova.html", errore=None, nota={}, cliente=cliente,
                            NOTE_TIPI=NOTE_TIPI, NOTE_SOTTOTIPI=NOTE_SOTTOTIPI,
-                           NOTE_PRIORITA=NOTE_PRIORITA)
+                           NOTE_PRIORITA=NOTE_PRIORITA, NOTE_PRIORITA_GIORNI=NOTE_PRIORITA_GIORNI)
 
 
 @app.route("/cliente/<int:cliente_id>/note/aggiungi", methods=["POST"])
