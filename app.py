@@ -129,8 +129,8 @@ def logout():
 def manifest():
     import json
     data = {
-        "name": "Gestionale Marginalità",
-        "short_name": "Gestionale",
+        "name": "Gestionale Altra Mobilità",
+        "short_name": "Altra Mobilità",
         "start_url": "/",
         "scope": "/",
         "display": "standalone",
@@ -150,7 +150,7 @@ def service_worker():
     # Service worker minimale: cache dei soli asset statici (no pagine autenticate),
     # sufficiente a rendere l'app installabile. Servito da root per avere scope "/".
     js = """
-const CACHE = 'gm-v1';
+const CACHE = 'gm-v2';
 const ASSETS = [
   '/static/style.css', '/static/select-add.js',
   '/static/icons/icon-192.png', '/static/icons/icon-512.png',
@@ -1834,6 +1834,6 @@ def scarica_backup():
 # ── Avvio ─────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    print("\n✓ Gestionale Marginalità avviato")
+    print("\n✓ Gestionale Altra Mobilità avviato")
     print("  Apri il browser su: http://localhost:5001\n")
     app.run(debug=True, port=5001)

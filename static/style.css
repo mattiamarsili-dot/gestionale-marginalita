@@ -32,6 +32,20 @@ body {
 .btn-nuova { background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.35) !important; }
 .btn-nuova:hover { background: rgba(255,255,255,.35) !important; }
 
+/* Navbar su mobile: menu a tendina verticale (niente più scroll laterale) */
+@media (max-width: 991.98px) {
+  .navbar-collapse { margin-top: .5rem; }
+  .navbar-nav { width: 100%; align-items: stretch !important; gap: 4px; }
+  /* Le schede passano da affiancate a impilate, a tutta larghezza e ben toccabili */
+  .nav-schede {
+    display: flex; flex-direction: column; gap: 4px;
+    width: 100%; background: rgba(0,0,0,.12); padding: 6px;
+  }
+  .nav-schede .nav-link,
+  .navbar-nav > .nav-link { width: 100%; padding: .7rem .9rem !important; font-size: 1rem; }
+  .btn-nuova { text-align: center; margin-top: .5rem; }
+}
+
 /* Cards */
 .card { border: none; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
 .card-header { border-radius: 12px 12px 0 0 !important; font-weight: 600; }
