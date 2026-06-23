@@ -1439,6 +1439,179 @@ def mobile_nuovo():
                            ai_attivo=bool(ANTHROPIC_API_KEY))
 
 
+# ── Note / Task collegati al cliente ─────────────────────────────────────────
+# Note rapide salvate da mobile e ritrovate sulla scheda del cliente.
+NOTE_TIPI      = ["Assistenza", "Valutazione", "Documenti"]
+# Sottoscelta grafica disponibile quando il tipo è "Documenti"
+NOTE_SOTTOTIPI = ["Relazione", "Documenti", "Ordine"]
+NOTE_PRIORITA  = ["Media", "Alta", "Urgente"]
+NOTE_STATI     = ["Aperta", "In lavorazione", "Completata"]
+
+
+def _crea_nota(form) -> int:
+    """Inserisce una nota dai campi del form. Restituisce l'id creato.
+    `cliente_id` è opzionale: senza cliente la nota resta 'libera' col solo nominativo."""
+    cliente_id = (form.get("cliente_id") or "").strip() or None
+    nominativo = (form.get("nominativo") or "").strip()
+    tipo       = (form.get("tipo") or "Assistenza").strip()
+    # Il sottotipo ha senso solo per "Documenti": altrove lo azzeriamo.
+    sottotipo  = (form.get("sottotipo") or "").strip() if tipo == "Documenti" else ""
+    priorita   = (form.get("priorita") or "Media").strip()
+    testo      = (form.get("testo") or "").strip()
+    scadenza   = (form.get("scadenza") or "").strip() or None
+
+    # Se è collegata a un cliente ma manca il nominativo, lo ricaviamo dall'anagrafica.
+    if cliente_id and not nominativo:
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute(f"SELECT cognome, nome FROM clienti WHERE id = {_PH}", (cliente_id,))
+            row = cur.fetchone()
+            if row:
+                nominativo = f"{row['cognome']} {row['nome']}".strip()
+
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"""INSERT INTO note (cliente_id, nominativo, tipo, sottotipo, priorita, stato, completata, testo, scadenza)
+                VALUES ({_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH})""",
+            (cliente_id, nominativo, tipo, sottotipo, priorita, "Aperta", False, testo, scadenza),
+        )
+        return last_inserted_id(cur)
+
+
+@app.route("/note")
+def note_inbox():
+    """Elenco note: di default le aperte, con evidenza alle pratiche ferme (>7 giorni)."""
+    filtro = request.args.get("filtro", "aperte")  # aperte | tutte | ferme
+    where = ""
+    if filtro == "aperte":
+        where = "WHERE NOT n.completata"
+    elif filtro == "ferme":
+        where = ("WHERE NOT n.completata AND n.creato_il <= "
+                 + ("NOW() - INTERVAL '7 days'" if _IS_POSTGRES_NOTE() else "datetime('now','-7 days')"))
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"""SELECT n.*, c.cognome AS c_cognome, c.nome AS c_nome
+                FROM note n
+                LEFT JOIN clienti c ON c.id = n.cliente_id
+                {where}
+                ORDER BY n.completata ASC, COALESCE(n.scadenza, '9999-12-31') ASC, n.creato_il DESC"""
+        )
+        note = cur.fetchall()
+    return render_template("note_inbox.html", note=note, filtro=filtro,
+                           NOTE_PRIORITA=NOTE_PRIORITA)
+
+
+@app.route("/note/nuova", methods=["GET", "POST"])
+def note_nuova():
+    """Form mobile-first per salvare una nota veloce, collegabile a un cliente."""
+    if request.method == "POST":
+        if not (request.form.get("testo") or "").strip():
+            return render_template("note_nuova.html", errore="Scrivi il testo della nota.",
+                                   nota=request.form, NOTE_TIPI=NOTE_TIPI,
+                                   NOTE_SOTTOTIPI=NOTE_SOTTOTIPI, NOTE_PRIORITA=NOTE_PRIORITA)
+        _crea_nota(request.form)
+        # Torna alla scheda cliente se collegata, altrimenti all'inbox note.
+        cid = (request.form.get("cliente_id") or "").strip()
+        if cid:
+            return redirect(url_for("cliente_dettaglio", cliente_id=cid))
+        return redirect(url_for("note_inbox"))
+    # Precompilazione opzionale quando si arriva da una scheda cliente.
+    cliente = None
+    cid = request.args.get("cliente_id")
+    if cid:
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute(f"SELECT id, cognome, nome FROM clienti WHERE id = {_PH}", (cid,))
+            cliente = cur.fetchone()
+    return render_template("note_nuova.html", errore=None, nota={}, cliente=cliente,
+                           NOTE_TIPI=NOTE_TIPI, NOTE_SOTTOTIPI=NOTE_SOTTOTIPI,
+                           NOTE_PRIORITA=NOTE_PRIORITA)
+
+
+@app.route("/cliente/<int:cliente_id>/note/aggiungi", methods=["POST"])
+def note_aggiungi_da_cliente(cliente_id):
+    """Aggiunta rapida di una nota dalla scheda cliente."""
+    dati = request.form.to_dict()
+    dati["cliente_id"] = str(cliente_id)
+    if (dati.get("testo") or "").strip():
+        _crea_nota(dati)  # _crea_nota usa solo .get(), un dict basta
+    return redirect(url_for("cliente_dettaglio", cliente_id=cliente_id))
+
+
+@app.route("/note/<int:nota_id>/completata", methods=["POST"])
+def note_completata(nota_id):
+    """Segna/desegna una nota come completata."""
+    completa = request.form.get("completa", "1") == "1"
+    nuovo_stato = "Completata" if completa else "Aperta"
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"UPDATE note SET completata = {_PH}, stato = {_PH} WHERE id = {_PH}",
+            (completa, nuovo_stato, nota_id),
+        )
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"ok": True, "completata": completa})
+    return redirect(request.form.get("torna") or url_for("note_inbox"))
+
+
+@app.route("/note/<int:nota_id>/elimina", methods=["POST"])
+def note_elimina(nota_id):
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"DELETE FROM note WHERE id = {_PH}", (nota_id,))
+    return redirect(request.form.get("torna") or url_for("note_inbox"))
+
+
+@app.route("/api/note/suggerisci")
+def api_note_suggerisci():
+    """Autocomplete del nominativo. Unisce due fonti per accelerare l'inserimento:
+      1) i clienti del gestionale (selezionandoli la nota si collega al cliente);
+      2) i nominativi già usati in note precedenti (riuso rapido, nota libera).
+    Così, salvando le note mano a mano, i nomi ricorrenti si suggeriscono da soli."""
+    q = (request.args.get("q") or "").strip()
+    if len(q) < 3:
+        return jsonify([])
+    like = f"%{q}%"
+    out, visti = [], set()
+    with get_db() as conn:
+        cur = conn.cursor()
+        # 1) Clienti in anagrafica
+        cur.execute(
+            f"""SELECT id, cognome, nome, codice_fiscale FROM clienti
+                WHERE cognome LIKE {_PH} OR nome LIKE {_PH} OR codice_fiscale LIKE {_PH}
+                ORDER BY cognome, nome LIMIT 8""",
+            (like, like, like),
+        )
+        for r in cur.fetchall():
+            nome = f"{r['cognome']} {r['nome']}".strip()
+            visti.add(nome.lower())
+            out.append({
+                "tipo": "cliente", "id": r["id"], "nominativo": nome,
+                "label": nome + (f" — {r['codice_fiscale']}" if r["codice_fiscale"] else ""),
+            })
+        # 2) Nominativi già scritti in note precedenti (non duplicare i clienti)
+        cur.execute(
+            f"""SELECT DISTINCT nominativo FROM note
+                WHERE nominativo <> '' AND nominativo LIKE {_PH}
+                ORDER BY nominativo LIMIT 8""",
+            (like,),
+        )
+        for r in cur.fetchall():
+            nome = (r["nominativo"] or "").strip()
+            if nome and nome.lower() not in visti:
+                visti.add(nome.lower())
+                out.append({"tipo": "nominativo", "id": None,
+                            "nominativo": nome, "label": nome})
+    return jsonify(out[:12])
+
+
+def _IS_POSTGRES_NOTE() -> bool:
+    """True se il DB è PostgreSQL (per il dialetto data nelle query note)."""
+    return _DATE_FILTER.startswith("TO_CHAR")
+
+
 # ── Modulo pubblico per i pazienti (senza login) ─────────────────────────────
 # Campi che il paziente compila da solo: sola anagrafica di base. ASL, centro,
 # medico e il resto li completa l'operatore in fase di verifica.
@@ -1516,7 +1689,16 @@ def cliente_dettaglio(cliente_id):
             (cliente_id,),
         )
         pratiche = cur.fetchall()
-    return render_template("cliente_dettaglio.html", cliente=cliente, pratiche=pratiche)
+        cur.execute(
+            f"""SELECT * FROM note
+                WHERE cliente_id = {_PH}
+                ORDER BY completata ASC, COALESCE(scadenza, '9999-12-31') ASC, creato_il DESC""",
+            (cliente_id,),
+        )
+        note = cur.fetchall()
+    return render_template("cliente_dettaglio.html", cliente=cliente,
+                           pratiche=pratiche, note=note,
+                           NOTE_TIPI=NOTE_TIPI, NOTE_PRIORITA=NOTE_PRIORITA)
 
 
 @app.route("/cliente/<int:cliente_id>/modifica", methods=["GET", "POST"])

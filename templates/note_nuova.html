@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Nuova nota — Gestionale</title>
+  <link rel="manifest" href="{{ url_for('manifest') }}">
+  <meta name="theme-color" content="#0d6efd">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Gestionale">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    :root { --brand: #0d6efd; }
+    body { background: #f1f3f5; -webkit-text-size-adjust: 100%; }
+    .m-form .form-control, .m-form .form-select {
+      font-size: 1.2rem; min-height: 3.25rem; padding: .65rem .9rem;
+    }
+    .m-form textarea.form-control { min-height: 8rem; }
+    .m-form label { font-weight: 600; font-size: .95rem; margin-bottom: .25rem; color: #344054; }
+    .m-card { border: none; border-radius: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    .m-card .card-header {
+      background: var(--brand); color: #fff; border-radius: 1rem 1rem 0 0;
+      font-weight: 600; font-size: 1.05rem; padding: .85rem 1.1rem;
+    }
+    .m-header { position: sticky; top: 0; z-index: 1030; background: var(--brand); color: #fff; }
+    .m-footer {
+      position: sticky; bottom: 0; z-index: 1030;
+      background: rgba(255,255,255,.96); backdrop-filter: blur(6px);
+      border-top: 1px solid #dee2e6;
+      padding: .75rem 1rem calc(.75rem + env(safe-area-inset-bottom));
+    }
+    .btn-salva { font-size: 1.2rem; font-weight: 600; padding: .85rem; border-radius: .85rem; }
+    .m-wrap { max-width: 820px; }
+    /* Autocomplete clienti */
+    .ac-box { position: relative; }
+    .ac-list {
+      position: absolute; z-index: 1040; left: 0; right: 0; top: 100%;
+      background: #fff; border: 1px solid #dee2e6; border-radius: .5rem;
+      box-shadow: 0 8px 24px rgba(0,0,0,.12); max-height: 16rem; overflow-y: auto; margin-top: 2px;
+    }
+    .ac-list .ac-item { padding: .7rem .9rem; cursor: pointer; border-bottom: 1px solid #f1f3f5; }
+    .ac-list .ac-item:hover, .ac-list .ac-item.active { background: #eef5ff; }
+    .ac-selected { display:flex; align-items:center; gap:.5rem; }
+    /* Scelta grafica tipo / sottotipo */
+    .choice-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:.6rem; }
+    .btn-choice {
+      border:2px solid #dee2e6; border-radius:.9rem; padding:.85rem .4rem;
+      font-weight:600; color:#344054; background:#fff; line-height:1.1;
+    }
+    .btn-check:checked + .btn-choice {
+      border-color: var(--brand); background:#eef5ff; color: var(--brand);
+      box-shadow:0 0 0 .15rem rgba(13,110,253,.15);
+    }
+  </style>
+</head>
+<body>
+  <div class="m-header py-3 px-3 d-flex align-items-center gap-2 shadow-sm">
+    <i class="bi bi-sticky fs-4"></i>
+    <div class="lh-sm">
+      <div class="fw-bold">Nuova nota</div>
+      <small class="opacity-75">Salva veloce, ritrovala nel gestionale</small>
+    </div>
+    <a href="{{ url_for('note_inbox') }}" class="btn btn-sm btn-light ms-auto"><i class="bi bi-list-ul"></i></a>
+  </div>
+
+  <form method="post" class="m-form">
+  <main class="m-wrap mx-auto p-3 pb-2">
+    {% if errore %}
+    <div class="alert alert-danger d-flex align-items-center gap-2">
+      <i class="bi bi-exclamation-triangle-fill"></i>{{ errore }}
+    </div>
+    {% endif %}
+
+    <div class="card m-card mb-3">
+      <div class="card-header"><i class="bi bi-pencil-square me-2"></i>Cosa devi ricordare</div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label>Testo della nota</label>
+          <textarea name="testo" class="form-control" required
+                    placeholder="Es. Richiamare per integrazione documenti ASL…">{{ nota.testo if nota else '' }}</textarea>
+        </div>
+
+        <!-- Nominativo / Cliente con suggerimenti -->
+        <div class="mb-3 ac-box">
+          <label>Nominativo <span class="text-muted fw-normal">(facoltativo)</span></label>
+          {% set nome_pre = (cliente.cognome ~ ' ' ~ cliente.nome) | trim if cliente
+                            else (nota.nominativo if nota and nota.nominativo else '') %}
+          <input type="hidden" name="cliente_id" id="cliente_id"
+                 value="{{ cliente.id if cliente else '' }}">
+          <div class="position-relative">
+            <input type="text" name="nominativo" id="nominativo_q" class="form-control" autocomplete="off"
+                   value="{{ nome_pre }}"
+                   placeholder="Scrivi un nome: se è già nel gestionale lo colleghiamo…">
+            <i id="nome_link_icon" class="bi bi-person-check-fill text-success position-absolute"
+               style="right:.8rem; top:50%; transform:translateY(-50%); {% if not cliente %}display:none{% endif %}"
+               title="Collegato a un cliente"></i>
+            <div id="ac_list" class="ac-list" style="display:none"></div>
+          </div>
+          <div class="form-text">Suggerisce clienti e nomi già usati nelle note. Se è nuovo, resta come nominativo libero.</div>
+        </div>
+
+        <!-- Tipo: scelta grafica a pulsanti -->
+        <div class="mb-3">
+          <label>Tipo</label>
+          {% set tipo_sel = (nota.tipo if nota and nota.tipo else 'Assistenza') %}
+          <div class="choice-grid" data-icons>
+            {% for t in NOTE_TIPI %}
+            <input type="radio" class="btn-check" name="tipo" id="tipo-{{ loop.index }}"
+                   value="{{ t }}" autocomplete="off" {% if t == tipo_sel %}checked{% endif %}
+                   onchange="aggiornaSottotipo()">
+            <label class="btn btn-choice" for="tipo-{{ loop.index }}">
+              <i class="bi {{ {'Assistenza':'bi-life-preserver','Valutazione':'bi-clipboard-pulse','Documenti':'bi-folder2'}[t] }} d-block fs-4 mb-1"></i>
+              {{ t }}
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Sottotipo: appare solo quando Tipo = Documenti -->
+        <div class="mb-3" id="sottotipo_box" style="display:none">
+          <label>Tipo documento</label>
+          {% set sot_sel = (nota.sottotipo if nota and nota.sottotipo else 'Relazione') %}
+          <div class="choice-grid">
+            {% for s in NOTE_SOTTOTIPI %}
+            <input type="radio" class="btn-check" name="sottotipo" id="sot-{{ loop.index }}"
+                   value="{{ s }}" autocomplete="off" {% if s == sot_sel %}checked{% endif %}>
+            <label class="btn btn-choice" for="sot-{{ loop.index }}">
+              <i class="bi {{ {'Relazione':'bi-file-earmark-text','Documenti':'bi-file-earmark','Ordine':'bi-cart'}[s] }} d-block fs-4 mb-1"></i>
+              {{ s }}
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="row g-2">
+          <div class="col-12">
+            <label>Priorità</label>
+            <select name="priorita" class="form-select">
+              {% for p in NOTE_PRIORITA %}
+              <option value="{{ p }}" {% if (nota.priorita if nota else 'Media') == p %}selected{% endif %}>{{ p }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12">
+            <label>Scadenza <span class="text-muted fw-normal">(facoltativa)</span></label>
+            <input type="date" name="scadenza" class="form-control" value="{{ nota.scadenza if nota else '' }}">
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="m-footer">
+    <div class="m-wrap mx-auto">
+      <button type="submit" class="btn btn-primary btn-salva w-100">
+        <i class="bi bi-check-circle me-2"></i>Salva nota
+      </button>
+    </div>
+  </div>
+  </form>
+
+  <script>
+    // Mostra il sotto-menu "Tipo documento" solo quando Tipo = Documenti
+    function aggiornaSottotipo() {
+      const sel = document.querySelector('input[name="tipo"]:checked');
+      const box = document.getElementById('sottotipo_box');
+      box.style.display = (sel && sel.value === 'Documenti') ? '' : 'none';
+    }
+    aggiornaSottotipo();
+
+    // Autocomplete nominativo: suggerisce clienti (collegabili) e nomi già usati nelle note.
+    const qEl = document.getElementById('nominativo_q');
+    const listEl = document.getElementById('ac_list');
+    const idEl = document.getElementById('cliente_id');
+    const linkIcon = document.getElementById('nome_link_icon');
+    let timer = null;
+
+    function setCollegato(on) {
+      if (linkIcon) linkIcon.style.display = on ? '' : 'none';
+    }
+
+    if (qEl) {
+      qEl.addEventListener('input', () => {
+        clearTimeout(timer);
+        // Digitando a mano si scollega dal cliente: torna nominativo libero finché
+        // non si sceglie un suggerimento cliente.
+        idEl.value = '';
+        setCollegato(false);
+        const q = qEl.value.trim();
+        if (q.length < 3) { listEl.style.display = 'none'; return; }
+        timer = setTimeout(async () => {
+          try {
+            const r = await fetch('{{ url_for("api_note_suggerisci") }}?q=' + encodeURIComponent(q));
+            const rows = await r.json();
+            if (!rows.length) { listEl.style.display = 'none'; return; }
+            listEl.innerHTML = rows.map((x, i) => {
+              const icon = x.tipo === 'cliente'
+                ? '<i class="bi bi-person-vcard text-primary me-2"></i>'
+                : '<i class="bi bi-clock-history text-muted me-2"></i>';
+              return `<div class="ac-item" data-i="${i}">${icon}${x.label}</div>`;
+            }).join('');
+            listEl.style.display = '';
+            listEl.querySelectorAll('.ac-item').forEach(el => {
+              el.addEventListener('click', () => {
+                const x = rows[el.dataset.i];
+                qEl.value = x.nominativo;
+                idEl.value = (x.tipo === 'cliente') ? x.id : '';
+                setCollegato(x.tipo === 'cliente');
+                listEl.style.display = 'none';
+              });
+            });
+          } catch (e) { listEl.style.display = 'none'; }
+        }, 200);
+      });
+      document.addEventListener('click', (e) => {
+        if (!listEl.contains(e.target) && e.target !== qEl) listEl.style.display = 'none';
+      });
+    }
+  </script>
+</body>
+</html>

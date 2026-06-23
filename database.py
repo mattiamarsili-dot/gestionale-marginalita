@@ -153,6 +153,21 @@ _SQLITE_SCHEMA = """
         ordine    INTEGER NOT NULL DEFAULT 0
     );
 
+    CREATE TABLE IF NOT EXISTS note (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        cliente_id   INTEGER,
+        nominativo   TEXT NOT NULL DEFAULT '',
+        tipo         TEXT NOT NULL DEFAULT 'Assistenza',
+        sottotipo    TEXT NOT NULL DEFAULT '',
+        priorita     TEXT NOT NULL DEFAULT 'Media',
+        stato        TEXT NOT NULL DEFAULT 'Aperta',
+        completata   INTEGER NOT NULL DEFAULT 0,
+        testo        TEXT NOT NULL DEFAULT '',
+        scadenza     DATE,
+        creato_il    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (cliente_id) REFERENCES clienti(id) ON DELETE SET NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_pratiche_data      ON pratiche(data_pratica);
     CREATE INDEX IF NOT EXISTS idx_preventivi_pratica ON preventivi(pratica_id);
     CREATE INDEX IF NOT EXISTS idx_righe_pratica      ON righe_ausili(pratica_id);
@@ -160,6 +175,9 @@ _SQLITE_SCHEMA = """
     CREATE INDEX IF NOT EXISTS idx_clienti_cognome    ON clienti(cognome);
     CREATE INDEX IF NOT EXISTS idx_clienti_cf         ON clienti(codice_fiscale);
     CREATE INDEX IF NOT EXISTS idx_sign_articolo      ON significato_catalogo(articolo);
+    CREATE INDEX IF NOT EXISTS idx_note_cliente       ON note(cliente_id);
+    CREATE INDEX IF NOT EXISTS idx_note_completata    ON note(completata);
+    CREATE INDEX IF NOT EXISTS idx_note_scadenza      ON note(scadenza);
 """
 
 _POSTGRES_SCHEMA = """
@@ -263,6 +281,20 @@ _POSTGRES_SCHEMA = """
         ordine    INTEGER NOT NULL DEFAULT 0
     );
 
+    CREATE TABLE IF NOT EXISTS note (
+        id           SERIAL PRIMARY KEY,
+        cliente_id   INTEGER REFERENCES clienti(id) ON DELETE SET NULL,
+        nominativo   TEXT NOT NULL DEFAULT '',
+        tipo         TEXT NOT NULL DEFAULT 'Assistenza',
+        sottotipo    TEXT NOT NULL DEFAULT '',
+        priorita     TEXT NOT NULL DEFAULT 'Media',
+        stato        TEXT NOT NULL DEFAULT 'Aperta',
+        completata   BOOLEAN NOT NULL DEFAULT FALSE,
+        testo        TEXT NOT NULL DEFAULT '',
+        scadenza     DATE,
+        creato_il    TIMESTAMPTZ DEFAULT NOW()
+    );
+
     CREATE INDEX IF NOT EXISTS idx_pratiche_data      ON pratiche(data_pratica);
     CREATE INDEX IF NOT EXISTS idx_preventivi_pratica ON preventivi(pratica_id);
     CREATE INDEX IF NOT EXISTS idx_righe_pratica      ON righe_ausili(pratica_id);
@@ -270,6 +302,9 @@ _POSTGRES_SCHEMA = """
     CREATE INDEX IF NOT EXISTS idx_clienti_cognome    ON clienti(cognome);
     CREATE INDEX IF NOT EXISTS idx_clienti_cf         ON clienti(codice_fiscale);
     CREATE INDEX IF NOT EXISTS idx_sign_articolo      ON significato_catalogo(articolo);
+    CREATE INDEX IF NOT EXISTS idx_note_cliente       ON note(cliente_id);
+    CREATE INDEX IF NOT EXISTS idx_note_completata    ON note(completata);
+    CREATE INDEX IF NOT EXISTS idx_note_scadenza      ON note(scadenza);
 """
 
 def init_db():
@@ -317,6 +352,7 @@ def migrate_db():
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS sign_terapeutico TEXT",
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS iva_percentuale REAL NOT NULL DEFAULT 4",
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS moduli_attivi TEXT",
+            "ALTER TABLE note ADD COLUMN IF NOT EXISTS sottotipo TEXT NOT NULL DEFAULT ''",
         ]
     else:
         statements = [
@@ -344,6 +380,7 @@ def migrate_db():
             "ALTER TABLE pratiche ADD COLUMN sign_terapeutico TEXT",
             "ALTER TABLE pratiche ADD COLUMN iva_percentuale REAL NOT NULL DEFAULT 4",
             "ALTER TABLE pratiche ADD COLUMN moduli_attivi TEXT",
+            "ALTER TABLE note ADD COLUMN sottotipo TEXT NOT NULL DEFAULT ''",
         ]
 
     # Indici: la colonna cliente_id viene aggiunta dagli ALTER qui sopra.

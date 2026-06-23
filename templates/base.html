@@ -35,6 +35,9 @@
           <a class="nav-link {% if request.endpoint == 'fatturati' %}active{% endif %}" href="{{ url_for('fatturati') }}">
             <i class="bi bi-receipt me-1"></i>Fatturati
           </a>
+          <a class="nav-link {% if request.endpoint in ['note_inbox', 'note_nuova'] %}active{% endif %}" href="{{ url_for('note_inbox') }}">
+            <i class="bi bi-sticky me-1"></i>Note
+          </a>
           <a class="nav-link {% if request.endpoint in ['presets', 'preset_nuovo', 'preset_modifica'] %}active{% endif %}" href="{{ url_for('presets') }}">
             <i class="bi bi-collection me-1"></i>Preset
           </a>

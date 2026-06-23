@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Note — Gestionale Marginalità{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-xl-9">
+
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+      <h4 class="fw-bold mb-0"><i class="bi bi-sticky me-2"></i>Note / Promemoria</h4>
+      <a href="{{ url_for('note_nuova') }}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i>Nuova nota
+      </a>
+    </div>
+
+    <!-- Filtri -->
+    <div class="btn-group mb-3" role="group">
+      {% set tabs = [('aperte','Da fare'), ('ferme','Ferme >7gg'), ('tutte','Tutte')] %}
+      {% for val, lab in tabs %}
+      <a href="{{ url_for('note_inbox', filtro=val) }}"
+         class="btn btn-sm {{ 'btn-primary' if filtro == val else 'btn-outline-primary' }}">{{ lab }}</a>
+      {% endfor %}
+    </div>
+
+    <div class="card">
+      <div class="card-body p-0">
+        {% if note %}
+        <ul class="list-group list-group-flush">
+          {% for n in note %}
+          <li class="list-group-item d-flex align-items-start gap-2 {% if n.completata %}opacity-50{% endif %}">
+            <form method="post" action="{{ url_for('note_completata', nota_id=n.id) }}" class="mt-1">
+              <input type="hidden" name="torna" value="{{ url_for('note_inbox', filtro=filtro) }}">
+              <input type="hidden" name="completa" value="{{ '0' if n.completata else '1' }}">
+              <button class="btn btn-sm p-0 border-0 bg-transparent" title="Segna fatta/da fare">
+                <i class="bi {{ 'bi-check-circle-fill text-success' if n.completata else 'bi-circle text-muted' }} fs-5"></i>
+              </button>
+            </form>
+            <div class="flex-grow-1">
+              <div class="{% if n.completata %}text-decoration-line-through{% endif %}">{{ n.testo }}</div>
+              <div class="small text-muted">
+                {% if n.cliente_id %}
+                <a href="{{ url_for('cliente_dettaglio', cliente_id=n.cliente_id) }}" class="text-decoration-none">
+                  <i class="bi bi-person me-1"></i>{{ n.c_cognome }} {{ n.c_nome }}</a>
+                {% elif n.nominativo %}
+                <span><i class="bi bi-person me-1"></i>{{ n.nominativo }}</span>
+                {% endif %}
+                <span class="badge bg-secondary-subtle text-secondary ms-1">{{ n.tipo }}{% if n.sottotipo %} · {{ n.sottotipo }}{% endif %}</span>
+                <span class="badge
+                  {% if n.priorita == 'Urgente' %}bg-danger-subtle text-danger
+                  {% elif n.priorita == 'Alta' %}bg-warning-subtle text-warning-emphasis
+                  {% else %}bg-light text-muted{% endif %}">{{ n.priorita }}</span>
+                {% if n.scadenza %}<i class="bi bi-calendar-event ms-1"></i> {{ n.scadenza }}{% endif %}
+              </div>
+            </div>
+            <form method="post" action="{{ url_for('note_elimina', nota_id=n.id) }}" class="mt-1"
+                  onsubmit="return confirm('Eliminare questa nota?')">
+              <input type="hidden" name="torna" value="{{ url_for('note_inbox', filtro=filtro) }}">
+              <button class="btn btn-sm p-0 border-0 bg-transparent text-muted" title="Elimina">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="text-center text-muted py-5">
+          <i class="bi bi-inbox opacity-25 fs-1 d-block mb-2"></i>
+          Nessuna nota {{ 'da fare' if filtro != 'tutte' else '' }}.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
