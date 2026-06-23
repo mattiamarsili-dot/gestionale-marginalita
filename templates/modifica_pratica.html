@@ -67,6 +67,27 @@
                     </div>
                   </div>
                 </div>
+                <div class="col-12 col-sm-4">
+                  <label class="form-label">Stato lavorazione</label>
+                  <select name="stato_lavorazione" class="form-select">
+                    {% for s in stati_lavorazione %}
+                    <option value="{{ s }}" {% if (pratica.stato_lavorazione or 'Segnalato') == s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-12 col-sm-4">
+                  <label class="form-label">Tipologia</label>
+                  <input type="text" name="tipologia" class="form-control" list="lista-tipologie"
+                         value="{{ pratica.tipologia or '' }}" placeholder="Categoria LEA / ausilio…">
+                  <datalist id="lista-tipologie">
+                    {% for t in tipologie %}<option value="{{ t }}">{% endfor %}
+                  </datalist>
+                </div>
+                <div class="col-12 col-sm-4">
+                  <label class="form-label">Ausilio</label>
+                  <input type="text" name="ausilio" class="form-control"
+                         value="{{ pratica.ausilio or '' }}" placeholder="Descrizione ausilio…">
+                </div>
                 <div class="col-12">
                   <label class="form-label">Note</label>
                   <textarea name="note" class="form-control" rows="2"

@@ -49,6 +49,21 @@
      class="btn btn-sm {{ 'btn-primary' if centro == 'Senza centro' else 'btn-outline-secondary' }}">Senza centro</a>
 </div>
 
+<!-- Viste predefinite (cambiano le colonne mostrate) -->
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+  <span class="text-muted small me-1"><i class="bi bi-eye me-1"></i>Vista:</span>
+  {% for v in viste %}
+  <a href="{{ url_for('clienti', q=q or None, centro=centro or None, vista=v.key) }}"
+     class="btn btn-sm {{ 'btn-primary' if vista_attiva == v.key else 'btn-outline-primary' }}">
+    <i class="bi {{ v.icon }} me-1"></i>{{ v.label }}
+  </a>
+  {% endfor %}
+  <a href="{{ url_for('clienti', q=q or None, centro=centro or None) }}"
+     class="btn btn-sm {{ 'btn-outline-secondary' if vista_attiva else 'btn-secondary' }}">
+    <i class="bi bi-sliders me-1"></i>Personalizza
+  </a>
+</div>
+
 {% if gruppi %}
   {% for nome_centro, elenco in gruppi %}
   <div class="card mb-4">
@@ -87,6 +102,7 @@
                 {% else %}<span class="text-muted">—</span>{% endif %}</td>
               {% elif col.key == 'email' %}<td class="text-muted">{{ c.email or '—' }}</td>
               {% elif col.key == 'asl' %}<td class="text-muted">{{ c.asl or '—' }}</td>
+              {% elif col.key == 'centro' %}<td class="text-muted">{{ c.centro or '—' }}</td>
               {% elif col.key == 'medico' %}<td class="text-muted">{{ c.medico_curante or '—' }}</td>
               {% elif col.key == 'nascita' %}<td class="text-muted">{{ (c.data_nascita|string)[:10] if c.data_nascita else '—' }}</td>
               {% elif col.key == 'luogo' %}<td class="text-muted">{{ c.luogo_nascita or '—' }}</td>
@@ -101,6 +117,12 @@
               {% endif %}
             {% endfor %}
             <td class="text-end text-nowrap">
+              {% if vista_attiva == 'attivita' %}
+              <a href="{{ url_for('nuova_pratica', cliente_id=c.id) }}"
+                 class="btn btn-sm btn-primary" title="Apri una nuova pratica per questo cliente">
+                <i class="bi bi-folder-plus me-1"></i>Pratica
+              </a>
+              {% endif %}
               {% if c.da_verificare %}
               <form method="post" action="{{ url_for('cliente_verificato', cliente_id=c.id) }}" class="d-inline">
                 <input type="hidden" name="torna" value="{{ request.full_path }}">

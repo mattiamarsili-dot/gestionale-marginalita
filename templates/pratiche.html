@@ -41,6 +41,21 @@
      class="btn btn-sm {{ 'btn-primary' if centro == 'Senza centro' else 'btn-outline-secondary' }}">Senza centro</a>
 </div>
 
+<!-- Viste predefinite (cambiano le colonne mostrate) -->
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+  <span class="text-muted small me-1"><i class="bi bi-eye me-1"></i>Vista:</span>
+  {% for v in viste %}
+  <a href="{{ url_for('pratiche', q=q or None, centro=centro or None, vista=v.key) }}"
+     class="btn btn-sm {{ 'btn-primary' if vista_attiva == v.key else 'btn-outline-primary' }}">
+    <i class="bi {{ v.icon }} me-1"></i>{{ v.label }}
+  </a>
+  {% endfor %}
+  <a href="{{ url_for('pratiche', q=q or None, centro=centro or None) }}"
+     class="btn btn-sm {{ 'btn-outline-secondary' if vista_attiva else 'btn-secondary' }}">
+    <i class="bi bi-sliders me-1"></i>Personalizza
+  </a>
+</div>
+
 {% if gruppi %}
   {% for nome_centro, elenco in gruppi %}
   <div class="card mb-4">
@@ -57,7 +72,7 @@
             {% endfor %}
             <th>Paziente</th>
             {% for col in colonne_catalogo if col.key in colonne_attive and col.key != 'data' %}
-            <th class="{{ 'text-center' if col.key == 'stato' else 'text-end' if col.key in ['asl','privato','costo','mol','margine'] }}">{{ col.label }}</th>
+            <th class="{{ 'text-center' if col.key in ['stato','stato_lav'] else 'text-end' if col.key in ['asl','privato','costo','provvigione','mol','margine'] }}">{{ col.label }}</th>
             {% endfor %}
             <th></th>
           </tr>
@@ -71,6 +86,15 @@
             </td>
             {% for col in colonne_catalogo if col.key in colonne_attive and col.key != 'data' %}
               {% if col.key == 'numero' %}<td class="text-muted">{{ p.numero_pratica or '—' }}</td>
+              {% elif col.key == 'stato_lav' %}<td class="text-center" onclick="event.stopPropagation()">
+                <select class="form-select form-select-sm sel-stato d-inline-block w-auto" data-id="{{ p.id }}">
+                  {% for s in stati_lavorazione %}
+                  <option value="{{ s }}" {% if (p.stato_lavorazione or 'Segnalato') == s %}selected{% endif %}>{{ s }}</option>
+                  {% endfor %}
+                </select></td>
+              {% elif col.key == 'tipologia' %}<td class="text-muted small">{{ p.tipologia or '—' }}</td>
+              {% elif col.key == 'ausilio' %}<td class="text-muted small">{{ p.ausilio or '—' }}</td>
+              {% elif col.key == 'provvigione' %}<td class="text-end text-muted">€ {{ '%.2f'|format(p.provvigione) }}</td>
               {% elif col.key == 'asl' %}<td class="text-end">€ {{ '%.2f'|format(p.importo_asl) }}</td>
               {% elif col.key == 'privato' %}<td class="text-end text-muted">€ {{ '%.2f'|format(p.importo_privato or 0) }}</td>
               {% elif col.key == 'costo' %}<td class="text-end text-muted">€ {{ '%.2f'|format(p.costo_totale) }}</td>
@@ -107,4 +131,21 @@
 </div></div>
 {% endif %}
 <script src="{{ url_for('static', filename='colonne.js') }}"></script>
+<script>
+  // Salvataggio rapido dello stato di lavorazione dalla lista (senza ricaricare).
+  document.querySelectorAll('.sel-stato').forEach(function (sel) {
+    sel.addEventListener('change', function () {
+      var fd = new FormData();
+      fd.append('stato_lavorazione', sel.value);
+      fetch('/pratica/' + sel.dataset.id + '/stato-lavorazione', {
+        method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d.ok) {
+          sel.classList.add('border-success');
+          setTimeout(function () { sel.classList.remove('border-success'); }, 800);
+        }
+      }).catch(function () {});
+    });
+  });
+</script>
 {% endblock %}

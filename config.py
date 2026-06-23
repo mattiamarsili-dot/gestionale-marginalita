@@ -41,6 +41,27 @@ ASL_OPZIONI = [
     "FR", "VT", "LT",
 ]
 
+# ── Stato di lavorazione della pratica (workflow ordinato) ──────────────────
+# Avanzamento della pratica, indipendente dalla fatturazione.
+STATI_LAVORAZIONE = ["Segnalato", "Valutato", "ASL", "Ordini", "Consegna"]
+
+# ── Tipologia ausilio: valori "seme" dalle codifiche LEA (Nomenclatore protesi,
+# classi ISO 9999 dell'assistenza protesica). La lista mostrata nei form è questa
+# UNITA ai valori già usati nelle pratiche: ogni nuova tipologia salvata ricompare
+# poi nelle selezioni successive (auto-estendibile, come Centri/ASL).
+LEA_TIPOLOGIE = [
+    "Ortesi spinali (busti/corsetti)",
+    "Ortesi per arto superiore",
+    "Ortesi per arto inferiore",
+    "Ortesi del piede e plantari",
+    "Calzature ortopediche",
+    "Protesi di arto",
+    "Carrozzine e sistemi di postura",
+    "Ausili per la deambulazione",
+    "Ausili antidecubito",
+    "Ausili per stomia e incontinenza",
+]
+
 # ── App ───────────────────────────────────────────────────────────────────────
 SECRET_KEY    = os.environ.get("SECRET_KEY", "dev-only-change-in-prod")
 ACCESS_CODE   = os.environ.get("ACCESS_CODE", "")   # vuoto = nessun login in sviluppo

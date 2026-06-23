@@ -104,6 +104,8 @@ _SQLITE_SCHEMA = """
         sign_terapeutico TEXT,
         iva_percentuale  REAL NOT NULL DEFAULT 4,
         moduli_attivi    TEXT,
+        stato_lavorazione TEXT NOT NULL DEFAULT 'Segnalato',
+        tipologia        TEXT,
         creato_il        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (cliente_id) REFERENCES clienti(id)
     );
@@ -233,6 +235,8 @@ _POSTGRES_SCHEMA = """
         sign_terapeutico TEXT,
         iva_percentuale  REAL NOT NULL DEFAULT 4,
         moduli_attivi    TEXT,
+        stato_lavorazione TEXT NOT NULL DEFAULT 'Segnalato',
+        tipologia        TEXT,
         creato_il        TIMESTAMPTZ DEFAULT NOW()
     );
 
@@ -352,6 +356,8 @@ def migrate_db():
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS sign_terapeutico TEXT",
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS iva_percentuale REAL NOT NULL DEFAULT 4",
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS moduli_attivi TEXT",
+            "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS stato_lavorazione TEXT NOT NULL DEFAULT 'Segnalato'",
+            "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS tipologia TEXT",
             "ALTER TABLE note ADD COLUMN IF NOT EXISTS sottotipo TEXT NOT NULL DEFAULT ''",
         ]
     else:
@@ -380,6 +386,8 @@ def migrate_db():
             "ALTER TABLE pratiche ADD COLUMN sign_terapeutico TEXT",
             "ALTER TABLE pratiche ADD COLUMN iva_percentuale REAL NOT NULL DEFAULT 4",
             "ALTER TABLE pratiche ADD COLUMN moduli_attivi TEXT",
+            "ALTER TABLE pratiche ADD COLUMN stato_lavorazione TEXT NOT NULL DEFAULT 'Segnalato'",
+            "ALTER TABLE pratiche ADD COLUMN tipologia TEXT",
             "ALTER TABLE note ADD COLUMN sottotipo TEXT NOT NULL DEFAULT ''",
         ]
 

@@ -14,6 +14,7 @@ from config import (
     PROVVIGIONE_PCT, PROVVIGIONE_PCT_RIDOTTA, STRUTTURA_PCT,
     PROVVIGIONE_PCT_17, PROVVIGIONE_PCT_18, SOGLIA_PROV_17, SOGLIA_PROV_18,
     MARGINE_SOGLIA_OK, MARGINE_SOGLIA_WARN, CENTRI, ASL_OPZIONI,
+    STATI_LAVORAZIONE, LEA_TIPOLOGIE,
     ANTHROPIC_API_KEY,
 )
 from database import (
@@ -419,6 +420,11 @@ def modifica_pratica(pratica_id):
         importo_privato = float(request.form.get("importo_privato") or 0)
         provvigione_pct = float(request.form.get("provvigione_pct", PROVVIGIONE_PCT))
         note            = request.form.get("note", "").strip()
+        ausilio         = request.form.get("ausilio", "").strip()
+        tipologia       = request.form.get("tipologia", "").strip()
+        stato_lav       = (request.form.get("stato_lavorazione") or "Segnalato").strip()
+        if stato_lav not in STATI_LAVORAZIONE:
+            stato_lav = "Segnalato"
 
         fornitori = request.form.getlist("fornitore_nome[]")
         importi   = request.form.getlist("fornitore_importo[]")
@@ -429,8 +435,10 @@ def modifica_pratica(pratica_id):
             cur = conn.cursor()
             cur.execute(
                 f"UPDATE pratiche SET nome_paziente={_PH}, data_pratica={_PH}, "
-                f"importo_asl={_PH}, importo_privato={_PH}, provvigione_pct={_PH}, note={_PH} WHERE id={_PH}",
-                (nome_paziente, data_pratica, importo_asl, importo_privato, provvigione_pct, note, pratica_id),
+                f"importo_asl={_PH}, importo_privato={_PH}, provvigione_pct={_PH}, note={_PH}, "
+                f"ausilio={_PH}, tipologia={_PH}, stato_lavorazione={_PH} WHERE id={_PH}",
+                (nome_paziente, data_pratica, importo_asl, importo_privato, provvigione_pct, note,
+                 ausilio, tipologia, stato_lav, pratica_id),
             )
             cur.execute(f"DELETE FROM preventivi WHERE pratica_id={_PH}", (pratica_id,))
             for i, (nome_f, imp_f) in enumerate(zip(fornitori, importi)):
@@ -472,6 +480,8 @@ def modifica_pratica(pratica_id):
         preventivi_json=preventivi_json,
         provvigione_std=PROVVIGIONE_PCT,
         provvigione_rid=PROVVIGIONE_PCT_RIDOTTA,
+        tipologie=opzioni_tipologia(),
+        stati_lavorazione=STATI_LAVORAZIONE,
     )
 
 
@@ -1233,6 +1243,14 @@ def opzioni_asl() -> list:
     )
 
 
+def opzioni_tipologia() -> list:
+    # Semi LEA + tipologie già usate nelle pratiche (auto-estendibile).
+    return _opzioni(
+        LEA_TIPOLOGIE,
+        "SELECT DISTINCT tipologia AS v FROM pratiche WHERE COALESCE(tipologia,'') <> ''",
+    )
+
+
 # Ordina i centri: prima quelli in CENTRI (nell'ordine della costante), poi gli
 # altri valori a mano in ordine alfabetico, infine "Senza centro" in coda.
 def _raggruppa_per_centro(righe) -> list:
@@ -1263,24 +1281,57 @@ COLONNE_CLIENTI = [
     {"key": "telefono",     "label": "Telefono",       "default": True},
     {"key": "email",        "label": "Email",          "default": False},
     {"key": "asl",          "label": "ASL",            "default": True},
+    {"key": "centro",       "label": "Centro",         "default": False},
     {"key": "medico",       "label": "Medico curante", "default": False},
     {"key": "nascita",      "label": "Data nascita",   "default": False},
     {"key": "luogo",        "label": "Luogo nascita",  "default": False},
-    {"key": "residenza",    "label": "Residenza",      "default": False},
+    {"key": "residenza",    "label": "Indirizzo",      "default": False},
     {"key": "apertura",     "label": "Apertura",       "default": True},
     {"key": "num_pratiche", "label": "N° pratiche",    "default": True},
 ]
 
-COLONNE_PRATICHE = [
-    {"key": "data",    "label": "Data",            "default": True},
-    {"key": "numero",  "label": "N° pratica",      "default": True},
-    {"key": "asl",     "label": "Importo ASL",     "default": True},
-    {"key": "privato", "label": "Importo privato", "default": False},
-    {"key": "costo",   "label": "Costo fornitori", "default": True},
-    {"key": "mol",     "label": "MOL",             "default": False},
-    {"key": "margine", "label": "Margine %",       "default": False},
-    {"key": "stato",   "label": "Stato",           "default": True},
+# Viste predefinite Clienti: ogni vista è un set di colonne (solo colonne).
+VISTE_CLIENTI = [
+    {"key": "contatti", "label": "Contatti", "icon": "bi-telephone",
+     "cols": ["telefono", "residenza", "centro"]},
+    {"key": "attivita", "label": "Attività", "icon": "bi-folder2-open",
+     "cols": ["apertura", "num_pratiche"]},
 ]
+
+COLONNE_PRATICHE = [
+    {"key": "stato_lav",   "label": "Stato",           "default": False},
+    {"key": "data",        "label": "Data",            "default": True},
+    {"key": "numero",      "label": "N° pratica",      "default": True},
+    {"key": "tipologia",   "label": "Tipologia",       "default": False},
+    {"key": "ausilio",     "label": "Ausilio",         "default": False},
+    {"key": "asl",         "label": "Importo ASL",     "default": True},
+    {"key": "privato",     "label": "Importo privato", "default": False},
+    {"key": "costo",       "label": "Costo fornitori", "default": True},
+    {"key": "provvigione", "label": "Provvigione",     "default": False},
+    {"key": "mol",         "label": "MOL",             "default": False},
+    {"key": "margine",     "label": "Margine %",       "default": False},
+    {"key": "stato",       "label": "Fatturazione",    "default": True},
+]
+
+# Viste predefinite Pratiche: ogni vista è un set di colonne (solo colonne).
+VISTE_PRATICHE = [
+    {"key": "stato", "label": "Stato pratica", "icon": "bi-kanban",
+     "cols": ["stato_lav", "data", "tipologia", "ausilio"]},
+    {"key": "fatturazione", "label": "Fatturazione", "icon": "bi-receipt",
+     "cols": ["asl", "provvigione", "margine"]},
+]
+
+
+def _vista_o_colonne(nome: str, catalogo: list, viste: list):
+    """Risolve le colonne attive: se nella querystring c'è ?vista=KEY valida,
+    usa il preset di quella vista; altrimenti le colonne personalizzate (cookie).
+    Restituisce (colonne_attive, vista_attiva_key)."""
+    vk = (request.args.get("vista") or "").strip()
+    for v in viste:
+        if v["key"] == vk:
+            validi = {c["key"] for c in catalogo}
+            return [k for k in v["cols"] if k in validi], vk
+    return _colonne_attive(nome, catalogo), ""
 
 
 def _colonne_attive(nome: str, catalogo: list) -> list:
@@ -1325,12 +1376,14 @@ def clienti():
         cur.execute("SELECT COUNT(*) AS n FROM clienti WHERE da_verificare")
         n_verificare = cur.fetchone()["n"]
     gruppi = _raggruppa_per_centro(elenco)
+    colonne_attive, vista_attiva = _vista_o_colonne("clienti", COLONNE_CLIENTI, VISTE_CLIENTI)
     return render_template(
         "clienti.html", clienti=elenco, gruppi=gruppi, q=q,
         centro=centro, centri=opzioni_centri(),
         n_verificare=n_verificare, solo_verificare=solo_verificare,
         colonne_catalogo=COLONNE_CLIENTI,
-        colonne_attive=_colonne_attive("clienti", COLONNE_CLIENTI),
+        colonne_attive=colonne_attive,
+        viste=VISTE_CLIENTI, vista_attiva=vista_attiva,
     )
 
 
@@ -1376,6 +1429,7 @@ def pratiche():
             p.get("importo_privato") or 0,
         )
         p["mol"] = m["mol"]
+        p["provvigione"] = m["provvigione"]
         p["margine_pct"] = m["margine_pct"]
         if m["margine_pct"] >= MARGINE_SOGLIA_OK:
             p["margine_classe"] = "success"
@@ -1384,12 +1438,32 @@ def pratiche():
         else:
             p["margine_classe"] = "danger"
     gruppi = _raggruppa_per_centro(elenco)
+    colonne_attive, vista_attiva = _vista_o_colonne("pratiche", COLONNE_PRATICHE, VISTE_PRATICHE)
     return render_template(
         "pratiche.html", pratiche=elenco, gruppi=gruppi, q=q,
         centro=centro, centri=opzioni_centri(),
         colonne_catalogo=COLONNE_PRATICHE,
-        colonne_attive=_colonne_attive("pratiche", COLONNE_PRATICHE),
+        colonne_attive=colonne_attive,
+        viste=VISTE_PRATICHE, vista_attiva=vista_attiva,
+        stati_lavorazione=STATI_LAVORAZIONE,
     )
+
+
+@app.route("/pratica/<int:pratica_id>/stato-lavorazione", methods=["POST"])
+def pratica_stato_lavorazione(pratica_id):
+    """Aggiorna lo stato di lavorazione della pratica (selezione rapida dalla lista)."""
+    nuovo = (request.form.get("stato_lavorazione") or "").strip()
+    if nuovo not in STATI_LAVORAZIONE:
+        return jsonify({"ok": False, "errore": "Stato non valido"}), 400
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"UPDATE pratiche SET stato_lavorazione = {_PH} WHERE id = {_PH}",
+            (nuovo, pratica_id),
+        )
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"ok": True, "stato_lavorazione": nuovo})
+    return redirect(request.form.get("torna") or url_for("pratiche"))
 
 
 @app.route("/cliente/nuovo", methods=["GET", "POST"])
