@@ -31,10 +31,27 @@
       <i class="bi bi-cloud-download me-1"></i>Sincronizza Drive
     </button>
     {% endif %}
-    <a href="{{ url_for('nuova_pratica') }}" class="btn btn-primary btn-sm">
-      <i class="bi bi-plus-circle-fill me-1"></i>Nuova Pratica
-    </a>
   </div>
+</div>
+
+<!-- Barra compatta: azioni rapide + note in sospeso -->
+<div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+  <a href="{{ url_for('nuova_pratica') }}" class="btn btn-primary btn-sm">
+    <i class="bi bi-folder-plus me-1"></i>Pratica
+  </a>
+  <a href="{{ url_for('cliente_nuovo') }}" class="btn btn-outline-primary btn-sm">
+    <i class="bi bi-person-plus me-1"></i>Cliente
+  </a>
+  <a href="{{ url_for('note_nuova') }}" class="btn btn-outline-primary btn-sm">
+    <i class="bi bi-sticky me-1"></i>Nota
+  </a>
+  <a href="{{ url_for('note_inbox', filtro='aperte') }}"
+     class="btn btn-sm ms-sm-auto d-inline-flex align-items-center gap-1
+            {% if note_sospese %}btn-warning{% else %}btn-outline-secondary{% endif %}">
+    <i class="bi bi-bell{% if note_sospese %}-fill{% endif %}"></i>
+    Note in sospeso
+    <span class="badge rounded-pill bg-light text-dark">{{ note_sospese }}</span>
+  </a>
 </div>
 
 <!-- Pannello risultati sincronizzazione Drive -->
@@ -252,53 +269,11 @@
   </div>
 </div>
 
-<!-- ───── Azioni rapide ───── -->
-<div class="card border-0 shadow-sm mt-4">
-  <div class="card-header bg-white fw-semibold">
-    <i class="bi bi-lightning-charge-fill me-2 text-primary"></i>Azioni rapide
-  </div>
-  <div class="card-body">
-    <div class="row g-2">
-      <div class="col-12 col-md-4">
-        <a href="{{ url_for('nuova_pratica') }}" class="btn btn-primary w-100 py-3 d-flex align-items-center justify-content-center gap-2">
-          <i class="bi bi-folder-plus fs-5"></i><span class="fw-semibold">Aggiungi pratica</span>
-        </a>
-      </div>
-      <div class="col-12 col-md-4">
-        <a href="{{ url_for('cliente_nuovo') }}" class="btn btn-outline-primary w-100 py-3 d-flex align-items-center justify-content-center gap-2">
-          <i class="bi bi-person-plus fs-5"></i><span class="fw-semibold">Aggiungi cliente</span>
-        </a>
-      </div>
-      <div class="col-12 col-md-4">
-        <a href="{{ url_for('note_nuova') }}" class="btn btn-outline-primary w-100 py-3 d-flex align-items-center justify-content-center gap-2">
-          <i class="bi bi-sticky fs-5"></i><span class="fw-semibold">Aggiungi nota</span>
-        </a>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ───── Widget rapidi: note in sospeso, ultime pratiche, ultimi clienti ───── -->
+<!-- ───── Widget: ultime pratiche, ultimi clienti ───── -->
 <div class="row g-3 mt-1">
 
-  <!-- Note in sospeso -->
-  <div class="col-12 col-lg-3">
-    <a href="{{ url_for('note_inbox', filtro='aperte') }}"
-       class="card h-100 text-decoration-none border-0 shadow-sm
-              {% if note_sospese %}bg-warning-subtle{% else %}bg-light{% endif %}">
-      <div class="card-body d-flex flex-column justify-content-center text-center">
-        <i class="bi bi-sticky fs-2 {% if note_sospese %}text-warning-emphasis{% else %}text-muted{% endif %}"></i>
-        <div class="display-6 fw-bold mt-1 {% if note_sospese %}text-warning-emphasis{% else %}text-muted{% endif %}">
-          {{ note_sospese }}
-        </div>
-        <div class="fw-semibold text-dark">Note in sospeso</div>
-        <small class="text-primary mt-1">Apri l'elenco <i class="bi bi-arrow-right"></i></small>
-      </div>
-    </a>
-  </div>
-
   <!-- Ultime pratiche -->
-  <div class="col-12 col-lg-5">
+  <div class="col-12 col-lg-6">
     <div class="card h-100 border-0 shadow-sm">
       <div class="card-header bg-white fw-semibold d-flex align-items-center justify-content-between">
         <span><i class="bi bi-folder2-open me-2 text-primary"></i>Ultime pratiche</span>
@@ -335,7 +310,7 @@
   </div>
 
   <!-- Ultimi clienti inseriti -->
-  <div class="col-12 col-lg-4">
+  <div class="col-12 col-lg-6">
     <div class="card h-100 border-0 shadow-sm">
       <div class="card-header bg-white fw-semibold d-flex align-items-center justify-content-between">
         <span><i class="bi bi-people-fill me-2 text-primary"></i>Ultimi clienti</span>
