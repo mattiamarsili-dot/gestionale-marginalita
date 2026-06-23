@@ -211,6 +211,25 @@ def dashboard():
         )
         mesi_disponibili = [r["ym"] for r in cur.fetchall()]
 
+        # Widget dashboard: ultime pratiche, note in sospeso, ultimi clienti.
+        cur.execute(
+            """SELECT id, nome_paziente, cliente_id, data_pratica, importo_asl,
+                      fatturata, creato_il
+               FROM pratiche
+               ORDER BY creato_il DESC, id DESC LIMIT 6"""
+        )
+        ultime_pratiche = cur.fetchall()
+
+        cur.execute("SELECT COUNT(*) AS n FROM note WHERE NOT completata")
+        note_sospese = cur.fetchone()["n"]
+
+        cur.execute(
+            """SELECT id, cognome, nome, centro, creato_il
+               FROM clienti
+               ORDER BY creato_il DESC, id DESC LIMIT 5"""
+        )
+        ultimi_clienti = cur.fetchall()
+
     if da not in mesi_disponibili:
         mesi_disponibili.insert(0, da)
 
@@ -255,6 +274,9 @@ def dashboard():
         prov_corrente=prov_corrente * 100,
         soglia_17=SOGLIA_PROV_17,
         soglia_18=SOGLIA_PROV_18,
+        ultime_pratiche=ultime_pratiche,
+        note_sospese=note_sospese,
+        ultimi_clienti=ultimi_clienti,
     )
 
 
