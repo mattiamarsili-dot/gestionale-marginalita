@@ -150,7 +150,7 @@ def service_worker():
     # Service worker minimale: cache dei soli asset statici (no pagine autenticate),
     # sufficiente a rendere l'app installabile. Servito da root per avere scope "/".
     js = """
-const CACHE = 'gm-v2';
+const CACHE = 'gm-v3';
 const ASSETS = [
   '/static/style.css', '/static/select-add.js',
   '/static/icons/icon-192.png', '/static/icons/icon-512.png',

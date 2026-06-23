@@ -252,6 +252,32 @@
   </div>
 </div>
 
+<!-- ───── Azioni rapide ───── -->
+<div class="card border-0 shadow-sm mt-4">
+  <div class="card-header bg-white fw-semibold">
+    <i class="bi bi-lightning-charge-fill me-2 text-primary"></i>Azioni rapide
+  </div>
+  <div class="card-body">
+    <div class="row g-2">
+      <div class="col-12 col-md-4">
+        <a href="{{ url_for('nuova_pratica') }}" class="btn btn-primary w-100 py-3 d-flex align-items-center justify-content-center gap-2">
+          <i class="bi bi-folder-plus fs-5"></i><span class="fw-semibold">Aggiungi pratica</span>
+        </a>
+      </div>
+      <div class="col-12 col-md-4">
+        <a href="{{ url_for('cliente_nuovo') }}" class="btn btn-outline-primary w-100 py-3 d-flex align-items-center justify-content-center gap-2">
+          <i class="bi bi-person-plus fs-5"></i><span class="fw-semibold">Aggiungi cliente</span>
+        </a>
+      </div>
+      <div class="col-12 col-md-4">
+        <a href="{{ url_for('note_nuova') }}" class="btn btn-outline-primary w-100 py-3 d-flex align-items-center justify-content-center gap-2">
+          <i class="bi bi-sticky fs-5"></i><span class="fw-semibold">Aggiungi nota</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ───── Widget rapidi: note in sospeso, ultime pratiche, ultimi clienti ───── -->
 <div class="row g-3 mt-1">
 

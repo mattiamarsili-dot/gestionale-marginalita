@@ -25,25 +25,20 @@ body {
 .navbar-brand { font-size: 1.15rem; letter-spacing: .3px; }
 .nav-link { color: rgba(255,255,255,.85) !important; font-size: .9rem; border-radius: 6px; padding: .45rem .8rem !important; transition: background .2s; }
 .nav-link:hover { background: rgba(255,255,255,.15); color: #fff !important; }
-/* Schede di navigazione affiancate (controllo segmentato) */
-.nav-schede { display: inline-flex; gap: 4px; padding: 4px; background: rgba(0,0,0,.15); border-radius: 10px; }
+/* Schede di navigazione: sempre visibili, vanno a capo (niente scroll laterale) */
+.nav-schede { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: rgba(0,0,0,.15); border-radius: 10px; }
+.nav-schede .nav-link { white-space: nowrap; }
 .nav-schede .nav-link.active { background: #fff !important; color: var(--primary) !important; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
 .nav-schede .nav-link.active:hover { background: #fff !important; color: var(--primary) !important; }
 .btn-nuova { background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.35) !important; }
 .btn-nuova:hover { background: rgba(255,255,255,.35) !important; }
 
-/* Navbar su mobile: menu a tendina verticale (niente più scroll laterale) */
-@media (max-width: 991.98px) {
-  .navbar-collapse { margin-top: .5rem; }
-  .navbar-nav { width: 100%; align-items: stretch !important; gap: 4px; }
-  /* Le schede passano da affiancate a impilate, a tutta larghezza e ben toccabili */
-  .nav-schede {
-    display: flex; flex-direction: column; gap: 4px;
-    width: 100%; background: rgba(0,0,0,.12); padding: 6px;
+/* Su mobile le schede si distribuiscono a riempire le righe, tutte ben toccabili */
+@media (max-width: 575.98px) {
+  .nav-schede .nav-link {
+    flex: 1 1 auto; text-align: center; justify-content: center;
+    padding: .55rem .5rem !important; font-size: .85rem;
   }
-  .nav-schede .nav-link,
-  .navbar-nav > .nav-link { width: 100%; padding: .7rem .9rem !important; font-size: 1rem; }
-  .btn-nuova { text-align: center; margin-top: .5rem; }
 }
 
 /* Cards */
