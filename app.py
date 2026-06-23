@@ -1446,23 +1446,76 @@ def pratiche():
         colonne_attive=colonne_attive,
         viste=VISTE_PRATICHE, vista_attiva=vista_attiva,
         stati_lavorazione=STATI_LAVORAZIONE,
+        tipologie=opzioni_tipologia(),
     )
 
 
-@app.route("/pratica/<int:pratica_id>/stato-lavorazione", methods=["POST"])
-def pratica_stato_lavorazione(pratica_id):
-    """Aggiorna lo stato di lavorazione della pratica (selezione rapida dalla lista)."""
-    nuovo = (request.form.get("stato_lavorazione") or "").strip()
-    if nuovo not in STATI_LAVORAZIONE:
-        return jsonify({"ok": False, "errore": "Stato non valido"}), 400
+# Campi della pratica modificabili al volo dalla lista (whitelist → tipo valore).
+PRATICA_CAMPI_INLINE = {
+    "data_pratica":      "date",
+    "numero_pratica":    "text",
+    "tipologia":         "text",
+    "ausilio":           "text",
+    "importo_asl":       "num",
+    "importo_privato":   "num",
+    "stato_lavorazione": "stato",
+}
+
+
+@app.route("/pratica/<int:pratica_id>/campo", methods=["POST"])
+def pratica_campo(pratica_id):
+    """Modifica rapida di un singolo campo della pratica dalla lista, senza aprire
+    la scheda. Se cambia un importo, ricalcola e restituisce MOL/margine/provvigione."""
+    campo = (request.form.get("campo") or "").strip()
+    if campo not in PRATICA_CAMPI_INLINE:
+        return jsonify({"ok": False, "errore": "Campo non modificabile"}), 400
+    tipo = PRATICA_CAMPI_INLINE[campo]
+    raw = (request.form.get("valore") or "").strip()
+
+    if tipo == "num":
+        try:
+            valore = float(raw or 0)
+        except ValueError:
+            return jsonify({"ok": False, "errore": "Numero non valido"}), 400
+    elif tipo == "stato":
+        if raw not in STATI_LAVORAZIONE:
+            return jsonify({"ok": False, "errore": "Stato non valido"}), 400
+        valore = raw
+    elif tipo == "date":
+        valore = raw or None
+    else:
+        valore = raw
+
     with get_db() as conn:
         cur = conn.cursor()
-        cur.execute(
-            f"UPDATE pratiche SET stato_lavorazione = {_PH} WHERE id = {_PH}",
-            (nuovo, pratica_id),
-        )
+        cur.execute(f"UPDATE pratiche SET {campo} = {_PH} WHERE id = {_PH}", (valore, pratica_id))
+        # Se cambia un importo, ricalcola i derivati per aggiornare la riga.
+        derivati = None
+        if campo in ("importo_asl", "importo_privato"):
+            cur.execute(
+                f"""SELECT p.importo_asl, p.importo_privato, p.provvigione_pct,
+                           COALESCE(SUM(pr.importo), 0) AS costo_totale
+                    FROM pratiche p
+                    LEFT JOIN preventivi pr ON pr.pratica_id = p.id
+                    WHERE p.id = {_PH} GROUP BY p.id""",
+                (pratica_id,),
+            )
+            r = cur.fetchone()
+            if r:
+                m = calcola_margine(r["importo_asl"] or 0, r["costo_totale"] or 0,
+                                    r["provvigione_pct"] or PROVVIGIONE_PCT,
+                                    r["importo_privato"] or 0)
+                classe = ("success" if m["margine_pct"] >= MARGINE_SOGLIA_OK
+                          else "warning" if m["margine_pct"] >= MARGINE_SOGLIA_WARN else "danger")
+                derivati = {
+                    "mol": f"€ {m['mol']:.2f}",
+                    "provvigione": f"€ {m['provvigione']:.2f}",
+                    "margine": f"{m['margine_pct']:.1f}%",
+                    "margine_classe": classe,
+                }
+
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-        return jsonify({"ok": True, "stato_lavorazione": nuovo})
+        return jsonify({"ok": True, "derivati": derivati})
     return redirect(request.form.get("torna") or url_for("pratiche"))
 
 

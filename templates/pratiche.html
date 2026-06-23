@@ -80,27 +80,40 @@
         <tbody>
           {% for p in elenco %}
           <tr style="cursor:pointer" onclick="window.location='{{ url_for('dettaglio_pratica', pratica_id=p.id) }}'">
-            {% if 'data' in colonne_attive %}<td>{{ p.data_pratica }}</td>{% endif %}
+            {% if 'data' in colonne_attive %}<td onclick="event.stopPropagation()">
+              <input type="date" class="form-control form-control-sm inline-edit" style="width:148px"
+                     data-id="{{ p.id }}" data-campo="data_pratica" value="{{ p.data_pratica }}"></td>{% endif %}
             <td class="fw-semibold">
               {% if p.cognome %}{{ p.cognome }}{% if p.nome %} {{ p.nome }}{% endif %}{% else %}{{ p.nome_paziente }}{% endif %}
             </td>
             {% for col in colonne_catalogo if col.key in colonne_attive and col.key != 'data' %}
-              {% if col.key == 'numero' %}<td class="text-muted">{{ p.numero_pratica or '—' }}</td>
+              {% if col.key == 'numero' %}<td onclick="event.stopPropagation()" style="min-width:120px">
+                <input type="text" class="form-control form-control-sm inline-edit"
+                       data-id="{{ p.id }}" data-campo="numero_pratica" value="{{ p.numero_pratica or '' }}" placeholder="—"></td>
               {% elif col.key == 'stato_lav' %}<td class="text-center" onclick="event.stopPropagation()">
-                <select class="form-select form-select-sm sel-stato d-inline-block w-auto" data-id="{{ p.id }}">
+                <select class="form-select form-select-sm inline-edit d-inline-block w-auto"
+                        data-id="{{ p.id }}" data-campo="stato_lavorazione">
                   {% for s in stati_lavorazione %}
                   <option value="{{ s }}" {% if (p.stato_lavorazione or 'Segnalato') == s %}selected{% endif %}>{{ s }}</option>
                   {% endfor %}
                 </select></td>
-              {% elif col.key == 'tipologia' %}<td class="text-muted small">{{ p.tipologia or '—' }}</td>
-              {% elif col.key == 'ausilio' %}<td class="text-muted small">{{ p.ausilio or '—' }}</td>
-              {% elif col.key == 'provvigione' %}<td class="text-end text-muted">€ {{ '%.2f'|format(p.provvigione) }}</td>
-              {% elif col.key == 'asl' %}<td class="text-end">€ {{ '%.2f'|format(p.importo_asl) }}</td>
-              {% elif col.key == 'privato' %}<td class="text-end text-muted">€ {{ '%.2f'|format(p.importo_privato or 0) }}</td>
+              {% elif col.key == 'tipologia' %}<td onclick="event.stopPropagation()" style="min-width:150px">
+                <input type="text" class="form-control form-control-sm inline-edit" list="lista-tipologie"
+                       data-id="{{ p.id }}" data-campo="tipologia" value="{{ p.tipologia or '' }}" placeholder="—"></td>
+              {% elif col.key == 'ausilio' %}<td onclick="event.stopPropagation()" style="min-width:140px">
+                <input type="text" class="form-control form-control-sm inline-edit"
+                       data-id="{{ p.id }}" data-campo="ausilio" value="{{ p.ausilio or '' }}" placeholder="—"></td>
+              {% elif col.key == 'provvigione' %}<td class="text-end text-muted" data-cell="provvigione-{{ p.id }}">€ {{ '%.2f'|format(p.provvigione) }}</td>
+              {% elif col.key == 'asl' %}<td class="text-end" onclick="event.stopPropagation()">
+                <input type="number" step="0.01" min="0" class="form-control form-control-sm inline-edit text-end"
+                       style="width:112px" data-id="{{ p.id }}" data-campo="importo_asl" value="{{ '%.2f'|format(p.importo_asl) }}"></td>
+              {% elif col.key == 'privato' %}<td class="text-end" onclick="event.stopPropagation()">
+                <input type="number" step="0.01" min="0" class="form-control form-control-sm inline-edit text-end"
+                       style="width:112px" data-id="{{ p.id }}" data-campo="importo_privato" value="{{ '%.2f'|format(p.importo_privato or 0) }}"></td>
               {% elif col.key == 'costo' %}<td class="text-end text-muted">€ {{ '%.2f'|format(p.costo_totale) }}</td>
-              {% elif col.key == 'mol' %}<td class="text-end">€ {{ '%.2f'|format(p.mol) }}</td>
+              {% elif col.key == 'mol' %}<td class="text-end" data-cell="mol-{{ p.id }}">€ {{ '%.2f'|format(p.mol) }}</td>
               {% elif col.key == 'margine' %}<td class="text-end">
-                <span class="badge bg-{{ p.margine_classe }}-subtle text-{{ p.margine_classe }}">{{ '%.1f'|format(p.margine_pct) }}%</span></td>
+                <span class="badge bg-{{ p.margine_classe }}-subtle text-{{ p.margine_classe }}" data-cell="margine-{{ p.id }}">{{ '%.1f'|format(p.margine_pct) }}%</span></td>
               {% elif col.key == 'stato' %}<td class="text-center">
                 {% if p.fatturata %}<span class="badge bg-success-subtle text-success">Fatturata</span>
                 {% else %}<span class="badge bg-secondary-subtle text-secondary">Aperta</span>{% endif %}</td>
@@ -130,21 +143,41 @@
   </div>
 </div></div>
 {% endif %}
+<!-- Suggerimenti tipologia (semi LEA + tipologie già usate), condiviso da tutte le righe -->
+<datalist id="lista-tipologie">
+  {% for t in tipologie %}<option value="{{ t }}">{% endfor %}
+</datalist>
+
 <script src="{{ url_for('static', filename='colonne.js') }}"></script>
 <script>
-  // Salvataggio rapido dello stato di lavorazione dalla lista (senza ricaricare).
-  document.querySelectorAll('.sel-stato').forEach(function (sel) {
-    sel.addEventListener('change', function () {
+  // Modifica rapida dei campi della tabella senza aprire la scheda.
+  function _setCell(key, val) {
+    var c = document.querySelector('[data-cell="' + key + '"]');
+    if (c && val != null) c.textContent = val;
+  }
+  document.querySelectorAll('.inline-edit').forEach(function (el) {
+    el.addEventListener('change', function () {
       var fd = new FormData();
-      fd.append('stato_lavorazione', sel.value);
-      fetch('/pratica/' + sel.dataset.id + '/stato-lavorazione', {
+      fd.append('campo', el.dataset.campo);
+      fd.append('valore', el.value);
+      fetch('/pratica/' + el.dataset.id + '/campo', {
         method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd
       }).then(function (r) { return r.json(); }).then(function (d) {
-        if (d.ok) {
-          sel.classList.add('border-success');
-          setTimeout(function () { sel.classList.remove('border-success'); }, 800);
+        if (!d.ok) { el.classList.add('is-invalid'); return; }
+        el.classList.remove('is-invalid');
+        el.classList.add('is-valid');
+        setTimeout(function () { el.classList.remove('is-valid'); }, 700);
+        if (d.derivati) {
+          var id = el.dataset.id;
+          _setCell('mol-' + id, d.derivati.mol);
+          _setCell('provvigione-' + id, d.derivati.provvigione);
+          var mg = document.querySelector('[data-cell="margine-' + id + '"]');
+          if (mg) {
+            mg.textContent = d.derivati.margine;
+            mg.className = 'badge bg-' + d.derivati.margine_classe + '-subtle text-' + d.derivati.margine_classe;
+          }
         }
-      }).catch(function () {});
+      }).catch(function () { el.classList.add('is-invalid'); });
     });
   });
 </script>
