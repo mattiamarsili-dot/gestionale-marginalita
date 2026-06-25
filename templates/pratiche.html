@@ -29,6 +29,51 @@
   </div>
 </div>
 
+<!-- Box Archiviazione Google Drive -->
+<div class="card mb-3 border-0 shadow-sm" id="box-drive">
+  <div class="card-body py-2 px-3 d-flex flex-wrap align-items-center gap-2">
+    <span class="fw-semibold text-nowrap"><i class="bi bi-google me-1 text-primary"></i>Archiviazione Drive</span>
+
+    {% if not drive_configurato %}
+      <span class="text-muted small ms-2">
+        <i class="bi bi-info-circle me-1"></i>Non configurata — servono le credenziali OAuth
+        (<code>GOOGLE_OAUTH_CLIENT_ID/SECRET</code>) nelle impostazioni del server.
+      </span>
+    {% elif not drive_collegato %}
+      <span class="text-muted small ms-2">Collega il tuo Google Drive per archiviare i PDF generati.</span>
+      <a href="{{ url_for('drive_collega') }}" class="btn btn-sm btn-primary ms-auto">
+        <i class="bi bi-link-45deg me-1"></i>Collega Google Drive
+      </a>
+    {% else %}
+      <span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle me-1"></i>Collegato{% if drive_email %} · {{ drive_email }}{% endif %}</span>
+      <form method="post" action="{{ url_for('drive_imposta_cartella') }}" class="d-flex flex-wrap align-items-center gap-2 ms-2">
+        <label class="small text-muted mb-0">Cartella:</label>
+        <select name="folder_id" id="drive-folder-select" class="form-select form-select-sm" style="min-width:200px">
+          <option value="">{% if drive_root_nome %}{{ drive_root_nome }} (attuale){% else %}— scegli —{% endif %}</option>
+        </select>
+        <span class="text-muted small">oppure</span>
+        <input type="text" name="nuova_cartella" class="form-control form-control-sm" style="max-width:170px" placeholder="➕ nuova cartella…">
+        <button type="submit" class="btn btn-sm btn-outline-primary">Salva</button>
+      </form>
+      <form method="post" action="{{ url_for('drive_scollega') }}" class="ms-auto"
+            onsubmit="return confirm('Scollegare Google Drive?');">
+        <button type="submit" class="btn btn-sm btn-link text-danger text-decoration-none" title="Scollega">
+          <i class="bi bi-x-circle"></i>
+        </button>
+      </form>
+    {% endif %}
+  </div>
+  {% if drive_collegato %}
+  <div class="card-footer bg-white py-1 px-3 small text-muted">
+    {% if drive_root_nome %}
+      I moduli generati vengono archiviati in <strong>{{ drive_root_nome }}</strong>, in una sottocartella per paziente.
+    {% else %}
+      Scegli una cartella radice: i PDF verranno archiviati lì, in una sottocartella per ogni paziente.
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
 <!-- Filtro per centro -->
 <div class="d-flex flex-wrap gap-2 mb-4">
   <a href="{{ url_for('pratiche', q=q or None) }}"
@@ -180,5 +225,18 @@
       }).catch(function () { el.classList.add('is-invalid'); });
     });
   });
+
+  // Carica le cartelle Drive nel dropdown (solo se collegato)
+  (function () {
+    var sel = document.getElementById('drive-folder-select');
+    if (!sel) return;
+    fetch('/drive/cartelle').then(function (r) { return r.json(); }).then(function (d) {
+      (d.cartelle || []).forEach(function (c) {
+        var o = document.createElement('option');
+        o.value = c.id; o.textContent = c.name;
+        sel.appendChild(o);
+      });
+    }).catch(function () {});
+  })();
 </script>
 {% endblock %}

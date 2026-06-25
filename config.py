@@ -89,3 +89,10 @@ if not GOOGLE_CREDENTIALS_JSON:
     if _cred_file and os.path.isfile(_cred_file):
         with open(_cred_file) as _f:
             GOOGLE_CREDENTIALS_JSON = _f.read()
+
+# ── Google Drive — archiviazione PDF (OAuth utente) ─────────────────────────────
+# Credenziali OAuth "App web" create dall'utente in Google Cloud Console.
+# Servono per CARICARE i PDF generati nel Drive personale dell'utente.
+# Scope: drive.file (l'app vede solo i file/cartelle che crea lei).
+GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
+GOOGLE_OAUTH_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "")

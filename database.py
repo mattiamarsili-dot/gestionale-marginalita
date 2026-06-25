@@ -106,6 +106,7 @@ _SQLITE_SCHEMA = """
         moduli_attivi    TEXT,
         stato_lavorazione TEXT NOT NULL DEFAULT 'Segnalato',
         tipologia        TEXT,
+        drive_archivio_id TEXT,
         creato_il        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (cliente_id) REFERENCES clienti(id)
     );
@@ -168,6 +169,11 @@ _SQLITE_SCHEMA = """
         scadenza     DATE,
         creato_il    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (cliente_id) REFERENCES clienti(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS app_config (
+        chiave  TEXT PRIMARY KEY,
+        valore  TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_pratiche_data      ON pratiche(data_pratica);
@@ -237,6 +243,7 @@ _POSTGRES_SCHEMA = """
         moduli_attivi    TEXT,
         stato_lavorazione TEXT NOT NULL DEFAULT 'Segnalato',
         tipologia        TEXT,
+        drive_archivio_id TEXT,
         creato_il        TIMESTAMPTZ DEFAULT NOW()
     );
 
@@ -299,6 +306,11 @@ _POSTGRES_SCHEMA = """
         creato_il    TIMESTAMPTZ DEFAULT NOW()
     );
 
+    CREATE TABLE IF NOT EXISTS app_config (
+        chiave  TEXT PRIMARY KEY,
+        valore  TEXT
+    );
+
     CREATE INDEX IF NOT EXISTS idx_pratiche_data      ON pratiche(data_pratica);
     CREATE INDEX IF NOT EXISTS idx_preventivi_pratica ON preventivi(pratica_id);
     CREATE INDEX IF NOT EXISTS idx_righe_pratica      ON righe_ausili(pratica_id);
@@ -358,6 +370,7 @@ def migrate_db():
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS moduli_attivi TEXT",
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS stato_lavorazione TEXT NOT NULL DEFAULT 'Segnalato'",
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS tipologia TEXT",
+            "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS drive_archivio_id TEXT",
             "ALTER TABLE note ADD COLUMN IF NOT EXISTS sottotipo TEXT NOT NULL DEFAULT ''",
         ]
     else:
@@ -388,6 +401,7 @@ def migrate_db():
             "ALTER TABLE pratiche ADD COLUMN moduli_attivi TEXT",
             "ALTER TABLE pratiche ADD COLUMN stato_lavorazione TEXT NOT NULL DEFAULT 'Segnalato'",
             "ALTER TABLE pratiche ADD COLUMN tipologia TEXT",
+            "ALTER TABLE pratiche ADD COLUMN drive_archivio_id TEXT",
             "ALTER TABLE note ADD COLUMN sottotipo TEXT NOT NULL DEFAULT ''",
         ]
 
@@ -459,6 +473,38 @@ def last_inserted_id(cur) -> int:
         cur.execute("SELECT lastval()")
         return cur.fetchone()["lastval"]
     return cur.lastrowid
+
+
+# ── Impostazioni chiave/valore (tabella app_config) ──────────────────────────
+
+def config_get(chiave: str, default=None):
+    """Legge un valore da app_config (None/default se assente)."""
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT valore FROM app_config WHERE chiave = {_PH}", (chiave,))
+        row = cur.fetchone()
+    return row["valore"] if row else default
+
+
+def config_set(chiave: str, valore):
+    """Scrive (upsert) un valore in app_config. valore None → rimuove la chiave."""
+    with get_db() as conn:
+        cur = conn.cursor()
+        if valore is None:
+            cur.execute(f"DELETE FROM app_config WHERE chiave = {_PH}", (chiave,))
+            return
+        if _IS_POSTGRES:
+            cur.execute(
+                "INSERT INTO app_config (chiave, valore) VALUES (%s, %s) "
+                "ON CONFLICT (chiave) DO UPDATE SET valore = EXCLUDED.valore",
+                (chiave, valore),
+            )
+        else:
+            cur.execute(
+                "INSERT INTO app_config (chiave, valore) VALUES (?, ?) "
+                "ON CONFLICT(chiave) DO UPDATE SET valore = excluded.valore",
+                (chiave, valore),
+            )
 
 # ── Query helpers ─────────────────────────────────────────────────────────────
 

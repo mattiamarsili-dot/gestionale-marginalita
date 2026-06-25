@@ -35,6 +35,7 @@ TABLES = [
     "preset_ausili",
     "preset_righe",
     "significato_catalogo",
+    "note",
 ]
 
 

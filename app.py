@@ -23,6 +23,7 @@ from database import (
 )
 from pdf_extractor import estrai_totale_pdf
 from drive_sync import drive_configurato
+import drive_archive
 from pdf_filler import (
     PDF_TEMPLATES, MODULI_SEMPRE_ATTIVI, moduli_ordinati,
     compila_pdf, nome_file_consigliato, numero_preventivo,
@@ -1079,11 +1080,105 @@ def genera_modulo(pratica_id, template_id):
         return f"Errore nella generazione del modulo: {e}", 500
 
     filename = nome_file_consigliato(template_id, pratica_d, cliente_d)
+
+    # Archiviazione su Google Drive (best-effort: non blocca mai il download)
+    if drive_archive.collegato():
+        try:
+            _archivia_su_drive(pdf_bytes, filename, pratica_d, cliente_d)
+        except Exception as e:
+            import sys, traceback
+            print("ARCHIVIAZIONE DRIVE FALLITA:", e, file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+
     return Response(
         pdf_bytes,
         mimetype="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# ── Archiviazione PDF su Google Drive (OAuth utente) ─────────────────────────
+
+def _cartella_archivio(pratica_d: dict, cliente_d: dict):
+    """Risolve la cartella di destinazione: override della pratica, altrimenti
+    la sottocartella del paziente sotto la radice globale. None se non impostata."""
+    override = (pratica_d.get("drive_archivio_id") or "").strip()
+    if override:
+        return override
+    root = drive_archive.radice()[0]
+    if not root:
+        return None
+    if cliente_d:
+        return drive_archive.sottocartella_paziente(cliente_d, root)
+    return root
+
+
+def _archivia_su_drive(pdf_bytes: bytes, filename: str, pratica_d: dict, cliente_d: dict):
+    folder_id = _cartella_archivio(pratica_d, cliente_d)
+    if not folder_id:
+        return
+    drive_archive.carica_pdf(pdf_bytes, filename, folder_id)
+
+
+@app.route("/drive/collega")
+def drive_collega():
+    if not drive_archive.configurato():
+        return ("Credenziali OAuth non configurate: imposta GOOGLE_OAUTH_CLIENT_ID "
+                "e GOOGLE_OAUTH_CLIENT_SECRET nelle variabili d'ambiente."), 503
+    import secrets
+    state = secrets.token_urlsafe(16)
+    session["drive_oauth_state"] = state
+    return redirect(drive_archive.auth_url(url_for("drive_callback", _external=True), state))
+
+
+@app.route("/drive/callback")
+def drive_callback():
+    if not request.args.get("state") or request.args.get("state") != session.get("drive_oauth_state"):
+        return "Stato OAuth non valido, riprova il collegamento.", 400
+    session.pop("drive_oauth_state", None)
+    if request.args.get("error") or not request.args.get("code"):
+        return redirect(url_for("pratiche"))
+    try:
+        drive_archive.scambia_codice(request.args["code"], url_for("drive_callback", _external=True))
+    except Exception as e:
+        return f"Collegamento a Google Drive non riuscito: {e}", 500
+    return redirect(url_for("pratiche"))
+
+
+@app.route("/drive/scollega", methods=["POST"])
+def drive_scollega():
+    drive_archive.scollega()
+    return redirect(url_for("pratiche"))
+
+
+@app.route("/drive/cartelle")
+def drive_cartelle():
+    if not drive_archive.collegato():
+        return jsonify({"errore": "Drive non collegato"}), 503
+    try:
+        return jsonify({"cartelle": drive_archive.lista_cartelle()})
+    except Exception as e:
+        return jsonify({"errore": str(e)}), 500
+
+
+@app.route("/drive/cartella", methods=["POST"])
+def drive_imposta_cartella():
+    """Imposta la cartella radice globale: una esistente (folder_id) o nuova (nome)."""
+    if not drive_archive.collegato():
+        return redirect(url_for("pratiche"))
+    nuova = (request.form.get("nuova_cartella") or "").strip()
+    folder_id = (request.form.get("folder_id") or "").strip()
+    try:
+        if nuova:
+            c = drive_archive.crea_cartella(nuova)
+            drive_archive.imposta_radice(c["id"], c["name"])
+        elif folder_id:
+            nome = next((f["name"] for f in drive_archive.lista_cartelle() if f["id"] == folder_id), "")
+            drive_archive.imposta_radice(folder_id, nome)
+    except Exception as e:
+        import sys
+        print("IMPOSTA CARTELLA DRIVE FALLITA:", e, file=sys.stderr)
+    return redirect(url_for("pratiche"))
 
 
 # ── Gestione preset ausili ────────────────────────────────────────────────────
@@ -1447,6 +1542,10 @@ def pratiche():
         viste=VISTE_PRATICHE, vista_attiva=vista_attiva,
         stati_lavorazione=STATI_LAVORAZIONE,
         tipologie=opzioni_tipologia(),
+        drive_configurato=drive_archive.configurato(),
+        drive_collegato=drive_archive.collegato(),
+        drive_email=drive_archive.account_email(),
+        drive_root_nome=drive_archive.radice()[1],
     )
 
 
