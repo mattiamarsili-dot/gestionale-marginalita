@@ -1,0 +1,78 @@
+{# Tabella pratiche riusabile. Richiede in contesto: elenco, colonne_catalogo,
+   colonne_attive, stati_lavorazione. Usata sia in modalità raggruppata per centro
+   sia in lista unica ordinata. #}
+<table class="table table-hover mb-0 align-middle">
+  <thead class="table-light">
+    <tr>
+      {% for col in colonne_catalogo if col.key in colonne_attive and col.key == 'data' %}
+      <th>Data</th>
+      {% endfor %}
+      <th>Paziente</th>
+      {% for col in colonne_catalogo if col.key in colonne_attive and col.key != 'data' %}
+      <th class="{{ 'text-center' if col.key in ['stato','stato_lav'] else 'text-end' if col.key in ['asl','privato','costo','provvigione','mol','margine'] }}">{{ col.label }}</th>
+      {% endfor %}
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in elenco %}
+    <tr style="cursor:pointer" onclick="window.location='{{ url_for('dettaglio_pratica', pratica_id=p.id) }}'">
+      {% if 'data' in colonne_attive %}<td onclick="event.stopPropagation()">
+        <input type="date" class="form-control form-control-sm inline-edit" style="width:148px"
+               data-id="{{ p.id }}" data-campo="data_pratica" value="{{ p.data_pratica }}"></td>{% endif %}
+      <td class="fw-semibold">
+        {% if p.cognome %}{{ p.cognome }}{% if p.nome %} {{ p.nome }}{% endif %}{% else %}{{ p.nome_paziente }}{% endif %}
+      </td>
+      {% for col in colonne_catalogo if col.key in colonne_attive and col.key != 'data' %}
+        {% if col.key == 'numero' %}<td onclick="event.stopPropagation()" style="min-width:120px">
+          <input type="text" class="form-control form-control-sm inline-edit"
+                 data-id="{{ p.id }}" data-campo="numero_pratica" value="{{ p.numero_pratica or '' }}" placeholder="—"></td>
+        {% elif col.key == 'stato_lav' %}<td class="text-center" onclick="event.stopPropagation()">
+          <select class="form-select form-select-sm inline-edit d-inline-block w-auto"
+                  data-id="{{ p.id }}" data-campo="stato_lavorazione">
+            {% for s in stati_lavorazione %}
+            <option value="{{ s }}" {% if (p.stato_lavorazione or 'Segnalato') == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select></td>
+        {% elif col.key == 'tipologia' %}<td onclick="event.stopPropagation()" style="min-width:150px">
+          <input type="text" class="form-control form-control-sm inline-edit" list="lista-tipologie"
+                 data-id="{{ p.id }}" data-campo="tipologia" value="{{ p.tipologia or '' }}" placeholder="—"></td>
+        {% elif col.key == 'ausilio' %}<td onclick="event.stopPropagation()" style="min-width:140px">
+          <input type="text" class="form-control form-control-sm inline-edit"
+                 data-id="{{ p.id }}" data-campo="ausilio" value="{{ p.ausilio or '' }}" placeholder="—"></td>
+        {% elif col.key == 'provvigione' %}<td class="text-end text-muted" data-cell="provvigione-{{ p.id }}">€ {{ '%.2f'|format(p.provvigione) }}</td>
+        {% elif col.key == 'asl' %}<td class="text-end" onclick="event.stopPropagation()">
+          <input type="number" step="0.01" min="0" class="form-control form-control-sm inline-edit text-end"
+                 style="width:112px" data-id="{{ p.id }}" data-campo="importo_asl" value="{{ '%.2f'|format(p.importo_asl) }}"></td>
+        {% elif col.key == 'privato' %}<td class="text-end" onclick="event.stopPropagation()">
+          <input type="number" step="0.01" min="0" class="form-control form-control-sm inline-edit text-end"
+                 style="width:112px" data-id="{{ p.id }}" data-campo="importo_privato" value="{{ '%.2f'|format(p.importo_privato or 0) }}"></td>
+        {% elif col.key == 'costo' %}<td class="text-end text-muted">€ {{ '%.2f'|format(p.costo_totale) }}</td>
+        {% elif col.key == 'mol' %}<td class="text-end" data-cell="mol-{{ p.id }}">€ {{ '%.2f'|format(p.mol) }}</td>
+        {% elif col.key == 'margine' %}<td class="text-end">
+          <span class="badge bg-{{ p.margine_classe }}-subtle text-{{ p.margine_classe }}" data-cell="margine-{{ p.id }}">{{ '%.1f'|format(p.margine_pct) }}%</span></td>
+        {% elif col.key == 'stato' %}<td class="text-center">
+          {% if p.fatturata %}<span class="badge bg-success-subtle text-success">Fatturata</span>
+          {% else %}<span class="badge bg-secondary-subtle text-secondary">Aperta</span>{% endif %}</td>
+        {% endif %}
+      {% endfor %}
+      <td class="text-end text-nowrap" style="width:72px" onclick="event.stopPropagation()">
+        {% if p.drive_archivio_id %}
+        <a href="https://drive.google.com/drive/folders/{{ p.drive_archivio_id }}"
+           target="_blank" rel="noopener" class="btn btn-link btn-sm p-0 text-success me-1"
+           title="Apri cartella Drive">
+          <i class="bi bi-folder-fill"></i>
+        </a>
+        {% endif %}
+        <form method="post" action="{{ url_for('elimina_pratica', pratica_id=p.id) }}" class="d-inline"
+              onsubmit="return confirm('Eliminare la pratica di {{ (p.cognome ~ ' ' ~ (p.nome or '')) if p.cognome else p.nome_paziente }}? L\'operazione è definitiva.');">
+          <input type="hidden" name="torna" value="{{ request.full_path }}">
+          <button type="submit" class="btn btn-link btn-sm p-0 text-danger" title="Elimina pratica">
+            <i class="bi bi-trash"></i>
+          </button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

@@ -1450,6 +1450,34 @@ VISTE_PRATICHE = [
      "cols": ["asl", "provvigione", "margine"]},
 ]
 
+# Ordinamenti Pratiche. key "" = raggruppato per centro (default, come prima);
+# gli altri producono una lista unica ordinata.
+ORDINI_PRATICHE = [
+    {"key": "",         "label": "Per centro",        "icon": "bi-building"},
+    {"key": "recenti",  "label": "Apertura recenti",  "icon": "bi-clock-history"},
+    {"key": "vecchie",  "label": "Apertura vecchie",  "icon": "bi-clock"},
+    {"key": "paziente", "label": "Paziente A–Z",      "icon": "bi-sort-alpha-down"},
+    {"key": "margine",  "label": "Margine ↑",         "icon": "bi-graph-down"},
+    {"key": "asl",      "label": "Importo ASL ↓",     "icon": "bi-cash-stack"},
+]
+
+
+def _ordina_pratiche(elenco: list, key: str) -> list:
+    """Ordina la lista (già con mol/margine calcolati) secondo la scelta."""
+    if key == "recenti":
+        return sorted(elenco, key=lambda p: str(p.get("creato_il") or ""), reverse=True)
+    if key == "vecchie":
+        return sorted(elenco, key=lambda p: str(p.get("creato_il") or ""))
+    if key == "paziente":
+        return sorted(elenco, key=lambda p: (
+            (p.get("cognome") or p.get("nome_paziente") or "").lower(),
+            (p.get("nome") or "").lower()))
+    if key == "margine":
+        return sorted(elenco, key=lambda p: p.get("margine_pct", 0))
+    if key == "asl":
+        return sorted(elenco, key=lambda p: p.get("importo_asl") or 0, reverse=True)
+    return elenco
+
 
 def _vista_o_colonne(nome: str, catalogo: list, viste: list):
     """Risolve le colonne attive: se nella querystring c'è ?vista=KEY valida,
@@ -1491,23 +1519,22 @@ def clienti():
     where_sql = ("WHERE " + " AND ".join(where)) if where else ""
     with get_db() as conn:
         cur = conn.cursor()
-        # Ordine: per centro (i NULL/vuoti in fondo), poi data di apertura (creato_il) decrescente
+        # Lista unica ordinata per data/ora di apertura (creato_il) decrescente.
         cur.execute(
             f"""SELECT c.*, COUNT(p.id) AS num_pratiche
                 FROM clienti c
                 LEFT JOIN pratiche p ON p.cliente_id = c.id
                 {where_sql}
                 GROUP BY c.id
-                ORDER BY (c.centro IS NULL OR c.centro = ''), c.centro, c.creato_il DESC, c.cognome""",
+                ORDER BY c.creato_il DESC, c.id DESC""",
             tuple(params),
         )
         elenco = cur.fetchall()
         cur.execute("SELECT COUNT(*) AS n FROM clienti WHERE da_verificare")
         n_verificare = cur.fetchone()["n"]
-    gruppi = _raggruppa_per_centro(elenco)
     colonne_attive, vista_attiva = _vista_o_colonne("clienti", COLONNE_CLIENTI, VISTE_CLIENTI)
     return render_template(
-        "clienti.html", clienti=elenco, gruppi=gruppi, q=q,
+        "clienti.html", clienti=elenco, q=q,
         centro=centro, centri=opzioni_centri(),
         n_verificare=n_verificare, solo_verificare=solo_verificare,
         colonne_catalogo=COLONNE_CLIENTI,
@@ -1566,11 +1593,18 @@ def pratiche():
             p["margine_classe"] = "warning"
         else:
             p["margine_classe"] = "danger"
-    gruppi = _raggruppa_per_centro(elenco)
+    ordine = (request.args.get("ordine") or "").strip()
+    if ordine in {o["key"] for o in ORDINI_PRATICHE} and ordine:
+        gruppi = None
+        elenco = _ordina_pratiche(elenco, ordine)
+    else:
+        ordine = ""
+        gruppi = _raggruppa_per_centro(elenco)
     colonne_attive, vista_attiva = _vista_o_colonne("pratiche", COLONNE_PRATICHE, VISTE_PRATICHE)
     return render_template(
         "pratiche.html", pratiche=elenco, gruppi=gruppi, q=q,
         centro=centro, centri=opzioni_centri(),
+        ordini=ORDINI_PRATICHE, ordine_attivo=ordine,
         colonne_catalogo=COLONNE_PRATICHE,
         colonne_attive=colonne_attive,
         viste=VISTE_PRATICHE, vista_attiva=vista_attiva,
