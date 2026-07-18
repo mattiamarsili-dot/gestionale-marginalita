@@ -92,7 +92,7 @@ if not GOOGLE_CREDENTIALS_JSON:
 
 # ── Google Drive — archiviazione PDF (OAuth utente) ─────────────────────────────
 # Credenziali OAuth "App web" create dall'utente in Google Cloud Console.
-# Servono per CARICARE i PDF generati nel Drive personale dell'utente.
-# Scope: drive.file (l'app vede solo i file/cartelle che crea lei).
+# Servono per CARICARE i PDF generati nel Drive personale dell'utente, anche in
+# cartelle già esistenti di cui si incolla il link nella pratica (scope: drive).
 GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
 GOOGLE_OAUTH_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "")

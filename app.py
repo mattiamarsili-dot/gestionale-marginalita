@@ -1118,6 +1118,40 @@ def _archivia_su_drive(pdf_bytes: bytes, filename: str, pratica_d: dict, cliente
     if not folder_id:
         return
     drive_archive.carica_pdf(pdf_bytes, filename, folder_id)
+    # Memorizza sulla pratica la cartella usata, così la scheda mostra il link
+    # "Apri cartella Drive" (dove trovi i PDF archiviati).
+    if (pratica_d.get("drive_archivio_id") or "").strip() != folder_id:
+        with get_db() as conn:
+            conn.cursor().execute(
+                f"UPDATE pratiche SET drive_archivio_id = {_PH} WHERE id = {_PH}",
+                (folder_id, pratica_d["id"]),
+            )
+        pratica_d["drive_archivio_id"] = folder_id
+
+
+def _estrai_folder_id(s: str) -> str:
+    """Estrae l'id cartella da un link Drive (…/folders/ID o ?id=ID) o da un id nudo."""
+    import re
+    s = (s or "").strip()
+    if not s:
+        return ""
+    m = re.search(r"/folders/([A-Za-z0-9_-]+)", s) or re.search(r"[?&]id=([A-Za-z0-9_-]+)", s)
+    if m:
+        return m.group(1)
+    return s if ("/" not in s and " " not in s) else ""
+
+
+@app.route("/pratica/<int:pratica_id>/drive-link", methods=["POST"])
+def pratica_drive_link(pratica_id):
+    """Imposta/aggiorna (o svuota) il link della cartella Drive di riferimento."""
+    fid = _estrai_folder_id(request.form.get("drive_link", ""))
+    with get_db() as conn:
+        conn.cursor().execute(
+            f"UPDATE pratiche SET drive_archivio_id = {_PH} WHERE id = {_PH}",
+            (fid or None, pratica_id),
+        )
+    return redirect(request.form.get("torna")
+                    or url_for("dettaglio_pratica", pratica_id=pratica_id))
 
 
 @app.route("/drive/collega")

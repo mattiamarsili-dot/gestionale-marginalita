@@ -57,6 +57,28 @@
       </div>
     </div>
 
+    <!-- Cartella Drive di riferimento -->
+    <div class="card mb-4">
+      <div class="card-body py-2 px-3">
+        <form method="post" action="{{ url_for('pratica_drive_link', pratica_id=pratica.id) }}"
+              class="d-flex flex-wrap align-items-center gap-2">
+          <span class="fw-semibold text-nowrap"><i class="bi bi-folder-fill text-warning me-1"></i>Cartella Drive</span>
+          {% if pratica.drive_archivio_id %}
+          <a href="https://drive.google.com/drive/folders/{{ pratica.drive_archivio_id }}"
+             target="_blank" rel="noopener" class="btn btn-sm btn-success text-nowrap">
+            <i class="bi bi-box-arrow-up-right me-1"></i>Apri cartella
+          </a>
+          <span class="text-muted small">i PDF generati vengono archiviati qui</span>
+          {% endif %}
+          <input type="text" name="drive_link" class="form-control form-control-sm" style="min-width:220px; max-width:420px"
+                 placeholder="Incolla qui il link della cartella Drive…"
+                 value="{% if pratica.drive_archivio_id %}https://drive.google.com/drive/folders/{{ pratica.drive_archivio_id }}{% endif %}">
+          <input type="hidden" name="torna" value="{{ request.path }}">
+          <button type="submit" class="btn btn-sm btn-outline-primary">Salva</button>
+        </form>
+      </div>
+    </div>
+
     <!-- Schede -->
     <ul class="nav nav-tabs mb-0" role="tablist">
       <li class="nav-item" role="presentation">

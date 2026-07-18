@@ -164,8 +164,15 @@
                 {% else %}<span class="badge bg-secondary-subtle text-secondary">Aperta</span>{% endif %}</td>
               {% endif %}
             {% endfor %}
-            <td class="text-end" style="width:48px" onclick="event.stopPropagation()">
-              <form method="post" action="{{ url_for('elimina_pratica', pratica_id=p.id) }}"
+            <td class="text-end text-nowrap" style="width:72px" onclick="event.stopPropagation()">
+              {% if p.drive_archivio_id %}
+              <a href="https://drive.google.com/drive/folders/{{ p.drive_archivio_id }}"
+                 target="_blank" rel="noopener" class="btn btn-link btn-sm p-0 text-success me-1"
+                 title="Apri cartella Drive">
+                <i class="bi bi-folder-fill"></i>
+              </a>
+              {% endif %}
+              <form method="post" action="{{ url_for('elimina_pratica', pratica_id=p.id) }}" class="d-inline"
                     onsubmit="return confirm('Eliminare la pratica di {{ (p.cognome ~ ' ' ~ (p.nome or '')) if p.cognome else p.nome_paziente }}? L\'operazione è definitiva.');">
                 <input type="hidden" name="torna" value="{{ request.full_path }}">
                 <button type="submit" class="btn btn-link btn-sm p-0 text-danger" title="Elimina pratica">

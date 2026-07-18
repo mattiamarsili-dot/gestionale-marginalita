@@ -3,8 +3,9 @@ Archiviazione dei PDF generati nel Google Drive PERSONALE dell'utente, via OAuth
 
 A differenza di drive_sync.py (service account, sola lettura, importa i PDF dei
 fornitori), qui l'app agisce COME L'UTENTE per CARICARE i moduli generati nelle
-sue cartelle. Scope: drive.file → l'app vede/gestisce solo i file e le cartelle
-che crea lei (non tocca il resto del Drive).
+sue cartelle. Scope: drive → serve per poter caricare anche in cartelle già
+esistenti nel Drive dell'utente (di cui si incolla il link nella pratica); con
+drive.file l'app potrebbe scrivere solo nelle cartelle create da lei.
 
 Setup (una tantum, lato utente):
   1. Google Cloud Console → abilita "Google Drive API".
@@ -32,7 +33,7 @@ try:
 except ImportError:
     _LIBS = False
 
-_SCOPES = ["https://www.googleapis.com/auth/drive.file"]
+_SCOPES = ["https://www.googleapis.com/auth/drive"]
 _AUTH_URI = "https://accounts.google.com/o/oauth2/v2/auth"
 _TOKEN_URI = "https://oauth2.googleapis.com/token"
 _FOLDER_MIME = "application/vnd.google-apps.folder"
