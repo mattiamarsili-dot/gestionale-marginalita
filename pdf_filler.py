@@ -42,6 +42,13 @@ PDF_TEMPLATES = {
         # Testo dei campi un po' più grande dei 10pt nativi per renderlo leggibile
         # nelle celle del template (che sono più alte del font standard).
         "font_size": 12,
+        # I dati anagrafici di intestazione hanno celle più alte: font più grande.
+        "header_font_size": 16,
+        "header_fields": [
+            "Cognome nome", "Data Nascita", "Luogo Nascita", "Ind. Residenza",
+            "Città residenziali", "ASL appart", "Cellulare", "Centro",
+            "N. Preventivo", "Data",
+        ],
     },
     "delega-rm2": {
         "label": "Delega ASL RM2",
@@ -608,7 +615,8 @@ def _qualified_name(o) -> str:
     return ".".join(reversed(parts))
 
 
-def _prepara_stile_campi(writer, filled_names: set, center_hints=(), font_size: int = _FORM_FONT_SIZE):
+def _prepara_stile_campi(writer, filled_names: set, center_hints=(), font_size: int = _FORM_FONT_SIZE,
+                         size_overrides: dict = None):
     """
     Imposta font e allineamento sui campi DA COMPILARE, *prima* della compilazione,
     così pypdf genera l'appearance stream (/AP) già con lo stile giusto e il testo
@@ -622,17 +630,21 @@ def _prepara_stile_campi(writer, filled_names: set, center_hints=(), font_size: 
     import re
     from pypdf.generic import NameObject, NumberObject, TextStringObject
 
+    size_overrides = size_overrides or {}
     for page in writer.pages:
         for a in (page.get("/Annots") or []):
             o = a.get_object()
             qn = _qualified_name(o)
             if not qn or qn not in filled_names:
                 continue
+            # Alcuni campi (es. intestazione anagrafica) possono avere un corpo
+            # più grande del font base del modulo.
+            size = size_overrides.get(qn, font_size)
             da = o.get("/DA")
             if da:
-                new_da = re.sub(r"(/[A-Za-z0-9]+)\s+[\d.]+\s+Tf", rf"\1 {font_size} Tf", str(da))
+                new_da = re.sub(r"(/[A-Za-z0-9]+)\s+[\d.]+\s+Tf", rf"\1 {size} Tf", str(da))
             else:
-                new_da = f"0 0 0 rg /Helv {font_size} Tf"
+                new_da = f"0 0 0 rg /Helv {size} Tf"
             o[NameObject("/DA")] = TextStringObject(new_da)
             if any(h in qn for h in center_hints):
                 o[NameObject("/Q")] = NumberObject(1)
@@ -779,10 +791,16 @@ def compila_pdf(template_id: str, pratica: dict, cliente: dict, righe: list = No
             print("WARN overlay preventivo non riuscito:", _ov_err, file=sys.stderr)
     else:
         # 1) stile (font/allineamento) sui campi da compilare — il singolo modulo
-        #    può richiedere un font più grande (vedi "font_size" nel template)
+        #    può richiedere un font più grande (vedi "font_size" nel template) e,
+        #    per alcuni campi, un corpo maggiore (vedi "header_font_size"/"header_fields")
         # 2) compilazione: pypdf genera l'/AP con quello stile → visibile ovunque
+        overrides = {}
+        hfs = tpl.get("header_font_size")
+        if hfs:
+            overrides = {name: hfs for name in tpl.get("header_fields", [])}
         _prepara_stile_campi(writer, set(field_map.keys()), center_hints=_CENTER_HINTS,
-                             font_size=tpl.get("font_size", _FORM_FONT_SIZE))
+                             font_size=tpl.get("font_size", _FORM_FONT_SIZE),
+                             size_overrides=overrides)
         for page in writer.pages:
             writer.update_page_form_field_values(page, field_map, auto_regenerate=False)
 
