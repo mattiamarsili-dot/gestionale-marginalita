@@ -397,6 +397,10 @@ def dettaglio_pratica(pratica_id):
     moduli_attivi = {
         m for m in (pratica["moduli_attivi"] or "").split(",") if m
     } | moduli_bloccati
+    # Moduli già generati (PDF prodotto almeno una volta): mostra la spunta.
+    moduli_generati = {
+        m for m in (pratica["moduli_generati"] or "").split(",") if m
+    }
     return render_template(
         "dettaglio_pratica.html",
         pratica=pratica,
@@ -409,6 +413,7 @@ def dettaglio_pratica(pratica_id):
         moduli_attivi=moduli_attivi,
         moduli_auto=moduli_auto,
         moduli_bloccati=moduli_bloccati,
+        moduli_generati=moduli_generati,
         preset_categorie=preset_per_categoria(),
         significato_categorie=significato_per_categoria(),
         sign_catalogo=significato_catalogo(),
@@ -1024,6 +1029,29 @@ def aggiorna_dati_moduli(pratica_id):
 
 # ── Generazione modulo PDF ────────────────────────────────────────────────────
 
+def _segna_modulo_generato(pratica_id, template_id):
+    """Aggiunge template_id all'elenco moduli_generati della pratica (CSV, senza
+    duplicati). Best-effort: un errore qui non deve impedire il download."""
+    try:
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute(f"SELECT moduli_generati FROM pratiche WHERE id = {_PH}", (pratica_id,))
+            row = cur.fetchone()
+            if not row:
+                return
+            generati = {m for m in (row["moduli_generati"] or "").split(",") if m}
+            if template_id in generati:
+                return
+            generati.add(template_id)
+            cur.execute(
+                f"UPDATE pratiche SET moduli_generati = {_PH} WHERE id = {_PH}",
+                (",".join(sorted(generati)), pratica_id),
+            )
+    except Exception as e:
+        import sys
+        print("WARN impossibile segnare modulo generato:", e, file=sys.stderr)
+
+
 @app.route("/pratica/<int:pratica_id>/modulo/<template_id>")
 def genera_modulo(pratica_id, template_id):
     if template_id not in PDF_TEMPLATES:
@@ -1094,6 +1122,10 @@ def genera_modulo(pratica_id, template_id):
         return f"Errore nella generazione del modulo: {e}", 500
 
     filename = nome_file_consigliato(template_id, pratica_d, cliente_d)
+
+    # Segna il modulo come "generato" (spunta ✅ nella scheda): aggiunge l'id
+    # all'elenco moduli_generati della pratica, senza duplicati.
+    _segna_modulo_generato(pratica_id, template_id)
 
     # Archiviazione su Google Drive (best-effort: non blocca mai il download)
     if drive_archive.collegato():

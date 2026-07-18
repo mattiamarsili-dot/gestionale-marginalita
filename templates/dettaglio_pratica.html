@@ -366,6 +366,8 @@
                     {% if m.stato == 'parziale' %}
                     <span class="badge bg-warning-subtle text-warning d-block" style="font-size:.65em">compilazione parziale</span>
                     {% endif %}
+                    <span class="badge bg-success text-white modulo-generato-badge {% if m.id not in moduli_generati %}d-none{% endif %}"
+                          style="font-size:.65em" title="PDF già generato almeno una volta"><i class="bi bi-check-circle-fill me-1"></i>generato</span>
                   </div>
                   {% if m.richiede_cliente and not cliente %}
                   <button class="btn btn-sm btn-outline-secondary" disabled title="Serve un cliente collegato">
@@ -924,6 +926,16 @@ function eurPlain(n) {
       item && item.classList.toggle('opacity-50', !chk.checked);
       if (genera) genera.classList.toggle('d-none', !chk.checked);
       salva();
+    });
+  });
+
+  // Al click su "Genera" il server registra il modulo tra i generati: mostro
+  // subito il badge ✅ (ottimistico), poi al ricaricamento è confermato dal DB.
+  card.querySelectorAll('.modulo-genera').forEach(link => {
+    link.addEventListener('click', () => {
+      const item  = link.closest('.modulo-item');
+      const badge = item ? item.querySelector('.modulo-generato-badge') : null;
+      if (badge) badge.classList.remove('d-none');
     });
   });
 })();

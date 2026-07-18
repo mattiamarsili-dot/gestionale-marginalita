@@ -42,8 +42,9 @@ PDF_TEMPLATES = {
         # Testo dei campi un po' più grande dei 10pt nativi per renderlo leggibile
         # nelle celle del template (che sono più alte del font standard).
         "font_size": 12,
-        # I dati anagrafici di intestazione hanno celle più alte: font più grande.
-        "header_font_size": 16,
+        # I dati anagrafici di intestazione: corpo intermedio (12pt) uguale per
+        # tutti i campi, così l'intestazione resta coerente e leggibile.
+        "header_font_size": 12,
         "header_fields": [
             "Cognome nome", "Data Nascita", "Luogo Nascita", "Ind. Residenza",
             "Città residenziali", "ASL appart", "Cellulare", "Centro",
@@ -759,6 +760,43 @@ def _overlay_preventivo(reader, header: dict, righe, iva_pct, header_size=12, ta
     return _PdfReader(buf).pages[0]
 
 
+def _overlay_campi(reader, valori: dict, max_size: float = 12.0, min_size: float = 9.0):
+    """Disegna un insieme di campi {nome_qualificato: valore} sopra la prima pagina
+    a UNA sola dimensione comune (≤ max_size), calcolata come il corpo più grande
+    che fa entrare in larghezza ogni valore nella sua casella. Così l'intestazione
+    è coerente (stessa dimensione ovunque) e indipendente dall'auto-fit dei viewer,
+    che sulle caselle basse (~10pt) rimpicciolirebbe il testo in modo incoerente.
+    Testo allineato a sinistra e centrato verticalmente nella casella.
+    Restituisce la pagina-overlay (o None se non c'è nulla da disegnare)."""
+    import io as _io
+    from reportlab.pdfgen import canvas
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+    from pypdf import PdfReader as _PdfReader
+
+    rects = _field_rects(reader)
+    disegnabili = [(rects[n], str(v)) for n, v in (valori or {}).items()
+                   if n in rects and v not in ("", None)]
+    if not disegnabili:
+        return None
+
+    # dimensione comune: la più grande (≤ max_size) che fa stare ogni valore
+    size = max_size
+    while size > min_size and any(
+            stringWidth(v, "Helvetica", size) > (r[2] - r[0]) - 4 for r, v in disegnabili):
+        size -= 0.5
+
+    box = reader.pages[0].mediabox
+    buf = _io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=(float(box.width), float(box.height)))
+    c.setFont("Helvetica", size)
+    for (x0, y0, x1, y1), v in disegnabili:
+        baseline = (y0 + y1) / 2 - size * 0.35   # centrato verticalmente
+        c.drawString(x0 + 2, baseline, v)
+    c.save()
+    buf.seek(0)
+    return _PdfReader(buf).pages[0]
+
+
 # ── Generazione PDF ───────────────────────────────────────────────────────────
 
 def compila_pdf(template_id: str, pratica: dict, cliente: dict, righe: list = None) -> bytes:
@@ -790,19 +828,34 @@ def compila_pdf(template_id: str, pratica: dict, cliente: dict, righe: list = No
             import sys
             print("WARN overlay preventivo non riuscito:", _ov_err, file=sys.stderr)
     else:
-        # 1) stile (font/allineamento) sui campi da compilare — il singolo modulo
-        #    può richiedere un font più grande (vedi "font_size" nel template) e,
-        #    per alcuni campi, un corpo maggiore (vedi "header_font_size"/"header_fields")
-        # 2) compilazione: pypdf genera l'/AP con quello stile → visibile ovunque
-        overrides = {}
+        # I campi anagrafici di intestazione (header_fields) NON si riempiono via
+        # AcroForm ma si disegnano con un overlay a dimensione fissa uniforme: le
+        # loro caselle sono basse (~10pt) e i viewer che onorano NeedAppearances
+        # auto-rimpiccioliscono il testo alla casella, rendendo l'intestazione
+        # incoerente. Con l'overlay tutti i campi restano alla stessa dimensione
+        # (header_font_size) in qualunque viewer.
+        header_overlay = {}
         hfs = tpl.get("header_font_size")
         if hfs:
-            overrides = {name: hfs for name in tpl.get("header_fields", [])}
+            header_names = tpl.get("header_fields", [])
+            header_overlay = {n: field_map.pop(n) for n in header_names if n in field_map}
+
+        # 1) stile (font/allineamento) sui campi rimanenti (tabella, totali…)
+        # 2) compilazione: pypdf genera l'/AP con quello stile → visibile ovunque
         _prepara_stile_campi(writer, set(field_map.keys()), center_hints=_CENTER_HINTS,
-                             font_size=tpl.get("font_size", _FORM_FONT_SIZE),
-                             size_overrides=overrides)
+                             font_size=tpl.get("font_size", _FORM_FONT_SIZE))
         for page in writer.pages:
             writer.update_page_form_field_values(page, field_map, auto_regenerate=False)
+
+        # Overlay dell'intestazione anagrafica (dimensione unica = header_font_size)
+        if header_overlay:
+            try:
+                ov = _overlay_campi(reader, header_overlay, max_size=hfs)
+                if ov is not None:
+                    writer.pages[0].merge_page(ov)
+            except Exception as _ov_err:
+                import sys
+                print("WARN overlay intestazione non riuscito:", _ov_err, file=sys.stderr)
 
     # NeedAppearances come fallback: i viewer che lo onorano rigenerano dal /DA
     # (stessa dimensione), gli altri usano l'/AP già generato. In entrambi i casi
