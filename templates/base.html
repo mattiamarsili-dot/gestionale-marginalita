@@ -4,6 +4,31 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Gestionale Altra Mobilità{% endblock %}</title>
+  <!-- PWA: alla riapertura a freddo riprende l'ultima pagina, non la dashboard -->
+  <script>
+    (function () {
+      try {
+        var standalone = window.matchMedia('(display-mode: standalone)').matches
+          || window.navigator.standalone === true;
+        var path = location.pathname + location.search + location.hash;
+        // Non ricordare pagine di azione/download/login (riaprirle avrebbe effetti indesiderati)
+        var noSave = ['/login', '/logout', '/backup', '/drive/', '/sw.js'];
+        var skip = noSave.some(function (p) { return location.pathname.indexOf(p) === 0; })
+          || location.pathname.indexOf('/modulo/') !== -1;
+
+        // Avvio "a freddo" della PWA (nuova sessione): riprendi l'ultima pagina
+        if (standalone && !sessionStorage.getItem('gm_session')) {
+          sessionStorage.setItem('gm_session', '1');
+          var last = localStorage.getItem('gm_lastPath');
+          if (last && last !== path && location.pathname === '/') {
+            location.replace(last);
+            return;
+          }
+        }
+        if (!skip) localStorage.setItem('gm_lastPath', path);
+      } catch (e) {}
+    })();
+  </script>
   <!-- PWA: app installabile su telefono/tablet -->
   <link rel="manifest" href="{{ url_for('manifest') }}">
   <meta name="theme-color" content="#0d6efd">
