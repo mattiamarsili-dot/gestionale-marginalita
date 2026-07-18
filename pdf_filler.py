@@ -19,26 +19,29 @@ TEMPLATES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets
 #   stato: "ok"      → mappatura completa, generabile
 #          "parziale"→ generabile ma alcune sezioni restano vuote (es. righe ausili)
 #          "todo"    → non ancora mappato
-# Ordine delle categorie nell'elenco moduli: prima i preventivi, poi le deleghe,
-# infine prescrizioni e autocertificazioni.
-CATEGORIA_ORDINE = {"preventivo": 0, "delega": 1, "prescrizione": 2, "autocert": 3}
+# Ordine esplicito dei moduli nell'elenco (id → posizione). I moduli non elencati
+# qui finiscono in coda, in ordine di label.
+MODULI_ORDINE = [
+    "prescrizione-gen",          # Prescrizione presidi
+    "prescrizione-santalucia",   # Prescrizione Santa Lucia
+    "prescrizione-hbg",          # Prescrizione HBG
+    "preventivo",                # Preventivo
+    "delega-generica",           # Autocertificazione + Delega generica
+    "delega-rm2",                # Delega ASL RM2
+    "autocert-asl-rm3",          # Autocertificazione + Delega ASL RM3
+]
 
 PDF_TEMPLATES = {
-    "preventivo-sapio": {
-        "label": "Preventivo Sapio Life",
-        "file": "preventivo-sapio-v1.pdf",
-        "stato": "ok",  # anagrafica + righe ausili + totali
-        "richiede_cliente": True,
-        "categoria": "preventivo",
-        "sempre_attivo": True,
-    },
     "preventivo": {
-        "label": "Preventivo generico",
+        "label": "Preventivo",
         "file": "Preventivo.pdf",
         "stato": "ok",  # anagrafica + tabella ausili + totali (campi AcroForm dedicati)
         "richiede_cliente": True,
         "categoria": "preventivo",
         "sempre_attivo": True,
+        # Testo dei campi un po' più grande dei 10pt nativi per renderlo leggibile
+        # nelle celle del template (che sono più alte del font standard).
+        "font_size": 12,
     },
     "delega-rm2": {
         "label": "Delega ASL RM2",
@@ -88,10 +91,53 @@ PDF_TEMPLATES = {
 MODULI_SEMPRE_ATTIVI = {tid for tid, m in PDF_TEMPLATES.items() if m.get("sempre_attivo")}
 
 
+def medico_struttura_effettivo(pratica: dict, cliente: dict) -> str:
+    """Medico / struttura usato nei moduli: valore della pratica, con fallback
+    sul medico curante dell'anagrafica cliente."""
+    pratica = pratica or {}
+    cliente = cliente or {}
+    return (pratica.get("medico_struttura") or cliente.get("medico_curante") or "").strip()
+
+
+def moduli_automatici(pratica: dict, cliente: dict) -> set:
+    """Moduli attivati automaticamente in base al centro (prescrizioni) e alla
+    ASL (deleghe/autocertificazioni) del cliente collegato. Regole esclusive:
+      centro "Santa Lucia" → Prescrizione Santa Lucia
+      centro "HBG"          → Prescrizione HBG
+      altri centri          → Prescrizione presidi
+      ASL "RM2"             → Delega ASL RM2
+      ASL "RM3"             → Autocertificazione + Delega ASL RM3
+      altre ASL             → Autocertificazione + Delega generica
+    Senza cliente collegato non si attiva nulla (mancano centro e ASL)."""
+    if not cliente:
+        return set()
+    centro = (cliente.get("centro") or "").strip().lower()
+    asl = _asl(pratica, cliente).strip().upper()
+    attivi = set()
+    # Prescrizione secondo il centro
+    if "santa lucia" in centro:
+        attivi.add("prescrizione-santalucia")
+    elif "hbg" in centro:
+        attivi.add("prescrizione-hbg")
+    else:
+        attivi.add("prescrizione-gen")
+    # Delega / autocertificazione secondo la ASL
+    if asl == "RM2":
+        attivi.add("delega-rm2")
+    elif asl == "RM3":
+        attivi.add("autocert-asl-rm3")
+    else:
+        attivi.add("delega-generica")
+    return attivi
+
+
 def moduli_ordinati() -> list:
-    """Lista dei moduli (con id) ordinati per categoria: preventivi → deleghe → resto."""
+    """Lista dei moduli (con id) nell'ordine fissato da MODULI_ORDINE; i non
+    elencati finiscono in coda, alfabeticamente per label."""
     items = [{"id": tid, **meta} for tid, meta in PDF_TEMPLATES.items()]
-    items.sort(key=lambda m: (CATEGORIA_ORDINE.get(m.get("categoria"), 9), m["label"]))
+    items.sort(key=lambda m: (
+        MODULI_ORDINE.index(m["id"]) if m["id"] in MODULI_ORDINE else len(MODULI_ORDINE),
+        m["label"]))
     return items
 
 # Dimensione font unica per tutti i campi compilati (i template sono nativamente
@@ -285,7 +331,10 @@ def dati_canonici(pratica: dict, cliente: dict) -> dict:
         "tutore_documento_rilascio_luogo": (cliente.get("tutore_documento_rilascio_luogo") or "").strip(),
         "tutore_documento_rilascio_data":  _fmt_data(cliente.get("tutore_documento_rilascio_data")),
         "data_prescrizione": _fmt_data(pratica.get("data_pratica")),
-        "medico_struttura": (pratica.get("medico_struttura") or "").strip(),
+        # Medico / struttura: dato della pratica, con fallback sul medico curante
+        # dell'anagrafica cliente collegata.
+        "medico_struttura": (pratica.get("medico_struttura")
+                             or cliente.get("medico_curante") or "").strip(),
         "ausilio":          (pratica.get("ausilio") or "").strip(),
         "diagnosi":         (pratica.get("diagnosi") or "").strip(),
         "sign_terapeutico": (pratica.get("sign_terapeutico") or "").strip(),
@@ -729,9 +778,11 @@ def compila_pdf(template_id: str, pratica: dict, cliente: dict, righe: list = No
             import sys
             print("WARN overlay preventivo non riuscito:", _ov_err, file=sys.stderr)
     else:
-        # 1) stile (font/allineamento) sui campi da compilare
+        # 1) stile (font/allineamento) sui campi da compilare — il singolo modulo
+        #    può richiedere un font più grande (vedi "font_size" nel template)
         # 2) compilazione: pypdf genera l'/AP con quello stile → visibile ovunque
-        _prepara_stile_campi(writer, set(field_map.keys()), center_hints=_CENTER_HINTS)
+        _prepara_stile_campi(writer, set(field_map.keys()), center_hints=_CENTER_HINTS,
+                             font_size=tpl.get("font_size", _FORM_FONT_SIZE))
         for page in writer.pages:
             writer.update_page_form_field_values(page, field_map, auto_regenerate=False)
 

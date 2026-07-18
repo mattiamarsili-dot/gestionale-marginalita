@@ -91,16 +91,30 @@
               {% endif %}
             </td>
             {% for col in colonne_catalogo if col.key in colonne_attive %}
-              {% if col.key == 'cf' %}<td class="text-muted">{{ c.codice_fiscale or '—' }}</td>
+              {% if col.key == 'cf' %}<td class="text-muted">
+                {% if c.codice_fiscale %}{{ c.codice_fiscale }}
+                {% else %}<input type="text" class="form-control form-control-sm cliente-inline text-uppercase" style="min-width:150px" data-id="{{ c.id }}" data-campo="cf" placeholder="+ Codice Fiscale">{% endif %}</td>
               {% elif col.key == 'telefono' %}<td>
-                {% if c.telefono %}<a href="tel:{{ c.telefono|replace(' ','') }}" onclick="event.stopPropagation()" class="text-decoration-none"><i class="bi bi-telephone me-1"></i>{{ c.telefono }}</a>
-                {% else %}<span class="text-muted">—</span>{% endif %}</td>
-              {% elif col.key == 'email' %}<td class="text-muted">{{ c.email or '—' }}</td>
-              {% elif col.key == 'asl' %}<td class="text-muted">{{ c.asl or '—' }}</td>
-              {% elif col.key == 'centro' %}<td class="text-muted">{{ c.centro or '—' }}</td>
-              {% elif col.key == 'medico' %}<td class="text-muted">{{ c.medico_curante or '—' }}</td>
-              {% elif col.key == 'nascita' %}<td class="text-muted">{{ (c.data_nascita|string)[:10] if c.data_nascita else '—' }}</td>
-              {% elif col.key == 'luogo' %}<td class="text-muted">{{ c.luogo_nascita or '—' }}</td>
+                {% if c.telefono %}<a href="tel:{{ c.telefono|replace(' ','') }}" class="text-decoration-none"><i class="bi bi-telephone me-1"></i>{{ c.telefono }}</a>
+                {% else %}<input type="tel" class="form-control form-control-sm cliente-inline" style="min-width:120px" data-id="{{ c.id }}" data-campo="telefono" placeholder="+ Telefono">{% endif %}</td>
+              {% elif col.key == 'email' %}<td class="text-muted">
+                {% if c.email %}{{ c.email }}
+                {% else %}<input type="email" class="form-control form-control-sm cliente-inline" style="min-width:150px" data-id="{{ c.id }}" data-campo="email" placeholder="+ Email">{% endif %}</td>
+              {% elif col.key == 'asl' %}<td class="text-muted">
+                {% if c.asl %}{{ c.asl }}
+                {% else %}<input type="text" list="lista-asl" class="form-control form-control-sm cliente-inline" style="min-width:110px" data-id="{{ c.id }}" data-campo="asl" placeholder="+ ASL">{% endif %}</td>
+              {% elif col.key == 'centro' %}<td class="text-muted">
+                {% if c.centro %}{{ c.centro }}
+                {% else %}<input type="text" list="lista-centri" class="form-control form-control-sm cliente-inline" style="min-width:120px" data-id="{{ c.id }}" data-campo="centro" placeholder="+ Centro">{% endif %}</td>
+              {% elif col.key == 'medico' %}<td class="text-muted">
+                {% if c.medico_curante %}{{ c.medico_curante }}
+                {% else %}<input type="text" class="form-control form-control-sm cliente-inline" style="min-width:140px" data-id="{{ c.id }}" data-campo="medico" placeholder="+ Medico">{% endif %}</td>
+              {% elif col.key == 'nascita' %}<td class="text-muted">
+                {% if c.data_nascita %}{{ (c.data_nascita|string)[:10] }}
+                {% else %}<input type="date" class="form-control form-control-sm cliente-inline" style="width:148px" data-id="{{ c.id }}" data-campo="nascita">{% endif %}</td>
+              {% elif col.key == 'luogo' %}<td class="text-muted">
+                {% if c.luogo_nascita %}{{ c.luogo_nascita }}
+                {% else %}<input type="text" class="form-control form-control-sm cliente-inline" style="min-width:130px" data-id="{{ c.id }}" data-campo="luogo" placeholder="+ Luogo nascita">{% endif %}</td>
               {% elif col.key == 'residenza' %}<td>
                 {% set indirizzo = [c.residenza_via, c.residenza_civico, c.residenza_cap, c.residenza_citta, c.provincia]|select|join(' ') %}
                 {% if c.residenza_citta or c.residenza_via %}<a href="https://www.google.com/maps/search/?api=1&query={{ indirizzo|urlencode }}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="text-decoration-none"><i class="bi bi-geo-alt me-1"></i>{{ c.residenza_citta or indirizzo }}</a>
@@ -109,10 +123,22 @@
               {% elif col.key == 'num_pratiche' %}<td class="text-center">
                 {% if c.num_pratiche %}<span class="badge bg-primary-subtle text-primary">{{ c.num_pratiche }}</span>
                 {% else %}<span class="text-muted">0</span>{% endif %}</td>
+              {% elif col.key == 'pratiche_list' %}<td>
+                {% set lista = pratiche_per_cliente.get(c.id, []) %}
+                {% if lista %}<div class="d-flex flex-wrap gap-1">
+                  {% for p in lista %}
+                  <a href="{{ url_for('dettaglio_pratica', pratica_id=p.id) }}"
+                     class="badge bg-primary-subtle text-primary text-decoration-none border border-primary-subtle"
+                     title="Apri la scheda della pratica">
+                    <i class="bi bi-folder2-open me-1"></i>{{ p.numero_pratica or (p.data_pratica|string)[:10] }}
+                  </a>
+                  {% endfor %}
+                </div>
+                {% else %}<span class="text-muted">Nessuna pratica</span>{% endif %}</td>
               {% endif %}
             {% endfor %}
             <td class="text-end text-nowrap">
-              {% if vista_attiva == 'attivita' %}
+              {% if vista_attiva == 'pratiche' %}
               <a href="{{ url_for('nuova_pratica', cliente_id=c.id) }}"
                  class="btn btn-sm btn-primary" title="Apri una nuova pratica per questo cliente">
                 <i class="bi bi-folder-plus me-1"></i>Pratica
@@ -145,5 +171,33 @@
   </div>
 </div></div>
 {% endif %}
+<datalist id="lista-centri">
+  {% for c in centri %}<option value="{{ c }}">{% endfor %}
+</datalist>
+<datalist id="lista-asl">
+  {% for a in asl_opzioni %}<option value="{{ a }}">{% endfor %}
+</datalist>
+
 <script src="{{ url_for('static', filename='colonne.js') }}"></script>
+<script>
+  // Valorizzazione rapida dei campi vuoti dalla lista, senza aprire la scheda.
+  // Una volta compilato, il campo diventa testo di sola lettura (modifica dalla scheda).
+  document.querySelectorAll('.cliente-inline').forEach(function (el) {
+    el.addEventListener('change', function () {
+      var val = el.value.trim();
+      if (!val) return;
+      var fd = new FormData();
+      fd.append('campo', el.dataset.campo);
+      fd.append('valore', val);
+      fetch('/cliente/' + el.dataset.id + '/campo', {
+        method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        if (!d.ok) { el.classList.add('is-invalid'); return; }
+        // Sostituisce l'input col valore salvato come testo di sola lettura.
+        var td = el.closest('td');
+        if (td) td.textContent = d.valore || '—';
+      }).catch(function () { el.classList.add('is-invalid'); });
+    });
+  });
+</script>
 {% endblock %}

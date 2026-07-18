@@ -26,6 +26,7 @@ from drive_sync import drive_configurato
 import drive_archive
 from pdf_filler import (
     PDF_TEMPLATES, MODULI_SEMPRE_ATTIVI, moduli_ordinati,
+    moduli_automatici, medico_struttura_effettivo,
     compila_pdf, nome_file_consigliato, numero_preventivo,
 )
 from presets import (
@@ -383,13 +384,19 @@ def dettaglio_pratica(pratica_id):
     )
     # Totale imponibile righe ausili (per la sezione ausili / preventivo)
     tot_ausili = sum((r["qta"] or 0) * (r["prezzo_unitario"] or 0) for r in righe)
-    # Moduli PDF: ordinati per categoria (preventivi → deleghe → resto)
+    # Moduli PDF nell'ordine fissato.
     moduli = moduli_ordinati()
-    # Moduli selezionati manualmente per questa pratica (id separati da virgola).
-    # I preventivi sono sempre attivi (non disattivabili).
+    # Moduli "bloccati" (sempre attivi, non disattivabili): il preventivo +
+    # quelli scelti automaticamente dalle regole su centro (prescrizioni) e ASL
+    # (deleghe/autocertificazioni) del cliente collegato.
+    pratica_d = dict(pratica)
+    cliente_d = dict(cliente) if cliente else None
+    moduli_auto = moduli_automatici(pratica_d, cliente_d)
+    moduli_bloccati = set(MODULI_SEMPRE_ATTIVI) | moduli_auto
+    # Attivi = selezione manuale (id separati da virgola) + i bloccati.
     moduli_attivi = {
         m for m in (pratica["moduli_attivi"] or "").split(",") if m
-    } | set(MODULI_SEMPRE_ATTIVI)
+    } | moduli_bloccati
     return render_template(
         "dettaglio_pratica.html",
         pratica=pratica,
@@ -400,6 +407,8 @@ def dettaglio_pratica(pratica_id):
         margine=margine,
         moduli=moduli,
         moduli_attivi=moduli_attivi,
+        moduli_auto=moduli_auto,
+        moduli_bloccati=moduli_bloccati,
         preset_categorie=preset_per_categoria(),
         significato_categorie=significato_per_categoria(),
         sign_catalogo=significato_catalogo(),
@@ -1043,6 +1052,11 @@ def genera_modulo(pratica_id, template_id):
         # Senza cliente collegato non c'è anagrafica da inserire nel modulo
         return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) + "#moduli")
 
+    # Medico / struttura obbligatorio prima di generare qualsiasi modulo.
+    if not medico_struttura_effettivo(pratica_d, cliente_d):
+        return redirect(
+            url_for("dettaglio_pratica", pratica_id=pratica_id, manca_medico=1) + "#moduli")
+
     # Per le DELEGHE chiediamo conferma della data di prescrizione: senza il
     # parametro mostriamo una paginetta che la propone (default = data pratica)
     # e permette di correggerla prima di generare.
@@ -1322,6 +1336,19 @@ _CLIENTE_NO_CAP_FIELDS = {"email", "asl", "centro", "telefono", "residenza_cap",
                           "residente_dal_anno"}
 
 
+def _normalizza_valore_cliente(campo, raw):
+    """Normalizza il valore testuale di un singolo campo cliente: vuoto→None per
+    le date, CF/provincia in maiuscolo, altri testi con l'iniziale maiuscola."""
+    val = (raw or "").strip()
+    if campo in _CLIENTE_DATE_FIELDS and not val:
+        return None
+    if val and campo in _CLIENTE_UPPER_FIELDS:
+        return val.upper()
+    if val and campo not in _CLIENTE_NO_CAP_FIELDS and campo not in _CLIENTE_DATE_FIELDS:
+        return val[:1].upper() + val[1:]
+    return val
+
+
 def _leggi_cliente_dal_form(form) -> dict:
     """Estrae i campi cliente dal form, normalizzando vuoti, date, checkbox e
     maiuscole (CF in maiuscolo, gli altri testi con l'iniziale maiuscola)."""
@@ -1330,14 +1357,7 @@ def _leggi_cliente_dal_form(form) -> dict:
         if campo in _CLIENTE_BOOL_FIELDS:
             dati[campo] = bool(form.get(campo))
             continue
-        val = (form.get(campo) or "").strip()
-        if campo in _CLIENTE_DATE_FIELDS and not val:
-            val = None
-        elif val and campo in _CLIENTE_UPPER_FIELDS:
-            val = val.upper()
-        elif val and campo not in _CLIENTE_NO_CAP_FIELDS and campo not in _CLIENTE_DATE_FIELDS:
-            val = val[:1].upper() + val[1:]
-        dati[campo] = val
+        dati[campo] = _normalizza_valore_cliente(campo, form.get(campo))
     return dati
 
 
@@ -1417,14 +1437,15 @@ COLONNE_CLIENTI = [
     {"key": "residenza",    "label": "Indirizzo",      "default": False},
     {"key": "apertura",     "label": "Apertura",       "default": True},
     {"key": "num_pratiche", "label": "N° pratiche",    "default": True},
+    {"key": "pratiche_list","label": "Pratiche",       "default": False},
 ]
 
 # Viste predefinite Clienti: ogni vista è un set di colonne (solo colonne).
 VISTE_CLIENTI = [
     {"key": "contatti", "label": "Contatti", "icon": "bi-telephone",
      "cols": ["telefono", "residenza", "centro"]},
-    {"key": "attivita", "label": "Attività", "icon": "bi-folder2-open",
-     "cols": ["apertura", "num_pratiche"]},
+    {"key": "pratiche", "label": "Pratiche", "icon": "bi-folder2-open",
+     "cols": ["centro", "pratiche_list"]},
 ]
 
 COLONNE_PRATICHE = [
@@ -1450,33 +1471,24 @@ VISTE_PRATICHE = [
      "cols": ["asl", "provvigione", "margine"]},
 ]
 
-# Ordinamenti Pratiche. key "" = raggruppato per centro (default, come prima);
-# gli altri producono una lista unica ordinata.
+# Ordinamenti Pratiche. "centro" = raggruppato per centro; "recenti" (default)
+# e "paziente" producono una lista unica ordinata.
 ORDINI_PRATICHE = [
-    {"key": "",         "label": "Per centro",        "icon": "bi-building"},
+    {"key": "centro",   "label": "Per centro",        "icon": "bi-building"},
     {"key": "recenti",  "label": "Apertura recenti",  "icon": "bi-clock-history"},
-    {"key": "vecchie",  "label": "Apertura vecchie",  "icon": "bi-clock"},
     {"key": "paziente", "label": "Paziente A–Z",      "icon": "bi-sort-alpha-down"},
-    {"key": "margine",  "label": "Margine ↑",         "icon": "bi-graph-down"},
-    {"key": "asl",      "label": "Importo ASL ↓",     "icon": "bi-cash-stack"},
 ]
+ORDINE_PRATICHE_DEFAULT = "recenti"
 
 
 def _ordina_pratiche(elenco: list, key: str) -> list:
     """Ordina la lista (già con mol/margine calcolati) secondo la scelta."""
-    if key == "recenti":
-        return sorted(elenco, key=lambda p: str(p.get("creato_il") or ""), reverse=True)
-    if key == "vecchie":
-        return sorted(elenco, key=lambda p: str(p.get("creato_il") or ""))
     if key == "paziente":
         return sorted(elenco, key=lambda p: (
             (p.get("cognome") or p.get("nome_paziente") or "").lower(),
             (p.get("nome") or "").lower()))
-    if key == "margine":
-        return sorted(elenco, key=lambda p: p.get("margine_pct", 0))
-    if key == "asl":
-        return sorted(elenco, key=lambda p: p.get("importo_asl") or 0, reverse=True)
-    return elenco
+    # "recenti" (default): per data/ora di apertura decrescente
+    return sorted(elenco, key=lambda p: str(p.get("creato_il") or ""), reverse=True)
 
 
 def _vista_o_colonne(nome: str, catalogo: list, viste: list):
@@ -1517,6 +1529,8 @@ def clienti():
     if solo_verificare:
         where.append("c.da_verificare")
     where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+    colonne_attive, vista_attiva = _vista_o_colonne("clienti", COLONNE_CLIENTI, VISTE_CLIENTI)
+    pratiche_per_cliente = {}
     with get_db() as conn:
         cur = conn.cursor()
         # Lista unica ordinata per data/ora di apertura (creato_il) decrescente.
@@ -1532,13 +1546,27 @@ def clienti():
         elenco = cur.fetchall()
         cur.execute("SELECT COUNT(*) AS n FROM clienti WHERE da_verificare")
         n_verificare = cur.fetchone()["n"]
-    colonne_attive, vista_attiva = _vista_o_colonne("clienti", COLONNE_CLIENTI, VISTE_CLIENTI)
+        # Per la vista/colonna "Pratiche": elenco delle pratiche di ogni cliente
+        # mostrato, ciascuna apribile (numero o, in mancanza, data di apertura).
+        if "pratiche_list" in colonne_attive and elenco:
+            ids = [r["id"] for r in elenco]
+            ph = ", ".join([_PH] * len(ids))
+            cur.execute(
+                f"""SELECT id, cliente_id, numero_pratica, data_pratica
+                    FROM pratiche
+                    WHERE cliente_id IN ({ph})
+                    ORDER BY data_pratica DESC, id DESC""",
+                tuple(ids),
+            )
+            for r in cur.fetchall():
+                pratiche_per_cliente.setdefault(r["cliente_id"], []).append(dict(r))
     return render_template(
         "clienti.html", clienti=elenco, q=q,
-        centro=centro, centri=opzioni_centri(),
+        centro=centro, centri=opzioni_centri(), asl_opzioni=opzioni_asl(),
         n_verificare=n_verificare, solo_verificare=solo_verificare,
         colonne_catalogo=COLONNE_CLIENTI,
         colonne_attive=colonne_attive,
+        pratiche_per_cliente=pratiche_per_cliente,
         viste=VISTE_CLIENTI, vista_attiva=vista_attiva,
     )
 
@@ -1594,12 +1622,13 @@ def pratiche():
         else:
             p["margine_classe"] = "danger"
     ordine = (request.args.get("ordine") or "").strip()
-    if ordine in {o["key"] for o in ORDINI_PRATICHE} and ordine:
+    if ordine not in {o["key"] for o in ORDINI_PRATICHE}:
+        ordine = ORDINE_PRATICHE_DEFAULT
+    if ordine == "centro":
+        gruppi = _raggruppa_per_centro(elenco)
+    else:
         gruppi = None
         elenco = _ordina_pratiche(elenco, ordine)
-    else:
-        ordine = ""
-        gruppi = _raggruppa_per_centro(elenco)
     colonne_attive, vista_attiva = _vista_o_colonne("pratiche", COLONNE_PRATICHE, VISTE_PRATICHE)
     return render_template(
         "pratiche.html", pratiche=elenco, gruppi=gruppi, q=q,
@@ -1618,6 +1647,46 @@ def pratiche():
 
 
 # Campi della pratica modificabili al volo dalla lista (whitelist → tipo valore).
+# Modifica rapida dalla lista Clienti: chiave colonna → colonna DB.
+# Compare in tabella SOLO quando il campo è vuoto (per valorizzarlo al volo);
+# se è già presente, per modificarlo si apre la scheda del cliente.
+CLIENTE_CAMPI_INLINE = {
+    "cf":       "codice_fiscale",
+    "telefono": "telefono",
+    "email":    "email",
+    "asl":      "asl",
+    "centro":   "centro",
+    "medico":   "medico_curante",
+    "nascita":  "data_nascita",
+    "luogo":    "luogo_nascita",
+}
+
+
+@app.route("/cliente/<int:cliente_id>/campo", methods=["POST"])
+def cliente_campo(cliente_id):
+    """Valorizza un singolo campo del cliente dalla lista, senza aprire la scheda.
+    Consentito solo se il campo è ancora vuoto: una volta compilato, per
+    modificarlo si passa dalla scheda del cliente."""
+    chiave = (request.form.get("campo") or "").strip()
+    colonna = CLIENTE_CAMPI_INLINE.get(chiave)
+    if not colonna:
+        return jsonify({"ok": False, "errore": "Campo non modificabile"}), 400
+    valore = _normalizza_valore_cliente(colonna, request.form.get("valore"))
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT {colonna} AS attuale FROM clienti WHERE id = {_PH}", (cliente_id,))
+        riga = cur.fetchone()
+        if riga is None:
+            return jsonify({"ok": False, "errore": "Cliente inesistente"}), 404
+        attuale = riga["attuale"]
+        if attuale not in (None, ""):
+            return jsonify({"ok": False, "errore": "Campo già valorizzato"}), 409
+        cur.execute(f"UPDATE clienti SET {colonna} = {_PH} WHERE id = {_PH}", (valore, cliente_id))
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"ok": True, "valore": valore or ""})
+    return redirect(request.form.get("torna") or url_for("clienti"))
+
+
 PRATICA_CAMPI_INLINE = {
     "data_pratica":      "date",
     "numero_pratica":    "text",
@@ -2061,7 +2130,8 @@ def cliente_elimina(cliente_id):
         n = cur.fetchone()["n"]
         if n > 0:
             # Non eliminare un cliente con pratiche collegate: si perderebbe il legame.
-            return redirect(url_for("cliente_dettaglio", cliente_id=cliente_id))
+            # Segnaliamo il motivo con un parametro, così la scheda mostra un avviso.
+            return redirect(url_for("cliente_dettaglio", cliente_id=cliente_id, bloccato=1))
         cur.execute(f"DELETE FROM clienti WHERE id = {_PH}", (cliente_id,))
     return redirect(url_for("clienti"))
 

@@ -139,8 +139,11 @@
                 {{ select_add('asl_destinataria', pratica.asl_destinataria or (cliente.asl if cliente else ''), asl_opzioni, vuoto='— Nessuna —', nuovo='Nuova ASL', cls='form-select form-select-sm', el_id='cod-asl') }}
               </div>
               <div class="col-12 col-sm-6">
-                <label class="form-label form-label-sm mb-1">Medico / struttura</label>
-                <input type="text" name="medico_struttura" id="cod-medico" class="form-control form-control-sm" value="{{ pratica.medico_struttura or '' }}">
+                <label class="form-label form-label-sm mb-1">Medico / struttura <span class="text-danger">*</span></label>
+                <input type="text" name="medico_struttura" id="cod-medico" required
+                       class="form-control form-control-sm"
+                       value="{{ pratica.medico_struttura or (cliente.medico_curante if cliente else '') }}"
+                       placeholder="Obbligatorio per generare i moduli">
               </div>
               <div class="col-12 col-sm-6">
                 <label class="form-label form-label-sm mb-1">Ausilio (oggetto richiesta)</label>
@@ -337,19 +340,28 @@
               <a href="{{ url_for('modifica_pratica', pratica_id=pratica.id) }}">Collega un cliente</a>.
             </div>
             {% endif %}
+            {% if request.args.get('manca_medico') %}
+            <div class="alert alert-danger py-2 small mb-3">
+              <i class="bi bi-exclamation-triangle-fill me-1"></i>
+              Inserisci <strong>Medico / struttura</strong> nella sezione qui sopra prima di generare i moduli.
+            </div>
+            {% endif %}
             <div class="row g-2" id="moduli-lista">
               {% for m in moduli %}
               {% set attivo = m.id in moduli_attivi %}
+              {% set bloccato = m.id in moduli_bloccati %}
               <div class="col-12 col-sm-6">
                 <div class="d-flex align-items-center justify-content-between border rounded p-2 modulo-item {% if not attivo %}opacity-50{% endif %}"
                      data-modulo-id="{{ m.id }}">
                   <div class="form-check me-2 mb-0">
                     <input class="form-check-input modulo-check" type="checkbox" value="{{ m.id }}"
                            id="chk-{{ m.id }}" {% if attivo %}checked{% endif %}
-                           {% if m.sempre_attivo %}disabled{% endif %}>
+                           {% if bloccato %}disabled{% endif %}>
                     <label class="form-check-label fw-semibold small" for="chk-{{ m.id }}">{{ m.label }}</label>
                     {% if m.sempre_attivo %}
                     <span class="badge bg-success-subtle text-success" style="font-size:.65em"><i class="bi bi-pin-angle-fill"></i> sempre attivo</span>
+                    {% elif m.id in moduli_auto %}
+                    <span class="badge bg-info-subtle text-info" style="font-size:.65em"><i class="bi bi-magic"></i> attivo automaticamente</span>
                     {% endif %}
                     {% if m.stato == 'parziale' %}
                     <span class="badge bg-warning-subtle text-warning d-block" style="font-size:.65em">compilazione parziale</span>
@@ -896,7 +908,9 @@ function eurPlain(n) {
   const hint = document.getElementById('moduli-vuoto-hint');
 
   function salva() {
-    const scelti = Array.from(card.querySelectorAll('.modulo-check:checked')).map(c => c.value);
+    // Solo le spunte manuali: i moduli bloccati (sempre attivi / automatici)
+    // sono disabled e vengono ri-derivati dalle regole, non vanno persistiti.
+    const scelti = Array.from(card.querySelectorAll('.modulo-check:checked:not(:disabled)')).map(c => c.value);
     const body = new URLSearchParams();
     scelti.forEach(v => body.append('modulo[]', v));
     fetch(url, { method: 'POST', headers: { 'X-Requested-With': 'fetch' }, body }).catch(() => {});

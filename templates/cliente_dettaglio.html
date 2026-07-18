@@ -12,6 +12,14 @@
 <div class="row justify-content-center">
   <div class="col-12 col-xl-10">
 
+    {% if request.args.get('bloccato') %}
+    <div class="alert alert-warning d-flex align-items-center gap-2">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <span>Impossibile eliminare il cliente: ci sono <strong>pratiche collegate</strong>.
+      Elimina prima le pratiche qui sotto, poi potrai eliminare il cliente.</span>
+    </div>
+    {% endif %}
+
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
       <div class="d-flex align-items-center gap-3">
         <a href="{{ url_for('clienti') }}" class="btn btn-sm btn-outline-secondary">
