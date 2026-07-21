@@ -442,7 +442,17 @@
                     {% for pv in preventivi %}
                     <tr>
                       <td>{{ pv.nome_fornitore }}</td>
-                      <td class="text-end fw-semibold">€ {{ "%.2f"|format(pv.importo) }}</td>
+                      <td class="text-end">
+                        <div class="input-group input-group-sm fornitore-importo-wrap ms-auto" style="max-width:150px">
+                          <span class="input-group-text">€</span>
+                          <input type="number" step="0.01" min="0"
+                                 class="form-control text-end fw-semibold inp-fornitore-importo"
+                                 value="{{ "%.2f"|format(pv.importo) }}"
+                                 data-url="{{ url_for('aggiorna_importo_fornitore', preventivo_id=pv.id) }}"
+                                 aria-label="Importo netto {{ pv.nome_fornitore }}">
+                        </div>
+                        <small class="text-success fornitore-importo-stato d-block text-end" style="min-height:1em"></small>
+                      </td>
                       <td class="text-end" style="width:40px">
                         <form method="post" action="{{ url_for('elimina_fornitore', preventivo_id=pv.id) }}"
                               onsubmit="return confirm('Rimuovere {{ pv.nome_fornitore }}?')">
@@ -458,7 +468,7 @@
                   <tfoot class="table-light">
                     <tr>
                       <td class="fw-bold text-muted small">TOTALE COSTO</td>
-                      <td class="text-end fw-bold">€ {{ "%.2f"|format(margine.costo) }}</td>
+                      <td class="text-end fw-bold" id="foot-costo">€ {{ "%.2f"|format(margine.costo) }}</td>
                       <td></td>
                     </tr>
                   </tfoot>
@@ -504,7 +514,7 @@
                 <div id="riepilogo-margine">
                   <div class="riga-calc text-danger">
                     <span>Costo fornitori</span>
-                    <span>— € {{ "%.2f"|format(margine.costo) }}</span>
+                    <span id="m-costo">— € {{ "%.2f"|format(margine.costo) }}</span>
                   </div>
                   <div class="riga-calc text-muted">
                     <span id="m-prov-label">Provvigione {{ margine.provvigione_pct | int }}%</span>
@@ -949,7 +959,6 @@ function eurPlain(n) {
   const stato   = document.getElementById('asl-stato');
   const aslUrl  = card.dataset.aslUrl;
   const provPct = parseFloat(card.dataset.provPct) || 0.16;
-  const costo   = parseFloat(card.dataset.costo) || 0;
   const sogliaOk   = parseFloat(card.dataset.sogliaOk) || 20;
   const sogliaWarn = parseFloat(card.dataset.sogliaWarn) || 10;
   let timer = null;
@@ -965,6 +974,7 @@ function eurPlain(n) {
 
   async function ricalcola() {
     const asl = parseFloat(inp.value) || 0;
+    const costo = parseFloat(card.dataset.costo) || 0;   // letto fresco: cambia se modifico i costi fornitori
     try {
       const res = await fetch(`/api/calcola-margine?asl=${asl}&costo=${costo}&provvigione_pct=${provPct}`);
       const d = await res.json();
@@ -1011,6 +1021,49 @@ function eurPlain(n) {
     inp.value = parseFloat(card.dataset.totAusili || 0).toFixed(2);
     ricalcola();
     salva();
+  });
+
+  // Esposta così l'editing degli importi fornitori può rilanciare il calcolo MOL.
+  window.ricalcolaMargine = ricalcola;
+})();
+
+// ── Importi fornitori editabili: modifica inline + ricalcolo MOL live ────────
+(function () {
+  const card   = document.getElementById('card-margine');
+  const inputs = document.querySelectorAll('.inp-fornitore-importo');
+  if (!inputs.length) return;
+  const footCosto  = document.getElementById('foot-costo');
+  const lineaCosto = document.getElementById('m-costo');
+
+  async function salvaImporto(inp) {
+    const val = Math.max(parseFloat(inp.value) || 0, 0);
+    inp.value = val.toFixed(2);
+    const stato = inp.closest('td').querySelector('.fornitore-importo-stato');
+    try {
+      const body = new URLSearchParams({ importo: val });
+      const res = await fetch(inp.dataset.url, {
+        method: 'POST', headers: { 'X-Requested-With': 'fetch' }, body,
+      });
+      const d = await res.json();
+      if (!d.ok) throw new Error();
+
+      // Aggiorna il costo totale ovunque e ricalcola il margine.
+      if (card) card.dataset.costo = d.costo_totale;
+      if (footCosto)  footCosto.textContent  = eur(d.costo_totale);
+      if (lineaCosto) lineaCosto.textContent = '— ' + eur(d.costo_totale);
+      if (window.ricalcolaMargine) window.ricalcolaMargine();
+
+      if (stato) { stato.textContent = '✓ salvato'; setTimeout(() => stato.textContent = '', 1500); }
+    } catch (_) {
+      if (stato) { stato.className = 'text-danger fornitore-importo-stato d-block text-end';
+                   stato.textContent = '⚠️ non salvato'; }
+    }
+  }
+
+  inputs.forEach((inp) => {
+    // Salva su blur o Invio (non a ogni tasto, per non spammare il server).
+    inp.addEventListener('change', () => salvaImporto(inp));
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } });
   });
 })();
 

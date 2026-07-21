@@ -692,6 +692,36 @@ def aggiungi_fornitore(pratica_id):
     return redirect(torna)
 
 
+@app.route("/preventivo/<int:preventivo_id>/importo", methods=["POST"])
+def aggiorna_importo_fornitore(preventivo_id):
+    """Modifica l'importo (netto IVA) di un costo fornitore già inserito e
+    restituisce il totale costi ricalcolato, per aggiornare il MOL senza
+    ricaricare la pagina (stesso pattern dell'importo ASL / qta ausili)."""
+    try:
+        importo = float(request.form.get("importo") or 0)
+    except ValueError:
+        importo = 0.0
+    if importo < 0:
+        importo = 0.0
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT pratica_id FROM preventivi WHERE id = {_PH}", (preventivo_id,))
+        row = cur.fetchone()
+        if not row:
+            return jsonify({"ok": False}), 404
+        pratica_id = row["pratica_id"]
+        cur.execute(f"UPDATE preventivi SET importo = {_PH} WHERE id = {_PH}", (importo, preventivo_id))
+        cur.execute(
+            f"SELECT COALESCE(SUM(importo), 0) AS tot FROM preventivi WHERE pratica_id = {_PH}",
+            (pratica_id,),
+        )
+        costo_totale = float(cur.fetchone()["tot"] or 0)
+    if request.headers.get("X-Requested-With") == "fetch":
+        return jsonify({"ok": True, "importo": importo, "costo_totale": costo_totale})
+    torna = request.form.get("torna", url_for("dettaglio_pratica", pratica_id=pratica_id) + "#tab-margine")
+    return redirect(torna)
+
+
 @app.route("/preventivo/<int:preventivo_id>/elimina", methods=["POST"])
 def elimina_fornitore(preventivo_id):
     with get_db() as conn:
