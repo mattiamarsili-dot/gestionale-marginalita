@@ -145,8 +145,10 @@ python3 backup.py          # backup del DB locale (SQLite)
 
 > **Reti di sicurezza attive, in ordine:**
 > 1. **Neon PITR** — ripristino a qualsiasi istante degli ultimi 7 giorni (automatico).
-> 2. **Backup JSON** — il download 1-click qui sopra, conservato fuori dal sistema.
-> 3. **Git** — il codice è su GitHub; i dati NO (i `backup_*.json` sono git-ignored apposta).
+> 2. **Backup JSON automatico** — ogni domenica via email, senza intervento
+>    (GitHub Action + `backup_auto.py`). Setup in `BACKUP_AUTOMATICO.md`.
+> 3. **Backup JSON manuale** — il download 1-click qui sopra, per snapshot al volo.
+> 4. **Git** — il codice è su GitHub; i dati NO (i `backup_*.json` sono git-ignored apposta).
 
 ---
 

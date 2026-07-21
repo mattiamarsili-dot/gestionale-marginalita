@@ -96,3 +96,18 @@ if not GOOGLE_CREDENTIALS_JSON:
 # cartelle già esistenti di cui si incolla il link nella pratica (scope: drive).
 GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
 GOOGLE_OAUTH_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "")
+
+# ── Backup automatico (backup_auto.py) ──────────────────────────────────────────
+# Recapito del backup JSON via email (SMTP). Tutte opzionali: se SMTP_HOST o
+# BACKUP_EMAIL_TO mancano, l'email viene saltata e resta solo la copia locale.
+# Con Gmail: SMTP_HOST=smtp.gmail.com, SMTP_PORT=587, SMTP_USER=la-tua@gmail.com,
+# SMTP_PASSWORD = "password per le app" (non la password normale dell'account).
+SMTP_HOST         = os.environ.get("SMTP_HOST", "")
+SMTP_PORT         = int(os.environ.get("SMTP_PORT", "587") or "587")
+SMTP_USER         = os.environ.get("SMTP_USER", "")
+SMTP_PASSWORD     = os.environ.get("SMTP_PASSWORD", "")
+BACKUP_EMAIL_TO   = os.environ.get("BACKUP_EMAIL_TO", "")
+BACKUP_EMAIL_FROM = os.environ.get("BACKUP_EMAIL_FROM", "") or SMTP_USER
+# Copia locale con rotazione: dove salvare e quante copie tenere.
+BACKUP_DIR        = os.environ.get("BACKUP_DIR", ".")
+BACKUP_KEEP       = int(os.environ.get("BACKUP_KEEP", "8") or "8")
