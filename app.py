@@ -275,6 +275,7 @@ def dashboard():
         drive_attivo=drive_configurato(),
         provvigione_std=PROVVIGIONE_PCT * 100,
         provvigione_rid=PROVVIGIONE_PCT_RIDOTTA * 100,
+        struttura_pct=STRUTTURA_PCT * 100,
         fatturato_annuo_asl=fatturato_annuo_asl,
         prov_corrente=prov_corrente * 100,
         soglia_17=SOGLIA_PROV_17,

@@ -141,7 +141,7 @@
                   <span id="r-provvigione">— € 0,00</span>
                 </div>
                 <div class="riga-calc text-muted">
-                  <span id="label-struttura">Struttura 5%</span>
+                  <span id="label-struttura">Struttura 10%</span>
                   <span id="r-struttura">— € 0,00</span>
                 </div>
                 <div class="riga-calc totale mt-1 pt-1">
@@ -210,7 +210,7 @@
 {% block scripts %}
 <script>
 // ── Configurazione ───────────────────────────────────────────────────────────
-let CFG = { provvigione_pct: 16, struttura_pct: 5, margine_soglia_ok: 20, margine_soglia_warn: 10 };
+let CFG = { provvigione_pct: 16, struttura_pct: 10, margine_soglia_ok: 20, margine_soglia_warn: 10 };
 (async () => {
   try {
     const res = await fetch('/api/config');

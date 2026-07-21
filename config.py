@@ -12,7 +12,7 @@ PROVVIGIONE_PCT         = 0.16   # standard base: 16%
 PROVVIGIONE_PCT_17      = 0.17   # tier 2: 17% (fatturato ASL annuo > 250.000 €)
 PROVVIGIONE_PCT_18      = 0.18   # tier 3: 18% (fatturato ASL annuo > 350.000 €)
 PROVVIGIONE_PCT_RIDOTTA = 0.12   # Nemo: 12% (invariato)
-STRUTTURA_PCT           = 0.05   # 5% sul totale ricavi (ASL + privato)
+STRUTTURA_PCT           = 0.10   # 10% sul totale ricavi (ASL + privato)
 
 SOGLIA_PROV_17  = 250_000.0  # € fatturato ASL annuo → scatta 17%
 SOGLIA_PROV_18  = 350_000.0  # € fatturato ASL annuo → scatta 18%

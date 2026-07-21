@@ -511,7 +511,7 @@
                     <span id="m-provvigione">— € {{ "%.2f"|format(margine.provvigione) }}</span>
                   </div>
                   <div class="riga-calc text-muted">
-                    <span>Struttura 5%</span>
+                    <span>Struttura {{ margine.struttura_pct | int }}%</span>
                     <span id="m-struttura">— € {{ "%.2f"|format(margine.struttura) }}</span>
                   </div>
                   <div class="riga-calc totale mt-1 pt-1">
