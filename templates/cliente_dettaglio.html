@@ -74,7 +74,7 @@
           {{ riga("Residenza", (cliente.residenza_via ~ ' ' ~ (cliente.residenza_civico or '')) if cliente.residenza_via else None) }}
           {{ riga("Città", (cliente.residenza_citta ~ (' (' ~ cliente.provincia ~ ')' if cliente.provincia else '')) if cliente.residenza_citta else None) }}
           {{ riga("CAP", cliente.residenza_cap) }}
-          {{ riga("Decorrenza residenza", cliente.decorrenza_residenza) }}
+          {{ riga("Residente dal", cliente.residente_dal_anno) }}
           {{ riga("Documento", cliente.documento_tipo_numero) }}
           {{ riga("Rilascio documento", cliente.documento_data_rilascio) }}
         </div>

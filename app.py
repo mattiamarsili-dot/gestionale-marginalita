@@ -1345,7 +1345,7 @@ CLIENTE_FIELDS = [
     "provincia", "residenza_via", "residenza_civico", "residenza_citta",
     "residenza_cap", "residente_dal_anno", "telefono", "email", "asl", "centro",
     "medico_curante",
-    "decorrenza_residenza", "documento_tipo_numero", "documento_rilascio_luogo",
+    "documento_tipo_numero", "documento_rilascio_luogo",
     "documento_data_rilascio",
     # Tutore legale (delegato delle deleghe): flag + dati documento
     "ha_tutore", "tutore_nome", "tutore_cf", "tutore_documento_tipo_numero",
@@ -1354,7 +1354,7 @@ CLIENTE_FIELDS = [
 ]
 # Campi data: stringa vuota → NULL (SQLite/Postgres non accettano '' su DATE)
 _CLIENTE_DATE_FIELDS = {
-    "data_nascita", "decorrenza_residenza", "documento_data_rilascio",
+    "data_nascita", "documento_data_rilascio",
     "tutore_documento_rilascio_data",
 }
 # Campi checkbox → Python bool. IMPORTANTE: bool (non int 0/1) perché su
