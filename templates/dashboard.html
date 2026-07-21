@@ -25,6 +25,16 @@
         </option>
         {% endfor %}
       </select>
+      {% if periodo_sel == 'intervallo' %}
+      <label class="form-label mb-0 text-muted small">a</label>
+      <select name="a" class="form-select form-select-sm" style="width:130px" onchange="this.form.submit()">
+        {% for m in mesi_disponibili %}
+        <option value="{{ m }}" {% if m == a_sel %}selected{% endif %}>
+          {{ m | replace('-', ' / ') }}
+        </option>
+        {% endfor %}
+      </select>
+      {% endif %}
     </form>
     {% if drive_attivo %}
     <button id="btn-sync-drive" class="btn btn-outline-secondary btn-sm">

@@ -69,6 +69,29 @@ def _calcola_range(da_str: str, periodo: str) -> tuple[str, str]:
         f"{anno_al:04d}-{mese_al:02d}-{gg_al:02d}",
     )
 
+
+def _parse_ym(s: str) -> tuple[int, int]:
+    """'YYYY-MM' → (anno, mese); fallback al mese corrente se non valido."""
+    try:
+        y, m = (int(x) for x in s.split("-"))
+        if 1 <= m <= 12:
+            return y, m
+    except Exception:
+        pass
+    today = date.today()
+    return today.year, today.month
+
+
+def _calcola_range_intervallo(da_str: str, a_str: str) -> tuple[str, str]:
+    """(data_da, data_al) YYYY-MM-DD dall'inizio del mese `da` alla fine del mese `a`.
+    Se l'intervallo è invertito (a < da) i due estremi vengono scambiati."""
+    y1, m1 = _parse_ym(da_str)
+    y2, m2 = _parse_ym(a_str)
+    if (y1, m1) > (y2, m2):
+        (y1, m1), (y2, m2) = (y2, m2), (y1, m1)
+    gg_al = calendar.monthrange(y2, m2)[1]
+    return (f"{y1:04d}-{m1:02d}-01", f"{y2:04d}-{m2:02d}-{gg_al:02d}")
+
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
@@ -187,13 +210,18 @@ self.addEventListener('fetch', (e) => {
 @app.route("/")
 def dashboard():
     periodo = request.args.get("periodo", "mensile")
-    if periodo not in _DURATA_MESI:
+    if periodo not in _DURATA_MESI and periodo != "intervallo":
         periodo = "mensile"
 
     # Retrocompatibilità con il vecchio parametro ?mese=
     da = request.args.get("da") or request.args.get("mese", datetime.now().strftime("%Y-%m"))
+    # Mese di fine per l'intervallo personalizzato (default = mese di inizio)
+    a = request.args.get("a") or da
 
-    data_da, data_al = _calcola_range(da, periodo)
+    if periodo == "intervallo":
+        data_da, data_al = _calcola_range_intervallo(da, a)
+    else:
+        data_da, data_al = _calcola_range(da, periodo)
 
     sql = f"""
         SELECT p.*,
@@ -237,6 +265,9 @@ def dashboard():
 
     if da not in mesi_disponibili:
         mesi_disponibili.insert(0, da)
+    if periodo == "intervallo" and a not in mesi_disponibili:
+        mesi_disponibili.insert(0, a)
+    mesi_disponibili = sorted(set(mesi_disponibili), reverse=True)
 
     stats = {
         "num_pratiche": 0,
@@ -267,8 +298,9 @@ def dashboard():
         pratiche=righe,
         stats=stats,
         da_sel=da,
+        a_sel=a,
         periodo_sel=periodo,
-        periodi=list(_DURATA_MESI.keys()),
+        periodi=list(_DURATA_MESI.keys()) + ["intervallo"],
         mesi_disponibili=mesi_disponibili,
         soglia_ok=MARGINE_SOGLIA_OK,
         soglia_warn=MARGINE_SOGLIA_WARN,
