@@ -193,7 +193,7 @@ def migrate_presets_struttura() -> None:
             simili = [p for p in tutti if _norm(p["label"]) == _norm(label)]
             if simili:
                 keep = max(simili, key=lambda p: p["n"])          # preferisci il popolato
-                sid, n_righe = keep["id"], keep["n"]
+                sid = keep["id"]
                 cur.execute(
                     f"UPDATE preset_ausili SET label = {_PH}, categoria = {_PH}, ordine = {_PH} WHERE id = {_PH}",
                     (label, "Statica", ordine, sid))
@@ -204,9 +204,13 @@ def migrate_presets_struttura() -> None:
                 cur.execute(
                     f"INSERT INTO preset_ausili (label, categoria, ordine) VALUES ({_PH}, {_PH}, {_PH})",
                     (label, "Statica", ordine))
-                sid, n_righe = last_inserted_id(cur), 0
-            if n_righe == 0:
-                for i, (codice, descr, prezzo) in enumerate(righe):
+                sid = last_inserted_id(cur)
+            # Merge idempotente: aggiunge i codici definiti MANCANTI (per codice_iso),
+            # senza duplicare quelli già presenti né rimuovere eventuali extra.
+            cur.execute(f"SELECT codice_iso FROM preset_righe WHERE preset_id = {_PH}", (sid,))
+            presenti = {(r["codice_iso"] or "").strip() for r in cur.fetchall()}
+            for i, (codice, descr, prezzo) in enumerate(righe):
+                if codice not in presenti:
                     cur.execute(
                         f"INSERT INTO preset_righe (preset_id, codice_iso, descrizione, qta, prezzo_unitario, ordine) "
                         f"VALUES ({_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH})",
