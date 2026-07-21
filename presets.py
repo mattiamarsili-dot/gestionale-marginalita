@@ -173,23 +173,39 @@ def migrate_presets_struttura() -> None:
                         f"INSERT INTO preset_righe (preset_id, codice_iso, descrizione, qta, prezzo_unitario, ordine) "
                         f"VALUES ({_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH})",
                         (pid, codice, descr, 1, prezzo, i))
-        # 6) Popola i set della categoria "Statica". Per ogni set: se non esiste
-        #    lo crea; se esiste ma è VUOTO lo riempie; se ha già righe lo lascia
-        #    intatto (rispetta le modifiche fatte a mano). Idempotente.
+        # 6) Set della categoria "Statica" — robusto e auto-correttivo. Il set può
+        #    essere già stato creato a mano in produzione con un nome leggermente
+        #    diverso (maiuscole/spazi): lo si abbina IGNORANDO maiuscole e spazi,
+        #    così lo si riempie davvero invece di crearne un doppione. Per ogni set:
+        #    - abbina i preset esistenti col nome equivalente
+        #    - tiene quello con più righe, ne uniforma nome/categoria/ordine
+        #    - lo riempie se vuoto; elimina eventuali doppioni rimasti vuoti
+        #    - se non esiste, lo crea e lo riempie
+        def _norm(s):
+            return " ".join((s or "").split()).lower()
+
+        cur.execute("SELECT p.id, p.label, COUNT(r.id) AS n "
+                    "FROM preset_ausili p LEFT JOIN preset_righe r ON r.preset_id = p.id "
+                    "GROUP BY p.id")
+        tutti = [dict(row) for row in cur.fetchall()]
+
         for ordine, (label, righe) in enumerate(STATICA_SETS.items()):
-            cur.execute(f"SELECT id FROM preset_ausili WHERE label = {_PH}", (label,))
-            row = cur.fetchone()
-            if row is None:
+            simili = [p for p in tutti if _norm(p["label"]) == _norm(label)]
+            if simili:
+                keep = max(simili, key=lambda p: p["n"])          # preferisci il popolato
+                sid, n_righe = keep["id"], keep["n"]
+                cur.execute(
+                    f"UPDATE preset_ausili SET label = {_PH}, categoria = {_PH}, ordine = {_PH} WHERE id = {_PH}",
+                    (label, "Statica", ordine, sid))
+                for p in simili:                                   # elimina doppioni vuoti
+                    if p["id"] != sid and p["n"] == 0:
+                        cur.execute(f"DELETE FROM preset_ausili WHERE id = {_PH}", (p["id"],))
+            else:
                 cur.execute(
                     f"INSERT INTO preset_ausili (label, categoria, ordine) VALUES ({_PH}, {_PH}, {_PH})",
                     (label, "Statica", ordine))
-                sid = last_inserted_id(cur)
-                popola = True
-            else:
-                sid = row["id"]
-                cur.execute(f"SELECT COUNT(*) AS n FROM preset_righe WHERE preset_id = {_PH}", (sid,))
-                popola = cur.fetchone()["n"] == 0
-            if popola:
+                sid, n_righe = last_inserted_id(cur), 0
+            if n_righe == 0:
                 for i, (codice, descr, prezzo) in enumerate(righe):
                     cur.execute(
                         f"INSERT INTO preset_righe (preset_id, codice_iso, descrizione, qta, prezzo_unitario, ordine) "
