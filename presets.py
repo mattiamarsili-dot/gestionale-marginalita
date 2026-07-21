@@ -135,6 +135,19 @@ STATICA_SETS = {
     ],
 }
 
+# Set della categoria "Elettroniche": "Comandi alt." (comandi di guida alternativi).
+# Codici del nomenclatore 12.24.03.*; prezzi a 0 (da compilare nella pratica).
+COMANDI_ALT = [
+    ("12.24.03.803", "Comando elettronico a soffio", 0.0),
+    ("12.24.03.806", "Comando elettronico a capo o nuca", 0.0),
+    ("12.24.03.809", "Comando elettronico a mento", 0.0),
+    ("12.24.03.812", "Comando elettronico a piede", 0.0),
+    ("12.24.03.815", "Comando elettronico a tavolo", 0.0),
+    ("12.24.03.818", "Comando elettronico per accompagnatore", 0.0),
+    ("12.24.03.821", "Joystick proporzionale compatto", 0.0),
+    ("12.24.03.824", "Joystick proporzionale a elevata sensibilità", 0.0),
+]
+
 
 def migrate_presets_struttura() -> None:
     """Riorganizza i preset esistenti nella nuova struttura. Idempotente."""
@@ -215,6 +228,33 @@ def migrate_presets_struttura() -> None:
                         f"INSERT INTO preset_righe (preset_id, codice_iso, descrizione, qta, prezzo_unitario, ordine) "
                         f"VALUES ({_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH})",
                         (sid, codice, descr, 1, prezzo, i))
+
+        # 7) Categoria "Elettroniche": set "Comandi alt." (comandi di guida alternativi).
+        #    Stessa logica robusta del punto 6: abbina un eventuale set già creato a
+        #    mano (nome case/spazio-insensitive), altrimenti lo crea in coda alla
+        #    categoria; poi aggiunge i codici mancanti (per codice_iso) senza duplicare.
+        cur.execute(f"SELECT id, label FROM preset_ausili WHERE categoria = {_PH}", ("Elettroniche",))
+        elettro = [dict(r) for r in cur.fetchall()]
+        simili = [p for p in elettro if _norm(p["label"]) == _norm("Comandi alt.")]
+        if simili:
+            sid = simili[0]["id"]
+        else:
+            cur.execute(
+                f"SELECT COALESCE(MAX(ordine), -1) + 1 AS n FROM preset_ausili WHERE categoria = {_PH}",
+                ("Elettroniche",))
+            ordine = cur.fetchone()["n"]
+            cur.execute(
+                f"INSERT INTO preset_ausili (label, categoria, ordine) VALUES ({_PH}, {_PH}, {_PH})",
+                ("Comandi alt.", "Elettroniche", ordine))
+            sid = last_inserted_id(cur)
+        cur.execute(f"SELECT codice_iso FROM preset_righe WHERE preset_id = {_PH}", (sid,))
+        presenti = {(r["codice_iso"] or "").strip() for r in cur.fetchall()}
+        for i, (codice, descr, prezzo) in enumerate(COMANDI_ALT):
+            if codice not in presenti:
+                cur.execute(
+                    f"INSERT INTO preset_righe (preset_id, codice_iso, descrizione, qta, prezzo_unitario, ordine) "
+                    f"VALUES ({_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH})",
+                    (sid, codice, descr, 1, prezzo, i))
 
 
 # ── Lettura ───────────────────────────────────────────────────────────────────
