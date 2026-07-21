@@ -1052,5 +1052,48 @@
         "prezzo_unitario": 100.0
       }
     ]
+  },
+  {
+    "label": "Acce. Post.",
+    "categoria": "Statica",
+    "ordine": 2,
+    "righe": [
+      {
+        "codice_iso": "18.09.91.012",
+        "descrizione": "Cinghia Pettorale Imbottita",
+        "qta": 1,
+        "prezzo_unitario": 135.0
+      },
+      {
+        "codice_iso": "18.09.91.015",
+        "descrizione": "Cinghia A 45° Sul Bacino",
+        "qta": 1,
+        "prezzo_unitario": 105.0
+      },
+      {
+        "codice_iso": "18.09.91.042",
+        "descrizione": "Cinturini Fermapiede (Coppia)",
+        "qta": 1,
+        "prezzo_unitario": 18.0
+      },
+      {
+        "codice_iso": "18.09.91.045",
+        "descrizione": "Fermatallone (Coppia) Aggiuntivo Carrozzine",
+        "qta": 1,
+        "prezzo_unitario": 30.0
+      },
+      {
+        "codice_iso": "18.09.91.051",
+        "descrizione": "Tavolino Con Incavo",
+        "qta": 1,
+        "prezzo_unitario": 190.0
+      },
+      {
+        "codice_iso": "18.09.39.003",
+        "descrizione": "Modulo Posturale Per Il Capo",
+        "qta": 1,
+        "prezzo_unitario": 360.0
+      }
+    ]
   }
 ]

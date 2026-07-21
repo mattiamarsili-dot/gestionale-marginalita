@@ -124,6 +124,15 @@ STATICA_SETS = {
         ("04.48.91.045", "sostegni per arto superiore (coppia)", 190.0),
         ("04.48.91.048", "divaricatore di tipo stretto o largo", 100.0),
     ],
+    # Accessori posturali — codici/prezzi ripresi dai preset posturali esistenti.
+    "Acce. Post.": [
+        ("18.09.91.012", "Cinghia Pettorale Imbottita", 135.0),
+        ("18.09.91.015", "Cinghia A 45° Sul Bacino", 105.0),
+        ("18.09.91.042", "Cinturini Fermapiede (Coppia)", 18.0),
+        ("18.09.91.045", "Fermatallone (Coppia) Aggiuntivo Carrozzine", 30.0),
+        ("18.09.91.051", "Tavolino Con Incavo", 190.0),
+        ("18.09.39.003", "Modulo Posturale Per Il Capo", 360.0),
+    ],
 }
 
 
