@@ -960,5 +960,97 @@
       }
     ],
     "ordine": 0
+  },
+  {
+    "label": "Stabilizzatore Supino",
+    "categoria": "Statica",
+    "ordine": 0,
+    "righe": [
+      {
+        "codice_iso": "04.48.91.009",
+        "descrizione": "regolazione della prono-supinazione",
+        "qta": 1,
+        "prezzo_unitario": 120.0
+      },
+      {
+        "codice_iso": "04.48.91.012",
+        "descrizione": "regolazione intra ed extra rotazione",
+        "qta": 1,
+        "prezzo_unitario": 105.0
+      },
+      {
+        "codice_iso": "04.48.91.015",
+        "descrizione": "regolazione della flesso-estensione",
+        "qta": 1,
+        "prezzo_unitario": 110.0
+      },
+      {
+        "codice_iso": "04.48.91.018",
+        "descrizione": "regolazione divaricazione",
+        "qta": 1,
+        "prezzo_unitario": 360.0
+      },
+      {
+        "codice_iso": "04.48.91.030",
+        "descrizione": "Quattro ruote",
+        "qta": 1,
+        "prezzo_unitario": 60.0
+      },
+      {
+        "codice_iso": "04.48.91.036",
+        "descrizione": "regolazione servoassistita con pistone",
+        "qta": 1,
+        "prezzo_unitario": 247.0
+      },
+      {
+        "codice_iso": "04.48.91.045",
+        "descrizione": "sostegni per arto superiore (coppia)",
+        "qta": 1,
+        "prezzo_unitario": 190.0
+      },
+      {
+        "codice_iso": "04.48.91.048",
+        "descrizione": "divaricatore di tipo stretto o largo",
+        "qta": 1,
+        "prezzo_unitario": 100.0
+      }
+    ]
+  },
+  {
+    "label": "Stabilizzatore Mobile",
+    "categoria": "Statica",
+    "ordine": 1,
+    "righe": [
+      {
+        "codice_iso": "04.48.91.018",
+        "descrizione": "regolazione divaricazione",
+        "qta": 1,
+        "prezzo_unitario": 360.0
+      },
+      {
+        "codice_iso": "04.48.91.030",
+        "descrizione": "Quattro ruote",
+        "qta": 1,
+        "prezzo_unitario": 60.0
+      },
+      {
+        "codice_iso": "04.48.91.036",
+        "descrizione": "regolazione servoassistita con pistone",
+        "qta": 1,
+        "prezzo_unitario": 247.0
+      },
+      {
+        "codice_iso": "04.48.91.045",
+        "descrizione": "sostegni per arto superiore (coppia)",
+        "qta": 1,
+        "prezzo_unitario": 190.0
+      },
+      {
+        "codice_iso": "04.48.91.048",
+        "descrizione": "divaricatore di tipo stretto o largo",
+        "qta": 1,
+        "prezzo_unitario": 100.0
+      }
+    ]
   }
 ]

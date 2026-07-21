@@ -105,6 +105,27 @@ MOVEON_TUTORI = [
     ("Knee", [("06.12.09.003", "Ortesi coscia-gamba a ginocchio esteso", 608.20)]),
 ]
 
+# Set della categoria "Statica": {label del set: righe (codice, descrizione, prezzo)}.
+STATICA_SETS = {
+    "Stabilizzatore Supino": [
+        ("04.48.91.009", "regolazione della prono-supinazione", 120.0),
+        ("04.48.91.012", "regolazione intra ed extra rotazione", 105.0),
+        ("04.48.91.015", "regolazione della flesso-estensione", 110.0),
+        ("04.48.91.018", "regolazione divaricazione", 360.0),
+        ("04.48.91.030", "Quattro ruote", 60.0),
+        ("04.48.91.036", "regolazione servoassistita con pistone", 247.0),
+        ("04.48.91.045", "sostegni per arto superiore (coppia)", 190.0),
+        ("04.48.91.048", "divaricatore di tipo stretto o largo", 100.0),
+    ],
+    "Stabilizzatore Mobile": [
+        ("04.48.91.018", "regolazione divaricazione", 360.0),
+        ("04.48.91.030", "Quattro ruote", 60.0),
+        ("04.48.91.036", "regolazione servoassistita con pistone", 247.0),
+        ("04.48.91.045", "sostegni per arto superiore (coppia)", 190.0),
+        ("04.48.91.048", "divaricatore di tipo stretto o largo", 100.0),
+    ],
+}
+
 
 def migrate_presets_struttura() -> None:
     """Riorganizza i preset esistenti nella nuova struttura. Idempotente."""
@@ -143,6 +164,28 @@ def migrate_presets_struttura() -> None:
                         f"INSERT INTO preset_righe (preset_id, codice_iso, descrizione, qta, prezzo_unitario, ordine) "
                         f"VALUES ({_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH})",
                         (pid, codice, descr, 1, prezzo, i))
+        # 6) Popola i set della categoria "Statica". Per ogni set: se non esiste
+        #    lo crea; se esiste ma è VUOTO lo riempie; se ha già righe lo lascia
+        #    intatto (rispetta le modifiche fatte a mano). Idempotente.
+        for ordine, (label, righe) in enumerate(STATICA_SETS.items()):
+            cur.execute(f"SELECT id FROM preset_ausili WHERE label = {_PH}", (label,))
+            row = cur.fetchone()
+            if row is None:
+                cur.execute(
+                    f"INSERT INTO preset_ausili (label, categoria, ordine) VALUES ({_PH}, {_PH}, {_PH})",
+                    (label, "Statica", ordine))
+                sid = last_inserted_id(cur)
+                popola = True
+            else:
+                sid = row["id"]
+                cur.execute(f"SELECT COUNT(*) AS n FROM preset_righe WHERE preset_id = {_PH}", (sid,))
+                popola = cur.fetchone()["n"] == 0
+            if popola:
+                for i, (codice, descr, prezzo) in enumerate(righe):
+                    cur.execute(
+                        f"INSERT INTO preset_righe (preset_id, codice_iso, descrizione, qta, prezzo_unitario, ordine) "
+                        f"VALUES ({_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH})",
+                        (sid, codice, descr, 1, prezzo, i))
 
 
 # ── Lettura ───────────────────────────────────────────────────────────────────
