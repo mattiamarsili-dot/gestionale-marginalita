@@ -30,7 +30,8 @@ from pdf_filler import (
     compila_pdf, nome_file_consigliato, numero_preventivo,
 )
 from presets import (
-    seed_presets, preset_per_categoria, get_preset, lista_preset,
+    seed_presets, migrate_presets_struttura, preset_per_categoria,
+    preset_per_categoria_con_righe, get_preset, lista_preset,
     crea_preset, aggiorna_preset, elimina_preset, categorie_note,
     significato_per_categoria,
     seed_significato_catalogo, significato_catalogo, SIGNIFICATO_ARTICOLI,
@@ -81,6 +82,7 @@ try:
     migrate_db()
     backfill_clienti()
     seed_presets()
+    migrate_presets_struttura()
     seed_significato_catalogo()
 except Exception as _db_err:
     import sys, traceback
@@ -1293,7 +1295,7 @@ def _leggi_righe_preset(form) -> list:
 
 @app.route("/presets")
 def presets():
-    return render_template("presets.html", categorie=preset_per_categoria())
+    return render_template("presets.html", categorie=preset_per_categoria_con_righe())
 
 
 @app.route("/preset/nuovo", methods=["GET", "POST"])

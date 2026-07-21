@@ -2,10 +2,10 @@
 {% block title %}Preset ausili — Gestionale Altra Mobilità{% endblock %}
 
 {% block content %}
-<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
   <div>
     <h4 class="fw-bold mb-0"><i class="bi bi-collection me-2"></i>Preset ausili</h4>
-    <small class="text-muted">Set di codici riutilizzabili, raggruppati per categoria</small>
+    <small class="text-muted">Codici pronti da consigliare — tocca <i class="bi bi-clipboard"></i> per copiare in messaggi/email</small>
   </div>
   <a href="{{ url_for('preset_nuovo') }}" class="btn btn-primary">
     <i class="bi bi-plus-circle-fill me-1"></i>Nuovo set
@@ -15,21 +15,42 @@
 {% if categorie %}
   {% for categoria, lista in categorie.items() %}
   <div class="mb-4">
-    <h6 class="text-uppercase text-muted fw-bold small mb-2">{{ categoria }}</h6>
+    <h6 class="text-uppercase text-muted fw-bold small mb-2 border-bottom pb-1">{{ categoria }}</h6>
     <div class="row g-2">
       {% for p in lista %}
       <div class="col-12 col-md-6 col-xl-4" id="preset-{{ p.id }}">
-        <div class="card h-100">
-          <div class="card-body d-flex justify-content-between align-items-start gap-2 py-3">
-            <div>
-              <div class="fw-semibold">{{ p.label }}</div>
-              <small class="text-muted"><i class="bi bi-list-ul me-1"></i>{{ p.num_righe }} righe</small>
+        <div class="card h-100 preset-card">
+          <div class="card-header d-flex align-items-center justify-content-between gap-2 py-2">
+            <span class="fw-semibold text-truncate">{{ p.label }}</span>
+            <div class="btn-group btn-group-sm flex-shrink-0">
+              <button type="button" class="btn btn-outline-primary btn-copia-set"
+                      title="Copia tutti i codici del set">
+                <i class="bi bi-clipboard me-1"></i>Copia
+              </button>
+              <a href="{{ url_for('preset_modifica', preset_id=p.id) }}"
+                 class="btn btn-outline-secondary" title="Modifica set">
+                <i class="bi bi-pencil"></i>
+              </a>
             </div>
-            <a href="{{ url_for('preset_modifica', preset_id=p.id) }}"
-               class="btn btn-sm btn-outline-secondary" title="Modifica">
-              <i class="bi bi-pencil"></i>
-            </a>
           </div>
+          <ul class="list-group list-group-flush">
+            {% for r in p.righe %}
+            {% set linea = (r.codice_iso ~ ' – ' ~ r.descrizione) if r.codice_iso else r.descrizione %}
+            <li class="list-group-item d-flex align-items-center justify-content-between gap-2 py-2 preset-riga"
+                data-copy="{{ linea }}">
+              <div class="small lh-sm">
+                {% if r.codice_iso %}<code class="text-primary">{{ r.codice_iso }}</code><br>{% endif %}
+                <span>{{ r.descrizione }}</span>
+              </div>
+              <button type="button" class="btn btn-sm btn-link text-secondary p-1 btn-copia-riga flex-shrink-0"
+                      title="Copia questa riga">
+                <i class="bi bi-clipboard"></i>
+              </button>
+            </li>
+            {% else %}
+            <li class="list-group-item text-muted small py-2">Nessuna riga</li>
+            {% endfor %}
+          </ul>
         </div>
       </div>
       {% endfor %}
@@ -42,4 +63,49 @@
   Nessun preset. Crea il primo con <strong>Nuovo set</strong>.
 </div>
 {% endif %}
+
+<script>
+(function () {
+  // Copia testo negli appunti con fallback per browser/mobile senza clipboard API.
+  function copia(testo) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(testo);
+    }
+    return new Promise(function (resolve, reject) {
+      var ta = document.createElement('textarea');
+      ta.value = testo;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      try { document.execCommand('copy'); resolve(); }
+      catch (e) { reject(e); }
+      finally { document.body.removeChild(ta); }
+    });
+  }
+
+  function feedback(btn) {
+    var orig = btn.innerHTML;
+    btn.classList.add('text-success');
+    btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Copiato';
+    setTimeout(function () { btn.innerHTML = orig; btn.classList.remove('text-success'); }, 1400);
+  }
+
+  document.addEventListener('click', function (e) {
+    var setBtn = e.target.closest('.btn-copia-set');
+    if (setBtn) {
+      var card = setBtn.closest('.preset-card');
+      var righe = Array.from(card.querySelectorAll('.preset-riga'))
+        .map(function (r) { return r.dataset.copy; }).filter(Boolean);
+      if (righe.length) copia(righe.join('\n')).then(function () { feedback(setBtn); });
+      return;
+    }
+    var rigaBtn = e.target.closest('.btn-copia-riga');
+    if (rigaBtn) {
+      var li = rigaBtn.closest('.preset-riga');
+      if (li && li.dataset.copy) copia(li.dataset.copy).then(function () { feedback(rigaBtn); });
+    }
+  });
+})();
+</script>
 {% endblock %}

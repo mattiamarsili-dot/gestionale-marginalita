@@ -136,7 +136,8 @@ _SQLITE_SCHEMA = """
     CREATE TABLE IF NOT EXISTS preset_ausili (
         id        INTEGER PRIMARY KEY AUTOINCREMENT,
         label     TEXT NOT NULL,
-        categoria TEXT
+        categoria TEXT,
+        ordine    INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS preset_righe (
@@ -273,7 +274,8 @@ _POSTGRES_SCHEMA = """
     CREATE TABLE IF NOT EXISTS preset_ausili (
         id        SERIAL PRIMARY KEY,
         label     TEXT NOT NULL,
-        categoria TEXT
+        categoria TEXT,
+        ordine    INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS preset_righe (
@@ -375,6 +377,7 @@ def migrate_db():
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS tipologia TEXT",
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS drive_archivio_id TEXT",
             "ALTER TABLE note ADD COLUMN IF NOT EXISTS sottotipo TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE preset_ausili ADD COLUMN IF NOT EXISTS ordine INTEGER NOT NULL DEFAULT 0",
         ]
     else:
         statements = [
@@ -407,6 +410,7 @@ def migrate_db():
             "ALTER TABLE pratiche ADD COLUMN tipologia TEXT",
             "ALTER TABLE pratiche ADD COLUMN drive_archivio_id TEXT",
             "ALTER TABLE note ADD COLUMN sottotipo TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE preset_ausili ADD COLUMN ordine INTEGER NOT NULL DEFAULT 0",
         ]
 
     # Indici: la colonna cliente_id viene aggiunta dagli ALTER qui sopra.
