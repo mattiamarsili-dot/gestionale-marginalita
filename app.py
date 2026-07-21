@@ -70,6 +70,20 @@ def _calcola_range(da_str: str, periodo: str) -> tuple[str, str]:
     )
 
 
+_MESI_IT = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno",
+            "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"]
+
+
+def _etichetta_periodo(data_da: str, data_al: str) -> str:
+    """Etichetta leggibile del periodo dalle date estremo (YYYY-MM-DD):
+    stesso mese → 'giugno 2026'; altrimenti → 'gennaio 2026 → giugno 2026'."""
+    y1, m1 = _parse_ym(data_da[:7])
+    y2, m2 = _parse_ym(data_al[:7])
+    inizio = f"{_MESI_IT[m1 - 1]} {y1}"
+    fine = f"{_MESI_IT[m2 - 1]} {y2}"
+    return inizio if inizio == fine else f"{inizio} → {fine}"
+
+
 def _parse_ym(s: str) -> tuple[int, int]:
     """'YYYY-MM' → (anno, mese); fallback al mese corrente se non valido."""
     try:
@@ -300,6 +314,7 @@ def dashboard():
         da_sel=da,
         a_sel=a,
         periodo_sel=periodo,
+        periodo_label=_etichetta_periodo(data_da, data_al),
         periodi=list(_DURATA_MESI.keys()) + ["intervallo"],
         mesi_disponibili=mesi_disponibili,
         soglia_ok=MARGINE_SOGLIA_OK,
