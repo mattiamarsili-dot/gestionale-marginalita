@@ -103,6 +103,11 @@
                  min="1900" max="2100" step="1" placeholder="es. 2015"
                  inputmode="numeric" value="{{ cliente.residente_dal_anno or '' }}">
         </div>
+        <div class="col-sm-6">
+          <label class="form-label form-label-sm">ASL di appartenenza <span class="text-muted">(facoltativo)</span></label>
+          <input type="text" name="asl" class="form-control text-uppercase"
+                 placeholder="es. RM5" value="{{ cliente.asl or '' }}">
+        </div>
 
         <div class="col-12"><hr class="my-1"><span class="text-muted small fw-semibold">Documento di identità</span></div>
         <div class="col-12">

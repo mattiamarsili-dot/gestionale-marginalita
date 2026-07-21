@@ -1363,7 +1363,7 @@ _CLIENTE_DATE_FIELDS = {
 _CLIENTE_BOOL_FIELDS = {"ha_tutore"}
 # Normalizzazione maiuscole: CF/provincia/CF tutore = tutto maiuscolo;
 # gli altri testi = solo l'iniziale. Questi restano invariati.
-_CLIENTE_UPPER_FIELDS = {"codice_fiscale", "provincia", "tutore_cf"}
+_CLIENTE_UPPER_FIELDS = {"codice_fiscale", "provincia", "tutore_cf", "asl"}
 _CLIENTE_NO_CAP_FIELDS = {"email", "asl", "centro", "telefono", "residenza_cap",
                           "residente_dal_anno"}
 
@@ -2041,8 +2041,8 @@ def _IS_POSTGRES_NOTE() -> bool:
 
 
 # ── Modulo pubblico per i pazienti (senza login) ─────────────────────────────
-# Campi che il paziente compila da solo: sola anagrafica di base. ASL, centro,
-# medico e il resto li completa l'operatore in fase di verifica.
+# Campi che il paziente compila da solo: anagrafica di base + ASL (facoltativa).
+# Centro, medico e il resto li completa l'operatore in fase di verifica.
 _MODULO_PAZIENTE_FIELDS = [
     "cognome", "nome", "codice_fiscale", "data_nascita", "luogo_nascita",
     "residenza_via", "residenza_civico", "residenza_citta", "provincia",
