@@ -479,6 +479,19 @@
                 </div>
                 {% endif %}
               </div>
+
+              {# Riferimento: costo fornitori massimo per restare al 20% di margine.
+                 costo_max = ricavi_totali × (1 − provvigione − struttura − 0,20). Solo lettura. #}
+              {% set costo_max_20 = margine.ricavi_totali * (1 - pratica.provvigione_pct - (margine.struttura_pct / 100) - (soglia_ok / 100)) %}
+              <div class="card-footer bg-light py-2">
+                <div class="d-flex justify-content-between align-items-center small">
+                  <span class="text-muted">
+                    <i class="bi bi-bullseye me-1"></i>Costo fornitori max per margine {{ soglia_ok | int }}%
+                  </span>
+                  <span class="fw-bold text-primary" id="foot-costo-max">€ {{ "%.2f"|format([costo_max_20, 0]|max) }}</span>
+                </div>
+                <div class="text-muted" style="font-size:.72rem">Riferimento per valutare i preventivi (netto IVA). Non modifica i costi.</div>
+              </div>
             </div>
           </div>
 
@@ -487,6 +500,8 @@
             <div class="card" id="card-margine"
                  data-asl-url="{{ url_for('aggiorna_importo_asl', pratica_id=pratica.id) }}"
                  data-prov-pct="{{ pratica.provvigione_pct }}"
+                 data-strutt-pct="{{ margine.struttura_pct / 100 }}"
+                 data-privato="{{ margine.importo_privato }}"
                  data-costo="{{ margine.costo }}"
                  data-tot-ausili="{{ tot_ausili }}"
                  data-soglia-ok="{{ soglia_ok }}"
@@ -961,7 +976,18 @@ function eurPlain(n) {
   const provPct = parseFloat(card.dataset.provPct) || 0.16;
   const sogliaOk   = parseFloat(card.dataset.sogliaOk) || 20;
   const sogliaWarn = parseFloat(card.dataset.sogliaWarn) || 10;
+  const struttPct  = parseFloat(card.dataset.struttPct) || 0.10;
+  const privato    = parseFloat(card.dataset.privato) || 0;
+  const footCostoMax = document.getElementById('foot-costo-max');
   let timer = null;
+
+  // Costo fornitori massimo per restare alla soglia di margine (default 20%).
+  function aggiornaCostoMax(asl) {
+    if (!footCostoMax) return;
+    const ricavi = asl + privato;
+    const costoMax = ricavi * (1 - provPct - struttPct - sogliaOk / 100);
+    footCostoMax.textContent = eur(Math.max(costoMax, 0));
+  }
 
   function classeMargine(pct) {
     if (pct >= sogliaOk) return ['text-success', 'bg-success', 'alert-success',
@@ -975,6 +1001,7 @@ function eurPlain(n) {
   async function ricalcola() {
     const asl = parseFloat(inp.value) || 0;
     const costo = parseFloat(card.dataset.costo) || 0;   // letto fresco: cambia se modifico i costi fornitori
+    aggiornaCostoMax(asl);
     try {
       const res = await fetch(`/api/calcola-margine?asl=${asl}&costo=${costo}&provvigione_pct=${provPct}`);
       const d = await res.json();
