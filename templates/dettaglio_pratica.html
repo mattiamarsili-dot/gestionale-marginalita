@@ -1050,6 +1050,18 @@ function eurPlain(n) {
     salva();
   });
 
+  // Auto-compilazione: se i Ricavi non sono ancora impostati (0) ma ci sono
+  // codici ausili, precompila con il loro totale e salva. Resta correggibile.
+  (function precompilaDaCodici() {
+    const aslAttuale = parseFloat(inp.value) || 0;
+    const totCodici  = parseFloat(card.dataset.totAusili) || 0;
+    if (aslAttuale === 0 && totCodici > 0) {
+      inp.value = totCodici.toFixed(2);
+      ricalcola();
+      salva();
+    }
+  })();
+
   // Esposta così l'editing degli importi fornitori può rilanciare il calcolo MOL.
   window.ricalcolaMargine = ricalcola;
 })();
