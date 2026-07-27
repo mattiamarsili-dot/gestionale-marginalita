@@ -14,7 +14,7 @@
         "codice_iso": "06.06.91.106",
         "descrizione": "Tenditore",
         "qta": 1,
-        "prezzo_unitario": 125.0
+        "prezzo_unitario": 125.5
       }
     ]
   },
@@ -58,7 +58,7 @@
         "codice_iso": "06.12.91.218",
         "descrizione": "Tenditore arto inferiore",
         "qta": 1,
-        "prezzo_unitario": 87.0
+        "prezzo_unitario": 87.5
       }
     ]
   },
@@ -71,13 +71,13 @@
         "codice_iso": "06.12.06.027",
         "descrizione": "Ortesi dinamica gamba piede a valva alta",
         "qta": 1,
-        "prezzo_unitario": 540.0
+        "prezzo_unitario": 543.0
       },
       {
         "codice_iso": "06.12.91.218",
         "descrizione": "Tenditore arto inferiore",
         "qta": 1,
-        "prezzo_unitario": 87.0
+        "prezzo_unitario": 87.5
       }
     ]
   },
@@ -90,13 +90,13 @@
         "codice_iso": "06.06.30.033",
         "descrizione": "Ortesi di spalla",
         "qta": 1,
-        "prezzo_unitario": 0.0
+        "prezzo_unitario": 394.1
       },
       {
         "codice_iso": "06.06.91.106",
         "descrizione": "Tenditore",
         "qta": 1,
-        "prezzo_unitario": 125.0
+        "prezzo_unitario": 125.5
       }
     ]
   },
@@ -110,6 +110,18 @@
         "descrizione": "Ortesi coscia-gamba a ginocchio esteso",
         "qta": 1,
         "prezzo_unitario": 608.2
+      },
+      {
+        "codice_iso": "06.12.91.218",
+        "descrizione": "Tenditore di regolazione",
+        "qta": 1,
+        "prezzo_unitario": 87.5
+      },
+      {
+        "codice_iso": "06.12.91.230",
+        "descrizione": "Rivestimento interno morbido",
+        "qta": 1,
+        "prezzo_unitario": 46.5
       }
     ]
   },

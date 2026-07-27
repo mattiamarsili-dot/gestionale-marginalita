@@ -92,17 +92,19 @@ _ORDINE_PRESET = {
 # Categoria Moveon: sub-preset (tutore) in ordine, con le loro righe (codice, descr, prezzo).
 MOVEON_TUTORI = [
     ("Hand", [("06.06.13.012", "Ortesi funzionale Avambraccio - Mano - Dita", 390.0),
-              ("06.06.91.106", "Tenditore", 125.0)]),
+              ("06.06.91.106", "Tenditore", 125.50)]),
     ("Spine", [("06.03.18.033", "Busto statico equilibrato", 1050.0),
                ("06.03.91.724", "Presa scapolo omerale: Rigida lunga", 132.6),
                ("06.12.92.639", "Supporto Addominale", 289.0)]),
     ("Hip", [("06.12.15.003", "Ortesi di posizione per anca doccia rigida bilaterale", 620.0),
-             ("06.12.91.218", "Tenditore arto inferiore", 87.0)]),
-    ("Afo", [("06.12.06.027", "Ortesi dinamica gamba piede a valva alta", 540.0),
-             ("06.12.91.218", "Tenditore arto inferiore", 87.0)]),
-    ("Shoulder", [("06.06.30.033", "Ortesi di spalla", 0.0),
-                  ("06.06.91.106", "Tenditore", 125.0)]),
-    ("Knee", [("06.12.09.003", "Ortesi coscia-gamba a ginocchio esteso", 608.20)]),
+             ("06.12.91.218", "Tenditore arto inferiore", 87.50)]),
+    ("Afo", [("06.12.06.027", "Ortesi dinamica gamba piede a valva alta", 543.0),
+             ("06.12.91.218", "Tenditore arto inferiore", 87.50)]),
+    ("Shoulder", [("06.06.30.033", "Ortesi di spalla", 394.10),
+                  ("06.06.91.106", "Tenditore", 125.50)]),
+    ("Knee", [("06.12.09.003", "Ortesi coscia-gamba a ginocchio esteso", 608.20),
+              ("06.12.91.218", "Tenditore di regolazione", 87.50),
+              ("06.12.91.230", "Rivestimento interno morbido", 46.50)]),
 ]
 
 # Set della categoria "Statica": {label del set: righe (codice, descrizione, prezzo)}.
@@ -255,6 +257,48 @@ def migrate_presets_struttura() -> None:
                     f"INSERT INTO preset_righe (preset_id, codice_iso, descrizione, qta, prezzo_unitario, ordine) "
                     f"VALUES ({_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH})",
                     (sid, codice, descr, 1, prezzo, i))
+
+        # 8) Correzioni Moveon: prezzi aggiornati + integrazione del set "Knee".
+        #    Idempotente: allinea i prezzi dei codici indicati SOLO entro la
+        #    categoria Moveon e aggiunge al set Knee i codici accessori mancanti.
+        moveon_prezzi = {
+            "06.06.91.106": 125.50,   # Tenditore (Hand, Shoulder)
+            "06.06.30.033": 394.10,   # Ortesi di spalla (Shoulder)
+            "06.12.06.027": 543.00,   # Ortesi dinamica gamba piede a valva alta (Afo)
+            "06.12.91.218": 87.50,    # Tenditore arto inferiore (Hip, Afo, Knee)
+        }
+        cur.execute(f"SELECT id FROM preset_ausili WHERE categoria = {_PH}", ("Moveon",))
+        moveon_ids = [r["id"] for r in cur.fetchall()]
+        if moveon_ids:
+            ph_ids = ", ".join([_PH] * len(moveon_ids))
+            for codice, prezzo in moveon_prezzi.items():
+                cur.execute(
+                    f"UPDATE preset_righe SET prezzo_unitario = {_PH} "
+                    f"WHERE codice_iso = {_PH} AND preset_id IN ({ph_ids})",
+                    (prezzo, codice, *moveon_ids))
+        # Set "Knee": aggiunge i due codici accessori se mancanti (per codice_iso).
+        cur.execute(
+            f"SELECT id FROM preset_ausili WHERE categoria = {_PH} AND label = {_PH}",
+            ("Moveon", "Knee"))
+        knee = cur.fetchone()
+        if knee:
+            kid = knee["id"]
+            cur.execute(f"SELECT codice_iso FROM preset_righe WHERE preset_id = {_PH}", (kid,))
+            knee_presenti = {(r["codice_iso"] or "").strip() for r in cur.fetchall()}
+            cur.execute(
+                f"SELECT COALESCE(MAX(ordine), -1) + 1 AS n FROM preset_righe WHERE preset_id = {_PH}",
+                (kid,))
+            next_ord = cur.fetchone()["n"]
+            for codice, descr, prezzo in [
+                ("06.12.91.218", "Tenditore di regolazione", 87.50),
+                ("06.12.91.230", "Rivestimento interno morbido", 46.50),
+            ]:
+                if codice not in knee_presenti:
+                    cur.execute(
+                        f"INSERT INTO preset_righe (preset_id, codice_iso, descrizione, qta, prezzo_unitario, ordine) "
+                        f"VALUES ({_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH})",
+                        (kid, codice, descr, 1, prezzo, next_ord))
+                    next_ord += 1
 
 
 # ── Lettura ───────────────────────────────────────────────────────────────────
