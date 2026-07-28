@@ -786,6 +786,19 @@ def applica_preset(pratica_id):
                     (pratica_id, r.get("codice_iso", ""), r.get("descrizione", ""),
                      r.get("qta", 1), r.get("prezzo_unitario", 0), ordine),
                 )
+            # Significato terapeutico del set → accodato al testo della pratica
+            # (una sola volta: se già presente non lo si duplica).
+            sign_preset = (preset.get("significato") or "").strip()
+            if sign_preset:
+                cur.execute(
+                    f"SELECT sign_terapeutico FROM pratiche WHERE id = {_PH}", (pratica_id,))
+                row = cur.fetchone()
+                attuale = ((row["sign_terapeutico"] if row else "") or "").strip()
+                if sign_preset not in attuale:
+                    nuovo = (attuale + "\n\n" + sign_preset).strip() if attuale else sign_preset
+                    cur.execute(
+                        f"UPDATE pratiche SET sign_terapeutico = {_PH} WHERE id = {_PH}",
+                        (nuovo, pratica_id))
     return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) + "#ausili")
 
 
@@ -1381,11 +1394,13 @@ def preset_nuovo():
     if request.method == "POST":
         label = (request.form.get("label") or "").strip()
         categoria = (request.form.get("categoria") or "").strip()
+        significato = (request.form.get("significato") or "").strip()
         righe = _leggi_righe_preset(request.form)
         if not label:
-            return render_template("preset_form.html", preset={"righe": righe, "categoria": categoria},
+            return render_template("preset_form.html",
+                                   preset={"righe": righe, "categoria": categoria, "significato": significato},
                                    categorie_note=categorie_note(), errore="Il nome del set è obbligatorio.", modifica=False)
-        pid = crea_preset(label, categoria, righe)
+        pid = crea_preset(label, categoria, righe, significato)
         return redirect(url_for("presets") + f"#preset-{pid}")
     return render_template("preset_form.html", preset={"righe": []},
                            categorie_note=categorie_note(), errore=None, modifica=False)
@@ -1396,12 +1411,14 @@ def preset_modifica(preset_id):
     if request.method == "POST":
         label = (request.form.get("label") or "").strip()
         categoria = (request.form.get("categoria") or "").strip()
+        significato = (request.form.get("significato") or "").strip()
         righe = _leggi_righe_preset(request.form)
         if not label:
-            preset = {"id": preset_id, "label": label, "categoria": categoria, "righe": righe}
+            preset = {"id": preset_id, "label": label, "categoria": categoria,
+                      "significato": significato, "righe": righe}
             return render_template("preset_form.html", preset=preset,
                                    categorie_note=categorie_note(), errore="Il nome del set è obbligatorio.", modifica=True)
-        aggiorna_preset(preset_id, label, categoria, righe)
+        aggiorna_preset(preset_id, label, categoria, righe, significato)
         return redirect(url_for("presets") + f"#preset-{preset_id}")
 
     preset = get_preset(preset_id)

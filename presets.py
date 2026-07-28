@@ -386,7 +386,7 @@ def _inserisci_righe(cur, preset_id, righe):
         )
 
 
-def crea_preset(label: str, categoria: str, righe: list) -> int:
+def crea_preset(label: str, categoria: str, righe: list, significato: str = "") -> int:
     with get_db() as conn:
         cur = conn.cursor()
         # I nuovi set si accodano in fondo alla loro categoria.
@@ -396,20 +396,20 @@ def crea_preset(label: str, categoria: str, righe: list) -> int:
         )
         ordine = cur.fetchone()["n"]
         cur.execute(
-            f"INSERT INTO preset_ausili (label, categoria, ordine) VALUES ({_PH}, {_PH}, {_PH})",
-            (label.strip(), categoria.strip(), ordine),
+            f"INSERT INTO preset_ausili (label, categoria, significato, ordine) VALUES ({_PH}, {_PH}, {_PH}, {_PH})",
+            (label.strip(), categoria.strip(), (significato or "").strip(), ordine),
         )
         pid = last_inserted_id(cur)
         _inserisci_righe(cur, pid, righe)
         return pid
 
 
-def aggiorna_preset(preset_id, label: str, categoria: str, righe: list):
+def aggiorna_preset(preset_id, label: str, categoria: str, righe: list, significato: str = ""):
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute(
-            f"UPDATE preset_ausili SET label = {_PH}, categoria = {_PH} WHERE id = {_PH}",
-            (label.strip(), categoria.strip(), preset_id),
+            f"UPDATE preset_ausili SET label = {_PH}, categoria = {_PH}, significato = {_PH} WHERE id = {_PH}",
+            (label.strip(), categoria.strip(), (significato or "").strip(), preset_id),
         )
         cur.execute(f"DELETE FROM preset_righe WHERE preset_id = {_PH}", (preset_id,))
         _inserisci_righe(cur, preset_id, righe)

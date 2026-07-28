@@ -39,6 +39,11 @@
                 {% for c in categorie_note %}<option value="{{ c }}">{% endfor %}
               </datalist>
             </div>
+            <div class="col-12">
+              <label class="form-label">Significato terapeutico <span class="text-muted fw-normal">(facoltativo)</span></label>
+              <textarea name="significato" class="form-control" rows="4"
+                        placeholder="Testo clinico specifico di questo set. Verrà aggiunto automaticamente al significato terapeutico della pratica quando inserisci il set.">{{ preset.significato or '' }}</textarea>
+            </div>
           </div>
         </div>
       </div>
