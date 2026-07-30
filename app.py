@@ -20,7 +20,7 @@ from config import (
 )
 from database import (
     init_db, migrate_db, backfill_clienti, get_db, calcola_margine, provvigione_corrente,
-    _PH, _DATE_FILTER, _MONTH_FORMAT, _FATTURATA_TRUE, last_inserted_id,
+    _PH, _DATE_FILTER, _MONTH_FORMAT, _FATTURATA_TRUE, _LIKE, last_inserted_id,
 )
 from pdf_extractor import estrai_totale_pdf
 from drive_sync import drive_configurato
@@ -1858,9 +1858,12 @@ def clienti():
     solo_verificare = request.args.get("da_verificare") == "1"
     where, params = [], []
     if q:
-        like = f"%{q}%"
-        where.append(f"(c.cognome LIKE {_PH} OR c.nome LIKE {_PH} OR c.codice_fiscale LIKE {_PH})")
-        params += [like, like, like]
+        # Ricerca per parole: ogni token deve comparire in cognome, nome o CF.
+        # Così "mario rossi" (nome+cognome insieme) trova comunque il cliente.
+        for tok in q.split():
+            like = f"%{tok}%"
+            where.append(f"(c.cognome {_LIKE} {_PH} OR c.nome {_LIKE} {_PH} OR c.codice_fiscale {_LIKE} {_PH})")
+            params += [like, like, like]
     if centro:
         where.append(f"COALESCE(c.centro, '') = {_PH}")
         params.append("" if centro == "Senza centro" else centro)
@@ -1917,12 +1920,14 @@ def pratiche():
     centro = (request.args.get("centro") or "").strip()
     where, params = [], []
     if q:
-        like = f"%{q}%"
-        where.append(
-            f"(p.nome_paziente LIKE {_PH} OR c.cognome LIKE {_PH} OR c.nome LIKE {_PH} "
-            f"OR c.codice_fiscale LIKE {_PH} OR p.numero_pratica LIKE {_PH})"
-        )
-        params += [like, like, like, like, like]
+        # Ricerca per parole: ogni token deve comparire in uno dei campi.
+        for tok in q.split():
+            like = f"%{tok}%"
+            where.append(
+                f"(p.nome_paziente {_LIKE} {_PH} OR c.cognome {_LIKE} {_PH} OR c.nome {_LIKE} {_PH} "
+                f"OR c.codice_fiscale {_LIKE} {_PH} OR p.numero_pratica {_LIKE} {_PH})"
+            )
+            params += [like, like, like, like, like]
     if centro:
         where.append(f"COALESCE(c.centro, '') = {_PH}")
         params.append("" if centro == "Senza centro" else centro)
@@ -2356,7 +2361,7 @@ def api_note_suggerisci():
         # 1) Clienti in anagrafica
         cur.execute(
             f"""SELECT id, cognome, nome, codice_fiscale FROM clienti
-                WHERE cognome LIKE {_PH} OR nome LIKE {_PH} OR codice_fiscale LIKE {_PH}
+                WHERE cognome {_LIKE} {_PH} OR nome {_LIKE} {_PH} OR codice_fiscale {_LIKE} {_PH}
                 ORDER BY cognome, nome LIMIT 8""",
             (like, like, like),
         )
@@ -2370,7 +2375,7 @@ def api_note_suggerisci():
         # 2) Nominativi già scritti in note precedenti (non duplicare i clienti)
         cur.execute(
             f"""SELECT DISTINCT nominativo FROM note
-                WHERE nominativo <> '' AND nominativo LIKE {_PH}
+                WHERE nominativo <> '' AND nominativo {_LIKE} {_PH}
                 ORDER BY nominativo LIMIT 8""",
             (like,),
         )
@@ -2548,7 +2553,7 @@ def api_clienti():
             like = f"%{q}%"
             cur.execute(
                 f"""SELECT id, cognome, nome, codice_fiscale, asl, medico_curante FROM clienti
-                    WHERE cognome LIKE {_PH} OR nome LIKE {_PH} OR codice_fiscale LIKE {_PH}
+                    WHERE cognome {_LIKE} {_PH} OR nome {_LIKE} {_PH} OR codice_fiscale {_LIKE} {_PH}
                     ORDER BY cognome, nome LIMIT 20""",
                 (like, like, like),
             )

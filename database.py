@@ -28,6 +28,11 @@ _MONTH_FORMAT: str = (
 # Valore booleano TRUE compatibile con entrambi i dialetti
 _FATTURATA_TRUE: str = "TRUE" if _IS_POSTGRES else "1"
 
+# Confronto testo case-insensitive: su Postgres LIKE è case-sensitive → serve
+# ILIKE; su SQLite LIKE è già case-insensitive (ASCII). Usare sempre {_LIKE}
+# nelle ricerche testuali, mai LIKE hardcoded.
+_LIKE: str = "ILIKE" if _IS_POSTGRES else "LIKE"
+
 # ── Connessione ───────────────────────────────────────────────────────────────
 
 @contextmanager
