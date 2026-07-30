@@ -52,7 +52,16 @@
            title="Scarica backup completo (.json)">
           <i class="bi bi-cloud-download"></i>
         </a>
-        {% if session.get('autenticato') %}
+        {% if current_user %}
+        <span class="text-white-50 small d-none d-sm-inline"><i class="bi bi-person-circle me-1"></i>{{ current_user.nome }}</span>
+        {% endif %}
+        {% if is_admin %}
+        <a class="nav-link text-white-50 px-2 {% if request.endpoint in ['utenti_lista', 'utente_nuovo', 'utente_modifica'] %}text-white{% endif %}"
+           href="{{ url_for('utenti_lista') }}" title="Gestione utenti">
+          <i class="bi bi-people"></i>
+        </a>
+        {% endif %}
+        {% if current_user or session.get('autenticato') %}
         <a class="nav-link text-white-50 px-2" href="{{ url_for('logout') }}" title="Esci">
           <i class="bi bi-box-arrow-right"></i>
         </a>
@@ -75,6 +84,14 @@
         <a class="nav-link {% if request.endpoint in ['note_inbox', 'note_nuova'] %}active{% endif %}" href="{{ url_for('note_inbox') }}">
           <i class="bi bi-sticky me-1"></i>Note
         </a>
+        {% if current_user %}
+        <a class="nav-link position-relative {% if request.endpoint == 'task_assegnati' %}active{% endif %}" href="{{ url_for('task_assegnati') }}">
+          <i class="bi bi-check2-square me-1"></i>Task
+          {% if task_aperti_count %}
+          <span class="badge rounded-pill bg-danger" style="font-size:.65rem">{{ task_aperti_count }}</span>
+          {% endif %}
+        </a>
+        {% endif %}
         <a class="nav-link {% if request.endpoint in ['presets', 'preset_nuovo', 'preset_modifica'] %}active{% endif %}" href="{{ url_for('presets') }}">
           <i class="bi bi-collection me-1"></i>Preset
         </a>

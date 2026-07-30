@@ -2,9 +2,10 @@ import calendar
 import json
 import os
 from datetime import datetime, date, timedelta
+from functools import wraps
 from flask import (
     Flask, render_template, request, redirect,
-    url_for, jsonify, session, Response,
+    url_for, jsonify, session, Response, abort, g,
 )
 from werkzeug.utils import secure_filename
 
@@ -36,6 +37,10 @@ from presets import (
     significato_per_categoria,
     seed_significato_catalogo, significato_catalogo, SIGNIFICATO_ARTICOLI,
     aggiungi_motivazione, aggiorna_motivazione, elimina_motivazione,
+)
+from utenti import (
+    RUOLI, utenti_esistono, lista_utenti, get_utente, verifica_credenziali,
+    crea_utente, aggiorna_utente, reset_password, seed_admin,
 )
 
 # ── Periodi predefiniti ────────────────────────────────────────────────────────
@@ -121,6 +126,7 @@ try:
     seed_presets()
     migrate_presets_struttura()
     seed_significato_catalogo()
+    seed_admin()
 except Exception as _db_err:
     import sys, traceback
     print("ERRORE AVVIO DB:", _db_err, file=sys.stderr)
@@ -138,31 +144,150 @@ def _allowed_file(filename: str) -> bool:
 ROUTE_PUBBLICHE = {"login", "logout", "static", "manifest", "service_worker",
                    "modulo_paziente"}
 
+# Hardening cookie di sessione (multiutente + dati sanitari).
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=bool(os.environ.get("DATABASE_URL")),  # HTTPS in produzione
+)
+
+
+def utente_corrente() -> dict | None:
+    """Utente loggato (dict id/nome/email/ruolo) o None. Cache per-richiesta su g."""
+    if "utente" not in g.__dict__:
+        uid = session.get("utente_id")
+        g.utente = get_utente(uid) if uid else None
+    return g.utente
+
+
+def is_admin() -> bool:
+    u = utente_corrente()
+    return bool(u and u.get("ruolo") == "admin")
+
+
+def admin_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not is_admin():
+            abort(403)
+        return f(*args, **kwargs)
+    return wrapper
+
+
+@app.context_processor
+def inietta_utente():
+    """Rende disponibili current_user e il contatore task nei template."""
+    u = utente_corrente()
+    n_task = 0
+    if u:
+        try:
+            with get_db() as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    f"SELECT COUNT(*) AS n FROM note WHERE assegnato_a = {_PH} AND NOT completata",
+                    (u["id"],))
+                n_task = cur.fetchone()["n"]
+        except Exception:
+            n_task = 0
+    return {"current_user": u, "is_admin": is_admin(), "task_aperti_count": n_task}
+
+
 @app.before_request
 def controlla_accesso():
-    if not ACCESS_CODE:
-        return None
     if request.endpoint in ROUTE_PUBBLICHE:
+        return None
+    # Se esistono utenti reali → richiedi login utente.
+    if utenti_esistono():
+        if not session.get("utente_id"):
+            return redirect(url_for("login"))
+        # sessione con utente non più valido/disattivato → logout
+        if utente_corrente() is None:
+            session.clear()
+            return redirect(url_for("login"))
+        return None
+    # Nessun utente ancora: modalità legacy (codice unico) o aperta (sviluppo).
+    if not ACCESS_CODE:
         return None
     if not session.get("autenticato"):
         return redirect(url_for("login"))
 
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     errore = None
+    # Bootstrap = nessun utente ancora creato: si accede col codice unico legacy.
+    bootstrap = not utenti_esistono()
     if request.method == "POST":
-        codice = request.form.get("codice", "").strip()
-        if codice == ACCESS_CODE:
-            session["autenticato"] = True
-            session.permanent = True
-            return redirect(url_for("dashboard"))
-        errore = "Codice non valido. Riprova."
-    return render_template("login.html", errore=errore)
+        if bootstrap and ACCESS_CODE:
+            if request.form.get("codice", "").strip() == ACCESS_CODE:
+                session.clear()
+                session["autenticato"] = True
+                session.permanent = True
+                return redirect(url_for("dashboard"))
+            errore = "Codice non valido. Riprova."
+        else:
+            email = request.form.get("email", "").strip().lower()
+            password = request.form.get("password", "")
+            u = verifica_credenziali(email, password)
+            if u:
+                session.clear()
+                session["utente_id"] = u["id"]
+                session["utente_nome"] = u["nome"]
+                session["ruolo"] = u["ruolo"]
+                session.permanent = True
+                return redirect(url_for("dashboard"))
+            errore = "Email o password non validi."
+    return render_template("login.html", errore=errore, bootstrap=bootstrap)
+
 
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect(url_for("login"))
+
+
+# ── Gestione utenti (solo admin) ──────────────────────────────────────────────
+
+@app.route("/utenti")
+@admin_required
+def utenti_lista():
+    return render_template("utenti.html", utenti=lista_utenti(), RUOLI=RUOLI)
+
+
+@app.route("/utenti/nuovo", methods=["GET", "POST"])
+@admin_required
+def utente_nuovo():
+    if request.method == "POST":
+        try:
+            crea_utente(
+                request.form.get("nome", ""), request.form.get("email", ""),
+                request.form.get("password", ""), request.form.get("ruolo", "operatore"),
+            )
+            return redirect(url_for("utenti_lista"))
+        except ValueError as e:
+            return render_template("utente_form.html", utente=request.form,
+                                   RUOLI=RUOLI, errore=str(e), modifica=False)
+    return render_template("utente_form.html", utente={}, RUOLI=RUOLI,
+                           errore=None, modifica=False)
+
+
+@app.route("/utenti/<int:utente_id>/modifica", methods=["GET", "POST"])
+@admin_required
+def utente_modifica(utente_id):
+    utente = get_utente(utente_id)
+    if not utente:
+        return "Utente non trovato", 404
+    if request.method == "POST":
+        aggiorna_utente(
+            utente_id, request.form.get("nome", ""), request.form.get("ruolo", "operatore"),
+            bool(request.form.get("attivo")),
+        )
+        nuova_pw = (request.form.get("password") or "").strip()
+        if nuova_pw:
+            reset_password(utente_id, nuova_pw)
+        return redirect(url_for("utenti_lista"))
+    return render_template("utente_form.html", utente=utente, RUOLI=RUOLI,
+                           errore=None, modifica=True)
 
 
 # ── PWA: manifest + service worker (app installabile su telefono/tablet) ──────
@@ -1976,6 +2101,10 @@ def _crea_nota(form) -> int:
     priorita   = (form.get("priorita") or "Media").strip()
     testo      = (form.get("testo") or "").strip()
     scadenza   = (form.get("scadenza") or "").strip() or None
+    # Autore = utente loggato; assegnatario = scelto nel form (opzionale).
+    u = utente_corrente()
+    autore_id   = u["id"] if u else None
+    assegnato_a = (form.get("assegnato_a") or "").strip() or None
 
     # Avviso automatico: se non c'è una scadenza manuale, la calcoliamo dalla
     # priorità (Urgente 3gg, Alta 6gg, Media 14gg) a partire da oggi.
@@ -1996,9 +2125,10 @@ def _crea_nota(form) -> int:
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute(
-            f"""INSERT INTO note (cliente_id, nominativo, tipo, sottotipo, priorita, stato, completata, testo, scadenza)
-                VALUES ({_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH})""",
-            (cliente_id, nominativo, tipo, sottotipo, priorita, "Aperta", False, testo, scadenza),
+            f"""INSERT INTO note (cliente_id, nominativo, tipo, sottotipo, priorita, stato, completata, testo, scadenza, autore_id, assegnato_a)
+                VALUES ({_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH})""",
+            (cliente_id, nominativo, tipo, sottotipo, priorita, "Aperta", False, testo, scadenza,
+             autore_id, assegnato_a),
         )
         return last_inserted_id(cur)
 
@@ -2027,6 +2157,40 @@ def note_inbox():
                            NOTE_PRIORITA=NOTE_PRIORITA)
 
 
+@app.route("/task-assegnati")
+def task_assegnati():
+    """Task assegnati da un utente all'altro: 'a me', 'da me' o (admin) 'tutti'."""
+    u = utente_corrente()
+    scheda = request.args.get("scheda", "a-me")
+    solo_aperti = request.args.get("stato", "aperti") != "tutti"
+    conds, params = [], []
+    if scheda == "da-me":
+        conds.append(f"n.autore_id = {_PH}"); params.append(u["id"] if u else -1)
+    elif scheda == "tutti" and is_admin():
+        conds.append("n.assegnato_a IS NOT NULL")
+    else:
+        scheda = "a-me"
+        conds.append(f"n.assegnato_a = {_PH}"); params.append(u["id"] if u else -1)
+    if solo_aperti:
+        conds.append("NOT n.completata")
+    where = "WHERE " + " AND ".join(conds)
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"""SELECT n.*, c.cognome AS c_cognome, c.nome AS c_nome,
+                       ua.nome AS autore_nome, ub.nome AS assegnato_nome
+                FROM note n
+                LEFT JOIN clienti c ON c.id = n.cliente_id
+                LEFT JOIN utenti ua ON ua.id = n.autore_id
+                LEFT JOIN utenti ub ON ub.id = n.assegnato_a
+                {where}
+                ORDER BY n.completata ASC, COALESCE(n.scadenza, '9999-12-31') ASC, n.creato_il DESC""",
+            tuple(params))
+        task = cur.fetchall()
+    return render_template("task_assegnati.html", task=task, scheda=scheda,
+                           solo_aperti=solo_aperti, NOTE_PRIORITA=NOTE_PRIORITA)
+
+
 @app.route("/note/nuova", methods=["GET", "POST"])
 def note_nuova():
     """Form mobile-first per salvare una nota veloce, collegabile a un cliente."""
@@ -2035,7 +2199,8 @@ def note_nuova():
             return render_template("note_nuova.html", errore="Scrivi il testo della nota.",
                                    nota=request.form, NOTE_TIPI=NOTE_TIPI,
                                    NOTE_SOTTOTIPI=NOTE_SOTTOTIPI, NOTE_PRIORITA=NOTE_PRIORITA,
-                                   NOTE_PRIORITA_GIORNI=NOTE_PRIORITA_GIORNI)
+                                   NOTE_PRIORITA_GIORNI=NOTE_PRIORITA_GIORNI,
+                                   utenti=lista_utenti(solo_attivi=True))
         _crea_nota(request.form)
         # Torna alla scheda cliente se collegata, altrimenti all'inbox note.
         cid = (request.form.get("cliente_id") or "").strip()
@@ -2052,7 +2217,8 @@ def note_nuova():
             cliente = cur.fetchone()
     return render_template("note_nuova.html", errore=None, nota={}, cliente=cliente,
                            NOTE_TIPI=NOTE_TIPI, NOTE_SOTTOTIPI=NOTE_SOTTOTIPI,
-                           NOTE_PRIORITA=NOTE_PRIORITA, NOTE_PRIORITA_GIORNI=NOTE_PRIORITA_GIORNI)
+                           NOTE_PRIORITA=NOTE_PRIORITA, NOTE_PRIORITA_GIORNI=NOTE_PRIORITA_GIORNI,
+                           utenti=lista_utenti(solo_attivi=True))
 
 
 @app.route("/cliente/<int:cliente_id>/note/aggiungi", methods=["POST"])

@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Task assegnati — Gestionale Altra Mobilità{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-xl-9">
+
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+      <h4 class="fw-bold mb-0"><i class="bi bi-check2-square me-2"></i>Task assegnati</h4>
+      <a href="{{ url_for('note_nuova') }}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i>Nuovo task
+      </a>
+    </div>
+
+    <!-- Schede: a me / da me / (admin) tutti -->
+    <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+      <div class="btn-group" role="group">
+        {% set tabs = [('a-me','Assegnati a me'), ('da-me','Assegnati da me')] %}
+        {% if is_admin %}{% set tabs = tabs + [('tutti','Tutti')] %}{% endif %}
+        {% for val, lab in tabs %}
+        <a href="{{ url_for('task_assegnati', scheda=val, stato='aperti' if solo_aperti else 'tutti') }}"
+           class="btn btn-sm {{ 'btn-primary' if scheda == val else 'btn-outline-primary' }}">{{ lab }}</a>
+        {% endfor %}
+      </div>
+      <div class="btn-group ms-auto" role="group">
+        <a href="{{ url_for('task_assegnati', scheda=scheda, stato='aperti') }}"
+           class="btn btn-sm {{ 'btn-secondary' if solo_aperti else 'btn-outline-secondary' }}">Da fare</a>
+        <a href="{{ url_for('task_assegnati', scheda=scheda, stato='tutti') }}"
+           class="btn btn-sm {{ 'btn-outline-secondary' if solo_aperti else 'btn-secondary' }}">Tutti</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body p-0">
+        {% if task %}
+        <ul class="list-group list-group-flush">
+          {% for n in task %}
+          <li class="list-group-item d-flex align-items-start gap-2 {% if n.completata %}opacity-50{% endif %}">
+            <form method="post" action="{{ url_for('note_completata', nota_id=n.id) }}" class="mt-1">
+              <input type="hidden" name="torna" value="{{ url_for('task_assegnati', scheda=scheda, stato='aperti' if solo_aperti else 'tutti') }}">
+              <input type="hidden" name="completa" value="{{ '0' if n.completata else '1' }}">
+              <button class="btn btn-sm p-0 border-0 bg-transparent" title="Segna fatto/da fare">
+                <i class="bi {{ 'bi-check-circle-fill text-success' if n.completata else 'bi-circle text-muted' }} fs-5"></i>
+              </button>
+            </form>
+            <div class="flex-grow-1">
+              <div class="{% if n.completata %}text-decoration-line-through{% endif %}">{{ n.testo }}</div>
+              <div class="small text-muted mt-1">
+                <!-- Da chi → a chi -->
+                <span class="badge bg-primary-subtle text-primary">
+                  <i class="bi bi-arrow-right-circle me-1"></i>{{ n.assegnato_nome or '—' }}
+                </span>
+                <span class="text-muted ms-1">da <strong>{{ n.autore_nome or '—' }}</strong></span>
+                {% if n.cliente_id %}
+                · <a href="{{ url_for('cliente_dettaglio', cliente_id=n.cliente_id) }}" class="text-decoration-none">
+                  <i class="bi bi-person me-1"></i>{{ n.c_cognome }} {{ n.c_nome }}</a>
+                {% elif n.nominativo %}
+                · <span><i class="bi bi-person me-1"></i>{{ n.nominativo }}</span>
+                {% endif %}
+                <span class="badge
+                  {% if n.priorita == 'Urgente' %}bg-danger-subtle text-danger
+                  {% elif n.priorita == 'Alta' %}bg-warning-subtle text-warning-emphasis
+                  {% else %}bg-light text-muted{% endif %} ms-1">{{ n.priorita }}</span>
+                {% if n.scadenza %}<i class="bi bi-calendar-event ms-1"></i> {{ n.scadenza }}{% endif %}
+              </div>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="text-center text-muted py-5">
+          <i class="bi bi-check2-all opacity-25 fs-1 d-block mb-2"></i>
+          Nessun task {{ 'da fare' if solo_aperti else '' }}
+          {% if scheda == 'a-me' %}assegnato a te{% elif scheda == 'da-me' %}creato da te{% endif %}.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

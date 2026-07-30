@@ -133,6 +133,16 @@ _SQLITE_SCHEMA = """
         FOREIGN KEY (pratica_id) REFERENCES pratiche(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS utenti (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome          TEXT NOT NULL,
+        email         TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        ruolo         TEXT NOT NULL DEFAULT 'operatore',
+        attivo        INTEGER NOT NULL DEFAULT 1,
+        creato_il     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS preset_ausili (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
         label       TEXT NOT NULL,
@@ -272,6 +282,16 @@ _POSTGRES_SCHEMA = """
         FOREIGN KEY (pratica_id) REFERENCES pratiche(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS utenti (
+        id            SERIAL PRIMARY KEY,
+        nome          TEXT NOT NULL,
+        email         TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        ruolo         TEXT NOT NULL DEFAULT 'operatore',
+        attivo        BOOLEAN NOT NULL DEFAULT TRUE,
+        creato_il     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS preset_ausili (
         id          SERIAL PRIMARY KEY,
         label       TEXT NOT NULL,
@@ -381,6 +401,8 @@ def migrate_db():
             "ALTER TABLE note ADD COLUMN IF NOT EXISTS sottotipo TEXT NOT NULL DEFAULT ''",
             "ALTER TABLE preset_ausili ADD COLUMN IF NOT EXISTS ordine INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE preset_ausili ADD COLUMN IF NOT EXISTS significato TEXT",
+            "ALTER TABLE note ADD COLUMN IF NOT EXISTS autore_id INTEGER REFERENCES utenti(id) ON DELETE SET NULL",
+            "ALTER TABLE note ADD COLUMN IF NOT EXISTS assegnato_a INTEGER REFERENCES utenti(id) ON DELETE SET NULL",
         ]
     else:
         statements = [
@@ -415,6 +437,8 @@ def migrate_db():
             "ALTER TABLE note ADD COLUMN sottotipo TEXT NOT NULL DEFAULT ''",
             "ALTER TABLE preset_ausili ADD COLUMN ordine INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE preset_ausili ADD COLUMN significato TEXT",
+            "ALTER TABLE note ADD COLUMN autore_id INTEGER REFERENCES utenti(id)",
+            "ALTER TABLE note ADD COLUMN assegnato_a INTEGER REFERENCES utenti(id)",
         ]
 
     # Indici: la colonna cliente_id viene aggiunta dagli ALTER qui sopra.

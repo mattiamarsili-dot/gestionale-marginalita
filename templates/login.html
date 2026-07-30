@@ -11,7 +11,7 @@
         <i class="bi bi-bar-chart-fill text-primary" style="font-size:1.8rem"></i>
       </div>
       <h4 class="text-white fw-bold mb-1">Gestionale Altra Mobilità</h4>
-      <p class="text-white-50 small">Inserisci il codice di accesso</p>
+      <p class="text-white-50 small">{% if bootstrap %}Inserisci il codice di accesso{% else %}Accedi con le tue credenziali{% endif %}</p>
     </div>
 
     <div class="card shadow-lg border-0" style="border-radius:16px">
@@ -23,11 +23,24 @@
           </div>
           {% endif %}
 
+          {% if bootstrap %}
           <div class="mb-4">
             <label class="form-label fw-semibold" for="codice">Codice di accesso</label>
             <input type="password" name="codice" id="codice" class="form-control form-control-lg"
                    placeholder="••••••••" autofocus autocomplete="current-password">
           </div>
+          {% else %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="email">Email</label>
+            <input type="email" name="email" id="email" class="form-control form-control-lg"
+                   placeholder="nome@esempio.it" autofocus autocomplete="username" required>
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-semibold" for="password">Password</label>
+            <input type="password" name="password" id="password" class="form-control form-control-lg"
+                   placeholder="••••••••" autocomplete="current-password" required>
+          </div>
+          {% endif %}
 
           <button type="submit" class="btn btn-primary w-100 btn-lg fw-semibold">
             <i class="bi bi-box-arrow-in-right me-2"></i>Entra

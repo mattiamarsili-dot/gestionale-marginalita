@@ -9,7 +9,13 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: ACCESS_CODE
-        sync: false           # inserire manualmente nella dashboard Render
+        sync: false           # legacy: usato solo finché non esiste alcun utente
+      - key: ADMIN_EMAIL
+        sync: false           # email del primo admin (creato al primo avvio)
+      - key: ADMIN_PASSWORD
+        sync: false           # password del primo admin
+      - key: ADMIN_NOME
+        sync: false           # nome del primo admin (opzionale)
       - key: DATABASE_URL
         sync: false           # copiare da neon.tech
       - key: DRIVE_FOLDER_ID

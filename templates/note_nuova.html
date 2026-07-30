@@ -161,6 +161,20 @@
           </div>
         </div>
 
+        {% if utenti %}
+        <div class="mb-3">
+          <label>Assegna a <span class="text-muted fw-normal">(facoltativo)</span></label>
+          {% set ass_sel = (nota.assegnato_a if nota and nota.assegnato_a else '') %}
+          <select name="assegnato_a" class="form-select">
+            <option value="">— Nessuno —</option>
+            {% for u in utenti %}
+            <option value="{{ u.id }}" {% if ass_sel and ass_sel|string == u.id|string %}selected{% endif %}>{{ u.nome }}</option>
+            {% endfor %}
+          </select>
+          <div class="form-text">Comparirà nei suoi <strong>Task</strong> assegnati.</div>
+        </div>
+        {% endif %}
+
         <div class="mb-1">
           <label>Scadenza / avviso</label>
           <input type="date" name="scadenza" id="scadenza" class="form-control"

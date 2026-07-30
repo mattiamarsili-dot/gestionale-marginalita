@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Utenti — Gestionale Altra Mobilità{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-xl-9">
+
+    <div class="d-flex align-items-center justify-content-between mb-4 gap-3">
+      <div>
+        <h4 class="fw-bold mb-0"><i class="bi bi-people me-2"></i>Utenti</h4>
+        <small class="text-muted">Account che possono accedere al gestionale</small>
+      </div>
+      <a href="{{ url_for('utente_nuovo') }}" class="btn btn-primary">
+        <i class="bi bi-person-plus me-1"></i>Nuovo utente
+      </a>
+    </div>
+
+    <div class="card">
+      <div class="card-body p-0">
+        <table class="table mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Nome</th>
+              <th>Email</th>
+              <th>Ruolo</th>
+              <th>Stato</th>
+              <th class="text-end"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in utenti %}
+            <tr>
+              <td class="fw-semibold">
+                {{ u.nome }}
+                {% if current_user and current_user.id == u.id %}<span class="badge bg-secondary ms-1">tu</span>{% endif %}
+              </td>
+              <td class="text-muted">{{ u.email }}</td>
+              <td>
+                {% if u.ruolo == 'admin' %}
+                <span class="badge bg-primary"><i class="bi bi-shield-lock me-1"></i>Admin</span>
+                {% else %}
+                <span class="badge bg-light text-dark border">Operatore</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if u.attivo %}
+                <span class="text-success small"><i class="bi bi-check-circle-fill me-1"></i>Attivo</span>
+                {% else %}
+                <span class="text-muted small"><i class="bi bi-slash-circle me-1"></i>Disattivato</span>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <a href="{{ url_for('utente_modifica', utente_id=u.id) }}" class="btn btn-sm btn-outline-secondary">
+                  <i class="bi bi-pencil"></i>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
