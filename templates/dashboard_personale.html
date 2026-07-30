@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Home — Gestionale Altra Mobilità{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+  <div>
+    <h4 class="fw-bold mb-0">Ciao {{ current_user.nome }} 👋</h4>
+    <small class="text-muted">La tua area di lavoro</small>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <a href="{{ url_for('nuova_pratica') }}" class="btn btn-primary btn-sm"><i class="bi bi-folder-plus me-1"></i>Nuova pratica</a>
+    <a href="{{ url_for('cliente_nuovo') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-person-plus me-1"></i>Nuovo cliente</a>
+    <a href="{{ url_for('note_nuova') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-check2-square me-1"></i>Nuovo task</a>
+  </div>
+</div>
+
+<div class="row g-4">
+
+  <!-- Task assegnati a me -->
+  <div class="col-12 col-lg-6">
+    <div class="card h-100">
+      <div class="card-header bg-white d-flex align-items-center justify-content-between">
+        <span class="fw-semibold"><i class="bi bi-check2-square me-2 text-primary"></i>I tuoi task</span>
+        <a href="{{ url_for('task_assegnati') }}" class="small text-decoration-none">Vedi tutti</a>
+      </div>
+      <div class="card-body p-0">
+        {% if task %}
+        <ul class="list-group list-group-flush">
+          {% for n in task %}
+          <li class="list-group-item d-flex align-items-start gap-2">
+            <form method="post" action="{{ url_for('note_completata', nota_id=n.id) }}" class="mt-1">
+              <input type="hidden" name="torna" value="{{ url_for('dashboard') }}">
+              <input type="hidden" name="completa" value="1">
+              <button class="btn btn-sm p-0 border-0 bg-transparent" title="Segna fatto">
+                <i class="bi bi-circle text-muted fs-5"></i>
+              </button>
+            </form>
+            <div class="flex-grow-1">
+              <div>{{ n.testo }}</div>
+              <div class="small text-muted">
+                {% if n.cliente_id %}
+                <a href="{{ url_for('cliente_dettaglio', cliente_id=n.cliente_id) }}" class="text-decoration-none">
+                  <i class="bi bi-person me-1"></i>{{ n.c_cognome }} {{ n.c_nome }}</a>
+                {% elif n.nominativo %}<span><i class="bi bi-person me-1"></i>{{ n.nominativo }}</span>{% endif %}
+                {% if n.autore_nome %}<span class="ms-1">da <strong>{{ n.autore_nome }}</strong></span>{% endif %}
+                <span class="badge
+                  {% if n.priorita == 'Urgente' %}bg-danger-subtle text-danger
+                  {% elif n.priorita == 'Alta' %}bg-warning-subtle text-warning-emphasis
+                  {% else %}bg-light text-muted{% endif %} ms-1">{{ n.priorita }}</span>
+                {% if n.scadenza %}<i class="bi bi-calendar-event ms-1"></i> {{ n.scadenza }}{% endif %}
+              </div>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="text-center text-muted py-5">
+          <i class="bi bi-check2-all opacity-25 fs-1 d-block mb-2"></i>Nessun task assegnato a te. 🎉
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Ultime pratiche lavorate -->
+  <div class="col-12 col-lg-6">
+    <div class="card h-100">
+      <div class="card-header bg-white d-flex align-items-center justify-content-between">
+        <span class="fw-semibold"><i class="bi bi-folder2-open me-2 text-primary"></i>Ultime pratiche lavorate</span>
+        <a href="{{ url_for('pratiche') }}" class="small text-decoration-none">Tutte</a>
+      </div>
+      <div class="card-body p-0">
+        {% if pratiche_recenti %}
+        <ul class="list-group list-group-flush">
+          {% for p in pratiche_recenti %}
+          <li class="list-group-item d-flex align-items-center gap-2">
+            <a href="{{ url_for('dettaglio_pratica', pratica_id=p.id) }}" class="text-decoration-none flex-grow-1">
+              <i class="bi bi-folder2 me-1 text-muted"></i>
+              {{ (p.c_cognome ~ ' ' ~ (p.c_nome or '')) | trim if p.c_cognome else p.nome_paziente }}
+            </a>
+            {% if p.stato_lavorazione %}<span class="badge bg-secondary-subtle text-secondary">{{ p.stato_lavorazione }}</span>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="text-center text-muted py-5">
+          <i class="bi bi-folder opacity-25 fs-1 d-block mb-2"></i>Non hai ancora lavorato pratiche.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Ultimi clienti lavorati -->
+  <div class="col-12 col-lg-6">
+    <div class="card h-100">
+      <div class="card-header bg-white d-flex align-items-center justify-content-between">
+        <span class="fw-semibold"><i class="bi bi-people-fill me-2 text-primary"></i>Ultimi clienti lavorati</span>
+        <a href="{{ url_for('clienti') }}" class="small text-decoration-none">Tutti</a>
+      </div>
+      <div class="card-body p-0">
+        {% if clienti_recenti %}
+        <ul class="list-group list-group-flush">
+          {% for c in clienti_recenti %}
+          <li class="list-group-item d-flex align-items-center gap-2">
+            <a href="{{ url_for('cliente_dettaglio', cliente_id=c.id) }}" class="text-decoration-none flex-grow-1">
+              <i class="bi bi-person me-1 text-muted"></i>{{ c.cognome }} {{ c.nome }}
+            </a>
+            {% if c.residenza_citta %}<span class="small text-muted">{{ c.residenza_citta }}</span>{% endif %}
+            {% if c.asl %}<span class="badge bg-light text-muted border">{{ c.asl }}</span>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="text-center text-muted py-5">
+          <i class="bi bi-people opacity-25 fs-1 d-block mb-2"></i>Non hai ancora lavorato clienti.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Settori specifici: riquadri dedicati per singolo utente (attivati su richiesta) -->
+  {% block settori_utente %}{% endblock %}
+
+</div>
+{% endblock %}

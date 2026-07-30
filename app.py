@@ -192,6 +192,41 @@ def inietta_utente():
     return {"current_user": u, "is_admin": is_admin(), "task_aperti_count": n_task}
 
 
+def segna_lavorazione(tabella: str, entita_id) -> None:
+    """Registra che l'utente corrente ha lavorato su una pratica/cliente
+    (ultimo_utente_id + ultima_attivita = ora). `tabella` è un valore fisso."""
+    if tabella not in ("pratiche", "clienti") or not entita_id:
+        return
+    u = utente_corrente()
+    if not u:
+        return
+    try:
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                f"UPDATE {tabella} SET ultimo_utente_id = {_PH}, ultima_attivita = {_PH} WHERE id = {_PH}",
+                (u["id"], datetime.now(), entita_id))
+    except Exception:
+        pass
+
+
+@app.after_request
+def traccia_lavorazione(response):
+    """Su ogni POST riuscito che tocca una pratica/cliente aggiorna il
+    'lavorato da' (per la dashboard personale). Le creazioni sono tracciate
+    direttamente nelle rispettive route (l'id non è nell'URL)."""
+    try:
+        if request.method == "POST" and response.status_code < 400 and utente_corrente():
+            va = request.view_args or {}
+            if "pratica_id" in va:
+                segna_lavorazione("pratiche", va["pratica_id"])
+            elif "cliente_id" in va:
+                segna_lavorazione("clienti", va["cliente_id"])
+    except Exception:
+        pass
+    return response
+
+
 @app.before_request
 def controlla_accesso():
     if request.endpoint in ROUTE_PUBBLICHE:
@@ -348,6 +383,51 @@ self.addEventListener('fetch', (e) => {
 
 @app.route("/")
 def dashboard():
+    """Home personale: task assegnati, ultime pratiche e clienti lavorati."""
+    u = utente_corrente()
+    if not u:
+        # Modalità legacy (nessun utente ancora): mostra la panoramica business.
+        return _vista_panoramica()
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"""SELECT n.*, c.cognome AS c_cognome, c.nome AS c_nome, ua.nome AS autore_nome
+                FROM note n
+                LEFT JOIN clienti c ON c.id = n.cliente_id
+                LEFT JOIN utenti ua ON ua.id = n.autore_id
+                WHERE n.assegnato_a = {_PH} AND NOT n.completata
+                ORDER BY COALESCE(n.scadenza, '9999-12-31') ASC, n.creato_il DESC
+                LIMIT 20""",
+            (u["id"],))
+        task = cur.fetchall()
+        cur.execute(
+            f"""SELECT p.id, p.nome_paziente, p.stato_lavorazione, p.importo_asl,
+                       p.ultima_attivita, c.cognome AS c_cognome, c.nome AS c_nome
+                FROM pratiche p LEFT JOIN clienti c ON c.id = p.cliente_id
+                WHERE p.ultimo_utente_id = {_PH}
+                ORDER BY p.ultima_attivita DESC LIMIT 10""",
+            (u["id"],))
+        pratiche_recenti = cur.fetchall()
+        cur.execute(
+            f"""SELECT id, cognome, nome, telefono, residenza_citta, asl, ultima_attivita
+                FROM clienti WHERE ultimo_utente_id = {_PH}
+                ORDER BY ultima_attivita DESC LIMIT 10""",
+            (u["id"],))
+        clienti_recenti = cur.fetchall()
+    return render_template(
+        "dashboard_personale.html",
+        task=task, pratiche_recenti=pratiche_recenti, clienti_recenti=clienti_recenti,
+        NOTE_PRIORITA=NOTE_PRIORITA,
+    )
+
+
+@app.route("/panoramica")
+@admin_required
+def panoramica():
+    return _vista_panoramica()
+
+
+def _vista_panoramica():
     periodo = request.args.get("periodo", "mensile")
     if periodo not in _DURATA_MESI and periodo != "intervallo":
         periodo = "mensile"
@@ -499,6 +579,7 @@ def nuova_pratica():
                     (pratica_id, nome_f, float(imp_f), pdf_path or None, drive_id or None),
                 )
 
+        segna_lavorazione("pratiche", pratica_id)
         return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id))
 
     # GET — crea subito una bozza vuota e apre le due schede (paziente da scegliere
@@ -525,6 +606,7 @@ def nuova_pratica():
             (nome_paziente, cliente_id, datetime.now().strftime("%Y-%m-%d"), prov_default, asl, medico),
         )
         pratica_id = last_inserted_id(cur)
+    segna_lavorazione("pratiche", pratica_id)
     return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id))
 
 
@@ -2026,6 +2108,7 @@ def cliente_nuovo():
                 tuple(dati[c] for c in CLIENTE_FIELDS),
             )
             cliente_id = last_inserted_id(cur)
+        segna_lavorazione("clienti", cliente_id)
         return redirect(url_for("cliente_dettaglio", cliente_id=cliente_id))
     # Precompila cognome/nome se arriva dal campo paziente di una pratica
     prefill = {

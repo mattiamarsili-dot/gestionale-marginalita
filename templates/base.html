@@ -70,8 +70,13 @@
       <!-- Riga 2: schede sempre visibili, vanno a capo su mobile (niente swipe) -->
       <div class="nav-schede mt-2">
         <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
-          <i class="bi bi-speedometer2 me-1"></i>Dashboard
+          <i class="bi bi-house-door me-1"></i>Home
         </a>
+        {% if is_admin %}
+        <a class="nav-link {% if request.endpoint == 'panoramica' %}active{% endif %}" href="{{ url_for('panoramica') }}">
+          <i class="bi bi-speedometer2 me-1"></i>Panoramica
+        </a>
+        {% endif %}
         <a class="nav-link {% if request.endpoint in ['clienti', 'cliente_nuovo', 'cliente_dettaglio', 'cliente_modifica'] %}active{% endif %}" href="{{ url_for('clienti') }}">
           <i class="bi bi-people-fill me-1"></i>Clienti
         </a>

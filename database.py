@@ -82,6 +82,8 @@ _SQLITE_SCHEMA = """
         tutore_documento_rilascio_data  DATE,
         da_verificare           INTEGER NOT NULL DEFAULT 0,
         note                    TEXT,
+        ultimo_utente_id        INTEGER,
+        ultima_attivita         TIMESTAMP,
         creato_il               TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -108,6 +110,8 @@ _SQLITE_SCHEMA = """
         stato_lavorazione TEXT NOT NULL DEFAULT 'Segnalato',
         tipologia        TEXT,
         drive_archivio_id TEXT,
+        ultimo_utente_id INTEGER,
+        ultima_attivita  TIMESTAMP,
         creato_il        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (cliente_id) REFERENCES clienti(id)
     );
@@ -232,6 +236,8 @@ _POSTGRES_SCHEMA = """
         tutore_documento_rilascio_data  DATE,
         da_verificare           BOOLEAN NOT NULL DEFAULT FALSE,
         note                    TEXT,
+        ultimo_utente_id        INTEGER,
+        ultima_attivita         TIMESTAMPTZ,
         creato_il               TIMESTAMPTZ DEFAULT NOW()
     );
 
@@ -258,6 +264,8 @@ _POSTGRES_SCHEMA = """
         stato_lavorazione TEXT NOT NULL DEFAULT 'Segnalato',
         tipologia        TEXT,
         drive_archivio_id TEXT,
+        ultimo_utente_id INTEGER,
+        ultima_attivita  TIMESTAMPTZ,
         creato_il        TIMESTAMPTZ DEFAULT NOW()
     );
 
@@ -403,6 +411,10 @@ def migrate_db():
             "ALTER TABLE preset_ausili ADD COLUMN IF NOT EXISTS significato TEXT",
             "ALTER TABLE note ADD COLUMN IF NOT EXISTS autore_id INTEGER REFERENCES utenti(id) ON DELETE SET NULL",
             "ALTER TABLE note ADD COLUMN IF NOT EXISTS assegnato_a INTEGER REFERENCES utenti(id) ON DELETE SET NULL",
+            "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS ultimo_utente_id INTEGER REFERENCES utenti(id) ON DELETE SET NULL",
+            "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS ultima_attivita TIMESTAMPTZ",
+            "ALTER TABLE clienti ADD COLUMN IF NOT EXISTS ultimo_utente_id INTEGER REFERENCES utenti(id) ON DELETE SET NULL",
+            "ALTER TABLE clienti ADD COLUMN IF NOT EXISTS ultima_attivita TIMESTAMPTZ",
         ]
     else:
         statements = [
@@ -439,6 +451,10 @@ def migrate_db():
             "ALTER TABLE preset_ausili ADD COLUMN significato TEXT",
             "ALTER TABLE note ADD COLUMN autore_id INTEGER REFERENCES utenti(id)",
             "ALTER TABLE note ADD COLUMN assegnato_a INTEGER REFERENCES utenti(id)",
+            "ALTER TABLE pratiche ADD COLUMN ultimo_utente_id INTEGER REFERENCES utenti(id)",
+            "ALTER TABLE pratiche ADD COLUMN ultima_attivita TIMESTAMP",
+            "ALTER TABLE clienti ADD COLUMN ultimo_utente_id INTEGER REFERENCES utenti(id)",
+            "ALTER TABLE clienti ADD COLUMN ultima_attivita TIMESTAMP",
         ]
 
     # Indici: la colonna cliente_id viene aggiunta dagli ALTER qui sopra.
