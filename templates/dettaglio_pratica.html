@@ -17,9 +17,11 @@
       <a href="{{ url_for('modifica_pratica', pratica_id=pratica.id) }}" class="btn btn-sm btn-outline-secondary">
         <i class="bi bi-pencil me-1"></i>Modifica
       </a>
+      {% if is_admin %}
       <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalElimina">
         <i class="bi bi-trash me-1"></i>Elimina
       </button>
+      {% endif %}
     </div>
 
     <!-- Dati pratica (comune alle due schede) -->

@@ -1061,6 +1061,7 @@ def aggiorna_moduli_attivi(pratica_id):
 # ── Elimina pratica ───────────────────────────────────────────────────────────
 
 @app.route("/pratica/<int:pratica_id>/elimina", methods=["POST"])
+@admin_required
 def elimina_pratica(pratica_id):
     with get_db() as conn:
         cur = conn.cursor()
@@ -1554,6 +1555,7 @@ def preset_modifica(preset_id):
 
 
 @app.route("/preset/<int:preset_id>/elimina", methods=["POST"])
+@admin_required
 def preset_elimina(preset_id):
     elimina_preset(preset_id)
     return redirect(url_for("presets"))
@@ -2418,6 +2420,7 @@ def cliente_modifica(cliente_id):
 
 
 @app.route("/cliente/<int:cliente_id>/elimina", methods=["POST"])
+@admin_required
 def cliente_elimina(cliente_id):
     with get_db() as conn:
         cur = conn.cursor()

@@ -64,6 +64,7 @@
           <i class="bi bi-folder-fill"></i>
         </a>
         {% endif %}
+        {% if is_admin %}
         <form method="post" action="{{ url_for('elimina_pratica', pratica_id=p.id) }}" class="d-inline"
               onsubmit="return confirm('Eliminare la pratica di {{ (p.cognome ~ ' ' ~ (p.nome or '')) if p.cognome else p.nome_paziente }}? L\'operazione è definitiva.');">
           <input type="hidden" name="torna" value="{{ request.full_path }}">
@@ -71,6 +72,7 @@
             <i class="bi bi-trash"></i>
           </button>
         </form>
+        {% endif %}
       </td>
     </tr>
     {% endfor %}

@@ -75,7 +75,7 @@
       </div>
 
       <div class="d-flex justify-content-between gap-2 mt-4">
-        {% if modifica %}
+        {% if modifica and is_admin %}
         <button type="submit" form="form-elimina" formnovalidate class="btn btn-outline-danger">
           <i class="bi bi-trash me-1"></i>Elimina
         </button>
