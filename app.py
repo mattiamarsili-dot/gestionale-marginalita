@@ -19,7 +19,8 @@ from config import (
     ANTHROPIC_API_KEY,
 )
 from database import (
-    init_db, migrate_db, backfill_clienti, get_db, calcola_margine, provvigione_corrente,
+    init_db, migrate_db, migrate_stati_e_assegnatari, backfill_clienti, get_db,
+    calcola_margine, provvigione_corrente,
     _PH, _DATE_FILTER, _MONTH_FORMAT, _FATTURATA_TRUE, _LIKE, last_inserted_id,
 )
 from pdf_extractor import estrai_totale_pdf
@@ -122,6 +123,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 try:
     init_db()
     migrate_db()
+    migrate_stati_e_assegnatari()
     backfill_clienti()
     seed_presets()
     migrate_presets_struttura()
@@ -184,7 +186,9 @@ def inietta_utente():
             with get_db() as conn:
                 cur = conn.cursor()
                 cur.execute(
-                    f"SELECT COUNT(*) AS n FROM note WHERE assegnato_a = {_PH} AND NOT completata",
+                    f"""SELECT COUNT(DISTINCT na.note_id) AS n
+                        FROM note_assegnatari na JOIN note n ON n.id = na.note_id
+                        WHERE na.utente_id = {_PH} AND NOT n.completata""",
                     (u["id"],))
                 n_task = cur.fetchone()["n"]
         except Exception:
@@ -393,13 +397,17 @@ def dashboard():
         cur.execute(
             f"""SELECT n.*, c.cognome AS c_cognome, c.nome AS c_nome, ua.nome AS autore_nome
                 FROM note n
+                JOIN note_assegnatari na ON na.note_id = n.id AND na.utente_id = {_PH}
                 LEFT JOIN clienti c ON c.id = n.cliente_id
                 LEFT JOIN utenti ua ON ua.id = n.autore_id
-                WHERE n.assegnato_a = {_PH} AND NOT n.completata
+                WHERE NOT n.completata
                 ORDER BY COALESCE(n.scadenza, '9999-12-31') ASC, n.creato_il DESC
                 LIMIT 20""",
             (u["id"],))
-        task = cur.fetchall()
+        task = [dict(r) for r in cur.fetchall()]
+        nomi = _nomi_assegnatari(conn, [t["id"] for t in task])
+        for t in task:
+            t["assegnatari_nomi"] = nomi.get(t["id"], "")
         cur.execute(
             f"""SELECT p.id, p.nome_paziente, p.stato_lavorazione, p.importo_asl,
                        p.ultima_attivita, c.cognome AS c_cognome, c.nome AS c_nome
@@ -678,6 +686,12 @@ def dettaglio_pratica(pratica_id):
         soglia_ok=MARGINE_SOGLIA_OK,
         soglia_warn=MARGINE_SOGLIA_WARN,
         asl_opzioni=opzioni_asl(),
+        drive_configurato=drive_archive.configurato(),
+        drive_collegato=drive_archive.collegato(),
+        drive_email=drive_archive.account_email(),
+        drive_root_id=drive_archive.radice()[0],
+        drive_root_nome=drive_archive.radice()[1],
+        drive_browse_root=drive_archive.browse_root() if drive_archive.collegato() else "",
     )
 
 
@@ -694,9 +708,9 @@ def modifica_pratica(pratica_id):
         note            = request.form.get("note", "").strip()
         ausilio         = request.form.get("ausilio", "").strip()
         tipologia       = request.form.get("tipologia", "").strip()
-        stato_lav       = (request.form.get("stato_lavorazione") or "Segnalato").strip()
+        stato_lav       = (request.form.get("stato_lavorazione") or "Da valutare").strip()
         if stato_lav not in STATI_LAVORAZIONE:
-            stato_lav = "Segnalato"
+            stato_lav = "Da valutare"
 
         fornitori = request.form.getlist("fornitore_nome[]")
         importi   = request.form.getlist("fornitore_importo[]")
@@ -705,12 +719,24 @@ def modifica_pratica(pratica_id):
 
         with get_db() as conn:
             cur = conn.cursor()
+            # Una pratica fatturata resta 'Fatturato': lo stato lo governa solo il
+            # pulsante Fatturati, non la modifica manuale.
+            cur.execute(f"SELECT fatturata, stato_lavorazione FROM pratiche WHERE id={_PH}", (pratica_id,))
+            _rp = cur.fetchone()
+            if _rp and bool(_rp["fatturata"]):
+                stato_lav = "Fatturato"
+            # stato_da si aggiorna solo se lo stato cambia davvero.
+            stato_cambiato = _rp is None or _rp["stato_lavorazione"] != stato_lav
             cur.execute(
                 f"UPDATE pratiche SET nome_paziente={_PH}, data_pratica={_PH}, "
                 f"importo_asl={_PH}, importo_privato={_PH}, provvigione_pct={_PH}, note={_PH}, "
-                f"ausilio={_PH}, tipologia={_PH}, stato_lavorazione={_PH} WHERE id={_PH}",
+                f"ausilio={_PH}, tipologia={_PH}, stato_lavorazione={_PH}"
+                + (f", stato_da={_PH}" if stato_cambiato else "")
+                + f" WHERE id={_PH}",
                 (nome_paziente, data_pratica, importo_asl, importo_privato, provvigione_pct, note,
-                 ausilio, tipologia, stato_lav, pratica_id),
+                 ausilio, tipologia, stato_lav)
+                + ((_now_iso(),) if stato_cambiato else ())
+                + (pratica_id,),
             )
             cur.execute(f"DELETE FROM preventivi WHERE pratica_id={_PH}", (pratica_id,))
             for i, (nome_f, imp_f) in enumerate(zip(fornitori, importi)):
@@ -770,18 +796,47 @@ def fattura_pratica(pratica_id):
 
         attuale = bool(row["fatturata"])
         if attuale:
+            # Annulla la fatturazione e riporta lo stato a quello implicato dagli eventi.
             cur.execute(
                 f"UPDATE pratiche SET fatturata = {_PH}, data_fatturazione = NULL WHERE id = {_PH}",
                 (False, pratica_id),
             )
+            ricalcola_stato_pratica(conn, pratica_id, forza=True)
         else:
             oggi = date.today().isoformat()
             cur.execute(
-                f"UPDATE pratiche SET fatturata = {_PH}, data_fatturazione = {_PH} WHERE id = {_PH}",
-                (True, oggi, pratica_id),
+                f"UPDATE pratiche SET fatturata = {_PH}, data_fatturazione = {_PH}, "
+                f"stato_lavorazione = {_PH}, stato_da = {_PH} WHERE id = {_PH}",
+                (True, oggi, "Fatturato", _now_iso(), pratica_id),
             )
 
     torna = request.form.get("torna", url_for("dashboard"))
+    return redirect(torna)
+
+
+# ── Conferma ordine (spunta in Marginalità) ───────────────────────────────────
+
+@app.route("/pratica/<int:pratica_id>/ordine-confermato", methods=["POST"])
+def conferma_ordine(pratica_id):
+    """Spunta 'Ordine confermato' nella sezione Marginalità: segna l'ordine come
+    effettuato e porta lo stato pratica ad 'Ordinato' (avanzamento automatico)."""
+    confermato = request.form.get("confermato", "0") == "1"
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT fatturata FROM pratiche WHERE id = {_PH}", (pratica_id,))
+        row = cur.fetchone()
+        if not row:
+            return jsonify({"ok": False}), 404
+        cur.execute(
+            f"UPDATE pratiche SET ordine_confermato = {_PH} WHERE id = {_PH}",
+            (confermato, pratica_id),
+        )
+        ricalcola_stato_pratica(conn, pratica_id)
+        cur.execute(f"SELECT stato_lavorazione FROM pratiche WHERE id = {_PH}", (pratica_id,))
+        stato = cur.fetchone()["stato_lavorazione"]
+    if request.headers.get("X-Requested-With") == "fetch":
+        return jsonify({"ok": True, "confermato": confermato, "stato": stato})
+    torna = request.form.get("torna", url_for("dettaglio_pratica", pratica_id=pratica_id) + "#tab-margine")
     return redirect(torna)
 
 
@@ -993,6 +1048,14 @@ def applica_preset(pratica_id):
                     (pratica_id, r.get("codice_iso", ""), r.get("descrizione", ""),
                      r.get("qta", 1), r.get("prezzo_unitario", 0), ordine),
                 )
+            # Nome dell'ausilio: prende il nome del set inserito (es. "Superleggera",
+            # "Base basculante Elettronica", "Ortesi su misura…"), così compare nella
+            # colonna Ausilio della vista Stato pratica. Resta comunque modificabile.
+            label = (preset.get("label") or "").strip()
+            if label:
+                cur.execute(
+                    f"UPDATE pratiche SET ausilio = {_PH} WHERE id = {_PH}",
+                    (label, pratica_id))
             # Significato terapeutico del set → accodato al testo della pratica
             # (una sola volta: se già presente non lo si duplica).
             sign_preset = (preset.get("significato") or "").strip()
@@ -1328,11 +1391,100 @@ def aggiorna_dati_moduli(pratica_id):
     return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) + "#moduli")
 
 
+# ── Stato di lavorazione automatico ───────────────────────────────────────────
+# Lo stato avanza da solo con gli eventi della pratica, ma resta correggibile a
+# mano dal dropdown in lista. Gli stati sono ordinati (vedi STATI_LAVORAZIONE):
+#   Da valutare → Prescritto → ASL → Ordinato → Fatturato
+# Regole di avanzamento:
+#   - prescrizione generata            → Prescritto
+#   - preventivo E delega generati     → ASL
+#   - ordine confermato (spunta)       → Ordinato
+#   - fatturata                        → Fatturato (gestito dalla route /fattura)
+
+STATO_INDICE = {s: i for i, s in enumerate(STATI_LAVORAZIONE)}
+
+
+def _now_iso() -> str:
+    """Timestamp corrente in ISO (per la colonna stato_da, dual SQLite/Postgres)."""
+    return datetime.now().isoformat(timespec="seconds")
+
+
+def _giorni_da(ts) -> int | None:
+    """Giorni interi trascorsi da `ts` (datetime o stringa ISO/SQLite) a oggi.
+    Restituisce None se il valore manca o non è interpretabile."""
+    if not ts:
+        return None
+    dt = None
+    if isinstance(ts, datetime):
+        dt = ts
+    else:
+        s = str(ts).strip().replace(" ", "T")
+        try:
+            dt = datetime.fromisoformat(s)
+        except ValueError:
+            try:
+                dt = datetime.strptime(str(ts)[:10], "%Y-%m-%d")
+            except ValueError:
+                return None
+    # Confronto naive: togliamo l'eventuale timezone (Postgres TIMESTAMPTZ).
+    if dt.tzinfo is not None:
+        dt = dt.replace(tzinfo=None)
+    delta = datetime.now() - dt
+    return max(delta.days, 0)
+
+
+def _stato_implicito(pratica: dict) -> str:
+    """Stato minimo implicato dagli eventi (moduli generati, ordine confermato).
+    NON considera la fatturazione: lo stato 'Fatturato' lo gestisce la route /fattura."""
+    if bool(pratica.get("ordine_confermato")):
+        return "Ordinato"
+    generati = {m for m in (pratica.get("moduli_generati") or "").split(",") if m}
+    categorie = {PDF_TEMPLATES[m]["categoria"] for m in generati if m in PDF_TEMPLATES}
+    ha_delega = bool(categorie & {"delega", "autocert"})
+    if "preventivo" in categorie and ha_delega:
+        return "ASL"
+    if "prescrizione" in categorie:
+        return "Prescritto"
+    return "Da valutare"
+
+
+def ricalcola_stato_pratica(conn, pratica_id, forza=False):
+    """Aggiorna stato_lavorazione dagli eventi. Di norma avanza solo in avanti
+    (non retrocede uno stato impostato a mano o già più avanzato); con forza=True
+    imposta esattamente lo stato implicito — usato quando si annulla la fatturazione."""
+    cur = conn.cursor()
+    cur.execute(
+        f"SELECT stato_lavorazione, ordine_confermato, moduli_generati, fatturata "
+        f"FROM pratiche WHERE id = {_PH}",
+        (pratica_id,),
+    )
+    row = cur.fetchone()
+    if not row:
+        return
+    row = dict(row)
+    if bool(row.get("fatturata")):
+        return  # fatturazione ha la precedenza: lo stato lo gestisce la route /fattura
+    implicito = _stato_implicito(row)
+    attuale = row.get("stato_lavorazione")
+    if forza:
+        nuovo = implicito
+    else:
+        ia = STATO_INDICE.get(attuale, -1)
+        ii = STATO_INDICE.get(implicito, 0)
+        nuovo = implicito if ia < 0 else STATI_LAVORAZIONE[max(ia, ii)]
+    if nuovo != attuale:
+        cur.execute(
+            f"UPDATE pratiche SET stato_lavorazione = {_PH}, stato_da = {_PH} WHERE id = {_PH}",
+            (nuovo, _now_iso(), pratica_id),
+        )
+
+
 # ── Generazione modulo PDF ────────────────────────────────────────────────────
 
 def _segna_modulo_generato(pratica_id, template_id):
     """Aggiunge template_id all'elenco moduli_generati della pratica (CSV, senza
-    duplicati). Best-effort: un errore qui non deve impedire il download."""
+    duplicati) e ricalcola lo stato di lavorazione. Best-effort: un errore qui non
+    deve impedire il download."""
     try:
         with get_db() as conn:
             cur = conn.cursor()
@@ -1341,13 +1493,15 @@ def _segna_modulo_generato(pratica_id, template_id):
             if not row:
                 return
             generati = {m for m in (row["moduli_generati"] or "").split(",") if m}
-            if template_id in generati:
-                return
-            generati.add(template_id)
-            cur.execute(
-                f"UPDATE pratiche SET moduli_generati = {_PH} WHERE id = {_PH}",
-                (",".join(sorted(generati)), pratica_id),
-            )
+            if template_id not in generati:
+                generati.add(template_id)
+                cur.execute(
+                    f"UPDATE pratiche SET moduli_generati = {_PH} WHERE id = {_PH}",
+                    (",".join(sorted(generati)), pratica_id),
+                )
+            # Ricalcola lo stato anche se il modulo era già generato: l'insieme di
+            # moduli potrebbe implicare uno stato più avanzato (es. arrivato il 2°).
+            ricalcola_stato_pratica(conn, pratica_id)
     except Exception as e:
         import sys
         print("WARN impossibile segnare modulo generato:", e, file=sys.stderr)
@@ -1400,19 +1554,30 @@ def genera_modulo(pratica_id, template_id):
             )
         pratica_d["data_pratica"] = data_conf
 
-    # N° pratica generato in automatico alla prima generazione di un preventivo,
-    # poi salvato sulla pratica così resta stabile (per le pratiche già create lo
-    # si inserisce a mano dalla scheda Codifica).
-    if (PDF_TEMPLATES[template_id].get("categoria") == "preventivo"
-            and not (pratica_d.get("numero_pratica") or "").strip()):
-        num = numero_preventivo(pratica_d, cliente_d)
-        with get_db() as conn:
-            cur = conn.cursor()
-            cur.execute(
-                f"UPDATE pratiche SET numero_pratica = {_PH} WHERE id = {_PH}",
-                (num, pratica_id),
-            )
-        pratica_d["numero_pratica"] = num
+    # Alla generazione del PREVENTIVO:
+    #  - genera il N° pratica se manca (poi resta stabile, salvato sulla pratica);
+    #  - se l'importo ASL è ancora a zero, lo precompila col totale dei codici ausili
+    #    (imponibile del preventivo), così in lista/fatturati non resta a 0. Resta
+    #    comunque modificabile a mano dalla scheda Marginalità.
+    if PDF_TEMPLATES[template_id].get("categoria") == "preventivo":
+        updates, params = [], []
+        if not (pratica_d.get("numero_pratica") or "").strip():
+            num = numero_preventivo(pratica_d, cliente_d)
+            updates.append(f"numero_pratica = {_PH}"); params.append(num)
+            pratica_d["numero_pratica"] = num
+        if not (pratica_d.get("importo_asl") or 0):
+            tot_ausili = sum((r.get("qta") or 0) * (r.get("prezzo_unitario") or 0) for r in righe)
+            if tot_ausili > 0:
+                updates.append(f"importo_asl = {_PH}"); params.append(tot_ausili)
+                pratica_d["importo_asl"] = tot_ausili
+        if updates:
+            params.append(pratica_id)
+            with get_db() as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    f"UPDATE pratiche SET {', '.join(updates)} WHERE id = {_PH}",
+                    tuple(params),
+                )
 
     try:
         pdf_bytes = compila_pdf(template_id, pratica_d, cliente_d, righe)
@@ -1501,6 +1666,41 @@ def pratica_drive_link(pratica_id):
                     or url_for("dettaglio_pratica", pratica_id=pratica_id))
 
 
+@app.route("/pratica/<int:pratica_id>/drive-cartella", methods=["POST"])
+def pratica_drive_cartella(pratica_id):
+    """Sceglie la cartella Drive di destinazione di QUESTA pratica: una esistente
+    (folder_id dal menu) o una nuova da creare (nuova_cartella). I moduli generati
+    per la pratica verranno salvati direttamente lì."""
+    torna = request.form.get("torna") or url_for("dettaglio_pratica", pratica_id=pratica_id)
+    if not drive_archive.collegato():
+        return redirect(torna)
+    nuova = (request.form.get("nuova_cartella") or "").strip()
+    folder_id = (request.form.get("folder_id") or "").strip()
+    # Sentinella per rimuovere l'override e tornare alla cartella predefinita.
+    if folder_id == "__default__":
+        with get_db() as conn:
+            conn.cursor().execute(
+                f"UPDATE pratiche SET drive_archivio_id = NULL WHERE id = {_PH}", (pratica_id,))
+        return redirect(torna)
+    fid = None
+    try:
+        if nuova:
+            root = drive_archive.radice()[0] or None
+            fid = drive_archive.crea_cartella(nuova, root)["id"]
+        elif folder_id:
+            fid = folder_id
+    except Exception as e:
+        import sys
+        print("DRIVE scelta cartella pratica fallita:", e, file=sys.stderr)
+    if fid:
+        with get_db() as conn:
+            conn.cursor().execute(
+                f"UPDATE pratiche SET drive_archivio_id = {_PH} WHERE id = {_PH}",
+                (fid, pratica_id),
+            )
+    return redirect(torna)
+
+
 @app.route("/drive/collega")
 def drive_collega():
     if not drive_archive.configurato():
@@ -1509,57 +1709,104 @@ def drive_collega():
     import secrets
     state = secrets.token_urlsafe(16)
     session["drive_oauth_state"] = state
+    # Ricorda dove tornare dopo il consenso (es. la scheda pratica da cui si è partiti).
+    session["drive_oauth_torna"] = request.args.get("torna") or url_for("pratiche")
     return redirect(drive_archive.auth_url(url_for("drive_callback", _external=True), state))
 
 
 @app.route("/drive/callback")
 def drive_callback():
+    torna = session.pop("drive_oauth_torna", None) or url_for("pratiche")
     if not request.args.get("state") or request.args.get("state") != session.get("drive_oauth_state"):
         return "Stato OAuth non valido, riprova il collegamento.", 400
     session.pop("drive_oauth_state", None)
     if request.args.get("error") or not request.args.get("code"):
-        return redirect(url_for("pratiche"))
+        return redirect(torna)
     try:
         drive_archive.scambia_codice(request.args["code"], url_for("drive_callback", _external=True))
     except Exception as e:
         return f"Collegamento a Google Drive non riuscito: {e}", 500
-    return redirect(url_for("pratiche"))
+    return redirect(torna)
 
 
 @app.route("/drive/scollega", methods=["POST"])
 def drive_scollega():
     drive_archive.scollega()
-    return redirect(url_for("pratiche"))
+    return redirect(request.form.get("torna") or url_for("pratiche"))
 
 
 @app.route("/drive/cartelle")
 def drive_cartelle():
+    """Sottocartelle di `parent` (per il navigatore). Senza `parent` parte dalla
+    cartella base configurata (browse_root); '~' o 'root' = My Drive."""
     if not drive_archive.collegato():
         return jsonify({"errore": "Drive non collegato"}), 503
+    parent = (request.args.get("parent") or "").strip()
+    if not parent:
+        parent = drive_archive.browse_root()
+    if parent in ("~", "root", "myDrive"):
+        parent = None
     try:
-        return jsonify({"cartelle": drive_archive.lista_cartelle()})
+        return jsonify({"cartelle": drive_archive.lista_cartelle(parent or None)})
+    except Exception as e:
+        return jsonify({"errore": str(e)}), 500
+
+
+@app.route("/drive/crea-cartella", methods=["POST"])
+def drive_crea_cartella():
+    """Crea una sottocartella dentro `parent` (dal navigatore). Ritorna {id, name}."""
+    if not drive_archive.collegato():
+        return jsonify({"errore": "Drive non collegato"}), 503
+    nome = (request.form.get("nome") or "").strip()
+    parent = (request.form.get("parent") or "").strip()
+    if parent in ("~", "root", "myDrive", ""):
+        parent = None
+    if not nome:
+        return jsonify({"errore": "nome mancante"}), 400
+    try:
+        return jsonify(drive_archive.crea_cartella(nome, parent))
+    except Exception as e:
+        return jsonify({"errore": str(e)}), 500
+
+
+@app.route("/drive/cartella-info")
+def drive_cartella_info():
+    """Metadati (nome, parents) di una cartella, per costruire il breadcrumb."""
+    if not drive_archive.collegato():
+        return jsonify({"errore": "Drive non collegato"}), 503
+    fid = (request.args.get("id") or "").strip()
+    if not fid:
+        return jsonify({"errore": "id mancante"}), 400
+    try:
+        return jsonify(drive_archive.info_cartella(fid))
     except Exception as e:
         return jsonify({"errore": str(e)}), 500
 
 
 @app.route("/drive/cartella", methods=["POST"])
 def drive_imposta_cartella():
-    """Imposta la cartella radice globale: una esistente (folder_id) o nuova (nome)."""
+    """Imposta la cartella PREDEFINITA (radice globale) da cui parte ogni pratica:
+    una esistente (folder_id) o nuova (nome). I moduli delle pratiche senza cartella
+    specifica finiscono qui, in una sottocartella per paziente."""
+    torna = request.form.get("torna") or url_for("pratiche")
     if not drive_archive.collegato():
-        return redirect(url_for("pratiche"))
+        return redirect(torna)
     nuova = (request.form.get("nuova_cartella") or "").strip()
     folder_id = (request.form.get("folder_id") or "").strip()
+    folder_nome = (request.form.get("folder_nome") or "").strip()
     try:
         if nuova:
             c = drive_archive.crea_cartella(nuova)
             drive_archive.imposta_radice(c["id"], c["name"])
         elif folder_id:
-            nome = next((f["name"] for f in drive_archive.lista_cartelle() if f["id"] == folder_id), "")
+            # Il nome arriva dal navigatore; ripiego sulla ricerca solo se manca.
+            nome = folder_nome or next(
+                (f["name"] for f in drive_archive.lista_cartelle() if f["id"] == folder_id), "")
             drive_archive.imposta_radice(folder_id, nome)
     except Exception as e:
         import sys
         print("IMPOSTA CARTELLA DRIVE FALLITA:", e, file=sys.stderr)
-    return redirect(url_for("pratiche"))
+    return redirect(torna)
 
 
 # ── Gestione preset ausili ────────────────────────────────────────────────────
@@ -1792,6 +2039,7 @@ COLONNE_PRATICHE = [
     {"key": "numero",      "label": "N° pratica",      "default": True},
     {"key": "tipologia",   "label": "Tipologia",       "default": False},
     {"key": "ausilio",     "label": "Ausilio",         "default": False},
+    {"key": "giorni",      "label": "Fermo da",        "default": False},
     {"key": "asl",         "label": "Importo ASL",     "default": True},
     {"key": "privato",     "label": "Importo privato", "default": False},
     {"key": "costo",       "label": "Costo fornitori", "default": True},
@@ -1804,9 +2052,9 @@ COLONNE_PRATICHE = [
 # Viste predefinite Pratiche: ogni vista è un set di colonne (solo colonne).
 VISTE_PRATICHE = [
     {"key": "stato", "label": "Stato pratica", "icon": "bi-kanban",
-     "cols": ["stato_lav", "data", "tipologia", "ausilio"]},
+     "cols": ["stato_lav", "ausilio", "giorni"]},
     {"key": "fatturazione", "label": "Fatturazione", "icon": "bi-receipt",
-     "cols": ["asl", "provvigione", "margine"]},
+     "cols": ["numero", "asl", "costo", "margine"]},
 ]
 
 # Ordinamenti Pratiche. "centro" = raggruppato per centro; "recenti" (default)
@@ -1829,11 +2077,14 @@ def _ordina_pratiche(elenco: list, key: str) -> list:
     return sorted(elenco, key=lambda p: str(p.get("creato_il") or ""), reverse=True)
 
 
-def _vista_o_colonne(nome: str, catalogo: list, viste: list):
+def _vista_o_colonne(nome: str, catalogo: list, viste: list, default_vista: str = None):
     """Risolve le colonne attive: se nella querystring c'è ?vista=KEY valida,
     usa il preset di quella vista; altrimenti le colonne personalizzate (cookie).
-    Restituisce (colonne_attive, vista_attiva_key)."""
+    Se non è chiesta alcuna vista e non ci sono colonne personalizzate salvate,
+    applica `default_vista` (vista predefinita). Restituisce (colonne_attive, vista_key)."""
     vk = (request.args.get("vista") or "").strip()
+    if not vk and default_vista and ("cols_" + nome) not in request.cookies:
+        vk = default_vista
     for v in viste:
         if v["key"] == vk:
             validi = {c["key"] for c in catalogo}
@@ -1931,12 +2182,18 @@ def pratiche():
     if centro:
         where.append(f"COALESCE(c.centro, '') = {_PH}")
         params.append("" if centro == "Senza centro" else centro)
+    # Le pratiche fatturate spariscono dalla lista (restano solo in /fatturati),
+    # salvo richiesta esplicita con ?fatturate=1.
+    mostra_fatturate = request.args.get("fatturate") == "1"
+    if not mostra_fatturate:
+        where.append("NOT p.fatturata")
     where_sql = ("WHERE " + " AND ".join(where)) if where else ""
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute(
             f"""SELECT p.*, c.centro, c.cognome, c.nome, c.codice_fiscale,
-                       COALESCE(SUM(pr.importo), 0) AS costo_totale
+                       COALESCE(SUM(pr.importo), 0) AS costo_totale,
+                       COUNT(pr.id) AS n_fornitori
                 FROM pratiche p
                 LEFT JOIN clienti c    ON c.id = p.cliente_id
                 LEFT JOIN preventivi pr ON pr.pratica_id = p.id
@@ -1964,6 +2221,18 @@ def pratiche():
             p["margine_classe"] = "warning"
         else:
             p["margine_classe"] = "danger"
+        # Da quanti giorni la pratica è ferma nello stesso stato (per lo sfumato
+        # giallo/rosso nella vista Stato pratica). Le fatturate non si evidenziano.
+        giorni = _giorni_da(p.get("stato_da"))
+        p["stato_giorni"] = giorni
+        if p.get("fatturata") or giorni is None:
+            p["stato_fermo_classe"] = ""
+        elif giorni >= 14:
+            p["stato_fermo_classe"] = "bad"
+        elif giorni >= 7:
+            p["stato_fermo_classe"] = "warn"
+        else:
+            p["stato_fermo_classe"] = ""
     ordine = (request.args.get("ordine") or "").strip()
     if ordine not in {o["key"] for o in ORDINI_PRATICHE}:
         ordine = ORDINE_PRATICHE_DEFAULT
@@ -1972,7 +2241,8 @@ def pratiche():
     else:
         gruppi = None
         elenco = _ordina_pratiche(elenco, ordine)
-    colonne_attive, vista_attiva = _vista_o_colonne("pratiche", COLONNE_PRATICHE, VISTE_PRATICHE)
+    colonne_attive, vista_attiva = _vista_o_colonne(
+        "pratiche", COLONNE_PRATICHE, VISTE_PRATICHE, default_vista="stato")
     return render_template(
         "pratiche.html", pratiche=elenco, gruppi=gruppi, q=q,
         centro=centro, centri=opzioni_centri(),
@@ -1981,6 +2251,7 @@ def pratiche():
         colonne_attive=colonne_attive,
         viste=VISTE_PRATICHE, vista_attiva=vista_attiva,
         stati_lavorazione=STATI_LAVORAZIONE,
+        mostra_fatturate=mostra_fatturate,
         tipologie=opzioni_tipologia(),
         drive_configurato=drive_archive.configurato(),
         drive_collegato=drive_archive.collegato(),
@@ -2037,6 +2308,7 @@ PRATICA_CAMPI_INLINE = {
     "ausilio":           "text",
     "importo_asl":       "num",
     "importo_privato":   "num",
+    "costo":             "costo",   # costo fornitori consolidato (tabella preventivi)
     "stato_lavorazione": "stato",
 }
 
@@ -2044,20 +2316,25 @@ PRATICA_CAMPI_INLINE = {
 @app.route("/pratica/<int:pratica_id>/campo", methods=["POST"])
 def pratica_campo(pratica_id):
     """Modifica rapida di un singolo campo della pratica dalla lista, senza aprire
-    la scheda. Se cambia un importo, ricalcola e restituisce MOL/margine/provvigione."""
+    la scheda. Ogni modifica scrive sulla stessa pratica, quindi resta allineata
+    tra le viste e la scheda. Se cambia un importo/costo, ricalcola e restituisce
+    MOL/margine/provvigione."""
     campo = (request.form.get("campo") or "").strip()
     if campo not in PRATICA_CAMPI_INLINE:
         return jsonify({"ok": False, "errore": "Campo non modificabile"}), 400
     tipo = PRATICA_CAMPI_INLINE[campo]
     raw = (request.form.get("valore") or "").strip()
 
-    if tipo == "num":
+    if tipo in ("num", "costo"):
         try:
             valore = float(raw or 0)
         except ValueError:
             return jsonify({"ok": False, "errore": "Numero non valido"}), 400
+        if valore < 0:
+            valore = 0.0
     elif tipo == "stato":
-        if raw not in STATI_LAVORAZIONE:
+        # 'Fatturato' non è impostabile a mano: ci si arriva solo col pulsante Fatturati.
+        if raw not in STATI_LAVORAZIONE or raw == "Fatturato":
             return jsonify({"ok": False, "errore": "Stato non valido"}), 400
         valore = raw
     elif tipo == "date":
@@ -2067,10 +2344,30 @@ def pratica_campo(pratica_id):
 
     with get_db() as conn:
         cur = conn.cursor()
-        cur.execute(f"UPDATE pratiche SET {campo} = {_PH} WHERE id = {_PH}", (valore, pratica_id))
-        # Se cambia un importo, ricalcola i derivati per aggiornare la riga.
+        if campo == "costo":
+            # Il costo fornitori è la somma delle righe preventivi: dalla lista lo
+            # trattiamo come un unico fornitore "consolidato". Con più fornitori si
+            # modifica dalla scheda (per non perdere il dettaglio) — il template
+            # rende la cella non editabile in quel caso.
+            cur.execute(f"SELECT id FROM preventivi WHERE pratica_id = {_PH} ORDER BY id", (pratica_id,))
+            forn = cur.fetchall()
+            if len(forn) > 1:
+                return jsonify({"ok": False, "errore": "Più fornitori: modifica dalla scheda"}), 409
+            if forn:
+                cur.execute(f"UPDATE preventivi SET importo = {_PH} WHERE id = {_PH}", (valore, forn[0]["id"]))
+            elif valore > 0:
+                cur.execute(
+                    f"INSERT INTO preventivi (pratica_id, nome_fornitore, importo) VALUES ({_PH}, {_PH}, {_PH})",
+                    (pratica_id, "Fornitore", valore))
+        elif campo == "stato_lavorazione":
+            cur.execute(
+                f"UPDATE pratiche SET stato_lavorazione = {_PH}, stato_da = {_PH} WHERE id = {_PH}",
+                (valore, _now_iso(), pratica_id))
+        else:
+            cur.execute(f"UPDATE pratiche SET {campo} = {_PH} WHERE id = {_PH}", (valore, pratica_id))
+        # Se cambia un importo o il costo, ricalcola i derivati per aggiornare la riga.
         derivati = None
-        if campo in ("importo_asl", "importo_privato"):
+        if campo in ("importo_asl", "importo_privato", "costo"):
             cur.execute(
                 f"""SELECT p.importo_asl, p.importo_privato, p.provvigione_pct,
                            COALESCE(SUM(pr.importo), 0) AS costo_totale
@@ -2180,6 +2477,44 @@ NOTE_STATI     = ["Aperta", "In lavorazione", "Completata"]
 NOTE_PRIORITA_GIORNI = {"Media": 14, "Alta": 6, "Urgente": 3}
 
 
+def _assegnatari_dal_form(form) -> list:
+    """Legge gli id degli assegnatari dal form (select multipla `assegnato_a`),
+    deduplicati e nell'ordine di scelta. Funziona anche con un dict semplice
+    (quick-add da scheda cliente): in quel caso legge il singolo valore."""
+    if hasattr(form, "getlist"):
+        grezzi = form.getlist("assegnato_a")
+    else:
+        v = form.get("assegnato_a")
+        grezzi = [v] if v else []
+    ids, visti = [], set()
+    for x in grezzi:
+        x = (x or "").strip()
+        if x.isdigit() and int(x) not in visti:
+            visti.add(int(x))
+            ids.append(int(x))
+    return ids
+
+
+def _nomi_assegnatari(conn, note_ids) -> dict:
+    """Restituisce {note_id: 'Nome1, Nome2'} per l'elenco di note dato."""
+    note_ids = [n for n in note_ids if n is not None]
+    if not note_ids:
+        return {}
+    cur = conn.cursor()
+    ph = ", ".join([_PH] * len(note_ids))
+    cur.execute(
+        f"""SELECT na.note_id, u.nome
+            FROM note_assegnatari na JOIN utenti u ON u.id = na.utente_id
+            WHERE na.note_id IN ({ph})
+            ORDER BY u.nome""",
+        tuple(note_ids),
+    )
+    per_nota = {}
+    for r in cur.fetchall():
+        per_nota.setdefault(r["note_id"], []).append(r["nome"])
+    return {k: ", ".join(v) for k, v in per_nota.items()}
+
+
 def _crea_nota(form) -> int:
     """Inserisce una nota dai campi del form. Restituisce l'id creato.
     `cliente_id` è opzionale: senza cliente la nota resta 'libera' col solo nominativo."""
@@ -2191,10 +2526,12 @@ def _crea_nota(form) -> int:
     priorita   = (form.get("priorita") or "Media").strip()
     testo      = (form.get("testo") or "").strip()
     scadenza   = (form.get("scadenza") or "").strip() or None
-    # Autore = utente loggato; assegnatario = scelto nel form (opzionale).
+    # Autore = utente loggato; assegnatari = scelti nel form (0, 1 o più).
     u = utente_corrente()
     autore_id   = u["id"] if u else None
-    assegnato_a = (form.get("assegnato_a") or "").strip() or None
+    assegnatari = _assegnatari_dal_form(form)
+    # `assegnato_a` (colonna singola legacy) = primo assegnatario, per retrocompat.
+    assegnato_a = assegnatari[0] if assegnatari else None
 
     # Avviso automatico: se non c'è una scadenza manuale, la calcoliamo dalla
     # priorità (Urgente 3gg, Alta 6gg, Media 14gg) a partire da oggi.
@@ -2220,7 +2557,13 @@ def _crea_nota(form) -> int:
             (cliente_id, nominativo, tipo, sottotipo, priorita, "Aperta", False, testo, scadenza,
              autore_id, assegnato_a),
         )
-        return last_inserted_id(cur)
+        nota_id = last_inserted_id(cur)
+        for uid in assegnatari:
+            cur.execute(
+                f"INSERT INTO note_assegnatari (note_id, utente_id) VALUES ({_PH}, {_PH})",
+                (nota_id, uid),
+            )
+        return nota_id
 
 
 @app.route("/note")
@@ -2257,10 +2600,12 @@ def task_assegnati():
     if scheda == "da-me":
         conds.append(f"n.autore_id = {_PH}"); params.append(u["id"] if u else -1)
     elif scheda == "tutti" and is_admin():
-        conds.append("n.assegnato_a IS NOT NULL")
+        conds.append("EXISTS (SELECT 1 FROM note_assegnatari na WHERE na.note_id = n.id)")
     else:
         scheda = "a-me"
-        conds.append(f"n.assegnato_a = {_PH}"); params.append(u["id"] if u else -1)
+        conds.append(f"EXISTS (SELECT 1 FROM note_assegnatari na "
+                     f"WHERE na.note_id = n.id AND na.utente_id = {_PH})")
+        params.append(u["id"] if u else -1)
     if solo_aperti:
         conds.append("NOT n.completata")
     where = "WHERE " + " AND ".join(conds)
@@ -2268,15 +2613,17 @@ def task_assegnati():
         cur = conn.cursor()
         cur.execute(
             f"""SELECT n.*, c.cognome AS c_cognome, c.nome AS c_nome,
-                       ua.nome AS autore_nome, ub.nome AS assegnato_nome
+                       ua.nome AS autore_nome
                 FROM note n
                 LEFT JOIN clienti c ON c.id = n.cliente_id
                 LEFT JOIN utenti ua ON ua.id = n.autore_id
-                LEFT JOIN utenti ub ON ub.id = n.assegnato_a
                 {where}
                 ORDER BY n.completata ASC, COALESCE(n.scadenza, '9999-12-31') ASC, n.creato_il DESC""",
             tuple(params))
-        task = cur.fetchall()
+        task = [dict(r) for r in cur.fetchall()]
+        nomi = _nomi_assegnatari(conn, [t["id"] for t in task])
+        for t in task:
+            t["assegnato_nome"] = nomi.get(t["id"], "")
     return render_template("task_assegnati.html", task=task, scheda=scheda,
                            solo_aperti=solo_aperti, NOTE_PRIORITA=NOTE_PRIORITA)
 

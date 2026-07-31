@@ -4,6 +4,7 @@ from config import (
     PROVVIGIONE_PCT, PROVVIGIONE_PCT_17, PROVVIGIONE_PCT_18,
     STRUTTURA_PCT, SOGLIA_PROV_17, SOGLIA_PROV_18,
     DATABASE_URL, SQLITE_PATH,
+    STATI_LAVORAZIONE_LEGACY,
 )
 
 # ── Costanti di connessione (calcolate una volta all'avvio) ──────────────────
@@ -112,7 +113,9 @@ _SQLITE_SCHEMA = """
         iva_percentuale  REAL NOT NULL DEFAULT 4,
         moduli_attivi    TEXT,
         moduli_generati  TEXT,
-        stato_lavorazione TEXT NOT NULL DEFAULT 'Segnalato',
+        stato_lavorazione TEXT NOT NULL DEFAULT 'Da valutare',
+        stato_da         TIMESTAMP,
+        ordine_confermato INTEGER NOT NULL DEFAULT 0,
         tipologia        TEXT,
         drive_archivio_id TEXT,
         ultimo_utente_id INTEGER,
@@ -193,6 +196,14 @@ _SQLITE_SCHEMA = """
         FOREIGN KEY (cliente_id) REFERENCES clienti(id) ON DELETE SET NULL
     );
 
+    CREATE TABLE IF NOT EXISTS note_assegnatari (
+        note_id    INTEGER NOT NULL,
+        utente_id  INTEGER NOT NULL,
+        PRIMARY KEY (note_id, utente_id),
+        FOREIGN KEY (note_id)   REFERENCES note(id)   ON DELETE CASCADE,
+        FOREIGN KEY (utente_id) REFERENCES utenti(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS app_config (
         chiave  TEXT PRIMARY KEY,
         valore  TEXT
@@ -266,7 +277,9 @@ _POSTGRES_SCHEMA = """
         iva_percentuale  REAL NOT NULL DEFAULT 4,
         moduli_attivi    TEXT,
         moduli_generati  TEXT,
-        stato_lavorazione TEXT NOT NULL DEFAULT 'Segnalato',
+        stato_lavorazione TEXT NOT NULL DEFAULT 'Da valutare',
+        stato_da         TIMESTAMPTZ,
+        ordine_confermato BOOLEAN NOT NULL DEFAULT FALSE,
         tipologia        TEXT,
         drive_archivio_id TEXT,
         ultimo_utente_id INTEGER,
@@ -345,6 +358,12 @@ _POSTGRES_SCHEMA = """
         creato_il    TIMESTAMPTZ DEFAULT NOW()
     );
 
+    CREATE TABLE IF NOT EXISTS note_assegnatari (
+        note_id    INTEGER NOT NULL REFERENCES note(id)   ON DELETE CASCADE,
+        utente_id  INTEGER NOT NULL REFERENCES utenti(id) ON DELETE CASCADE,
+        PRIMARY KEY (note_id, utente_id)
+    );
+
     CREATE TABLE IF NOT EXISTS app_config (
         chiave  TEXT PRIMARY KEY,
         valore  TEXT
@@ -408,7 +427,9 @@ def migrate_db():
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS iva_percentuale REAL NOT NULL DEFAULT 4",
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS moduli_attivi TEXT",
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS moduli_generati TEXT",
-            "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS stato_lavorazione TEXT NOT NULL DEFAULT 'Segnalato'",
+            "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS stato_lavorazione TEXT NOT NULL DEFAULT 'Da valutare'",
+            "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS ordine_confermato BOOLEAN NOT NULL DEFAULT FALSE",
+            "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS stato_da TIMESTAMPTZ",
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS tipologia TEXT",
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS drive_archivio_id TEXT",
             "ALTER TABLE note ADD COLUMN IF NOT EXISTS sottotipo TEXT NOT NULL DEFAULT ''",
@@ -448,7 +469,9 @@ def migrate_db():
             "ALTER TABLE pratiche ADD COLUMN iva_percentuale REAL NOT NULL DEFAULT 4",
             "ALTER TABLE pratiche ADD COLUMN moduli_attivi TEXT",
             "ALTER TABLE pratiche ADD COLUMN moduli_generati TEXT",
-            "ALTER TABLE pratiche ADD COLUMN stato_lavorazione TEXT NOT NULL DEFAULT 'Segnalato'",
+            "ALTER TABLE pratiche ADD COLUMN stato_lavorazione TEXT NOT NULL DEFAULT 'Da valutare'",
+            "ALTER TABLE pratiche ADD COLUMN ordine_confermato INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE pratiche ADD COLUMN stato_da TIMESTAMP",
             "ALTER TABLE pratiche ADD COLUMN tipologia TEXT",
             "ALTER TABLE pratiche ADD COLUMN drive_archivio_id TEXT",
             "ALTER TABLE note ADD COLUMN sottotipo TEXT NOT NULL DEFAULT ''",
@@ -521,6 +544,56 @@ def backfill_clienti() -> int:
                 (cliente_id, nome_norm),
             )
     return creati
+
+def migrate_stati_e_assegnatari() -> None:
+    """Migrazione una tantum, idempotente, del nuovo workflow stati + multi-assegnatari.
+
+    1. Rimappa i vecchi valori di `stato_lavorazione` (Segnalato/Valutato/Ordini/
+       Consegna) verso i nuovi (vedi STATI_LAVORAZIONE_LEGACY). Gira solo sulle righe
+       che hanno ancora un valore vecchio, quindi al secondo run non tocca nulla.
+    2. Popola `note_assegnatari` dai vecchi `note.assegnato_a` (singolo utente) senza
+       duplicare (INSERT dei soli abbinamenti mancanti).
+    """
+    # 1. Rimappa stati vecchi → nuovi
+    for vecchio, nuovo in STATI_LAVORAZIONE_LEGACY.items():
+        if vecchio == nuovo:
+            continue
+        try:
+            with get_db() as conn:
+                conn.cursor().execute(
+                    f"UPDATE pratiche SET stato_lavorazione = {_PH} "
+                    f"WHERE stato_lavorazione = {_PH}",
+                    (nuovo, vecchio),
+                )
+        except Exception:
+            pass
+
+    # 1b. Inizializza stato_da per le pratiche che non ce l'hanno (usa creato_il,
+    #     o "adesso" come ripiego): serve per tracciare da quanto è fermo lo stato.
+    try:
+        with get_db() as conn:
+            now_expr = "NOW()" if _IS_POSTGRES else "CURRENT_TIMESTAMP"
+            conn.cursor().execute(
+                f"UPDATE pratiche SET stato_da = COALESCE(creato_il, {now_expr}) "
+                f"WHERE stato_da IS NULL"
+            )
+    except Exception:
+        pass
+
+    # 2. Backfill note_assegnatari dal vecchio campo singolo assegnato_a
+    try:
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT INTO note_assegnatari (note_id, utente_id) "
+                "SELECT n.id, n.assegnato_a FROM note n "
+                "WHERE n.assegnato_a IS NOT NULL "
+                "AND NOT EXISTS (SELECT 1 FROM note_assegnatari na "
+                "                WHERE na.note_id = n.id AND na.utente_id = n.assegnato_a)"
+            )
+    except Exception:
+        pass
+
 
 # ── Helper DB ─────────────────────────────────────────────────────────────────
 

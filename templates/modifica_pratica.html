@@ -70,10 +70,11 @@
                 <div class="col-12 col-sm-4">
                   <label class="form-label">Stato lavorazione</label>
                   <select name="stato_lavorazione" class="form-select">
-                    {% for s in stati_lavorazione %}
-                    <option value="{{ s }}" {% if (pratica.stato_lavorazione or 'Segnalato') == s %}selected{% endif %}>{{ s }}</option>
+                    {% for s in stati_lavorazione if s != 'Fatturato' %}
+                    <option value="{{ s }}" {% if (pratica.stato_lavorazione or 'Da valutare') == s %}selected{% endif %}>{{ s }}</option>
                     {% endfor %}
                   </select>
+                  {% if pratica.fatturata %}<div class="form-text text-success"><i class="bi bi-check-circle me-1"></i>Pratica fatturata</div>{% endif %}
                 </div>
                 <div class="col-12 col-sm-4">
                   <label class="form-label">Tipologia</label>

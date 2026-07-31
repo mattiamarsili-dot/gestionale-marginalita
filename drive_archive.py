@@ -21,7 +21,9 @@ import json
 import urllib.parse
 import urllib.request
 
-from config import GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET
+from config import (
+    GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, DRIVE_BROWSE_ROOT,
+)
 from database import config_get, config_set
 
 try:
@@ -43,6 +45,7 @@ _K_TOKEN = "drive_refresh_token"
 _K_EMAIL = "drive_account_email"
 _K_ROOT = "drive_root_folder_id"
 _K_ROOT_NAME = "drive_root_folder_name"
+_K_BROWSE = "drive_browse_root_id"     # cartella da cui parte il navigatore
 
 
 # ── Stato ─────────────────────────────────────────────────────────────────────
@@ -69,6 +72,16 @@ def radice() -> tuple[str, str]:
 def imposta_radice(folder_id: str, nome: str):
     config_set(_K_ROOT, folder_id or None)
     config_set(_K_ROOT_NAME, nome or None)
+
+
+def browse_root() -> str:
+    """Cartella da cui il navigatore inizia la ricerca: valore salvato in DB o,
+    in mancanza, il default (config/env DRIVE_BROWSE_ROOT). '' = My Drive."""
+    return (config_get(_K_BROWSE, "") or DRIVE_BROWSE_ROOT or "")
+
+
+def imposta_browse_root(folder_id: str):
+    config_set(_K_BROWSE, folder_id or None)
 
 
 def scollega():
@@ -149,6 +162,13 @@ def lista_cartelle(parent: str = None) -> list[dict]:
         q=q, spaces="drive", fields="files(id, name)", orderBy="name", pageSize=100
     ).execute()
     return res.get("files", [])
+
+
+def info_cartella(folder_id: str) -> dict:
+    """Metadati di una cartella (per breadcrumb): {id, name, parents}."""
+    svc = _service()
+    f = svc.files().get(fileId=folder_id, fields="id, name, parents").execute()
+    return {"id": f["id"], "name": f.get("name", ""), "parents": f.get("parents", [])}
 
 
 def crea_cartella(nome: str, parent: str = None) -> dict:

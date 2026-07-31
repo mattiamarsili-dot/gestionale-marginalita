@@ -42,8 +42,21 @@ ASL_OPZIONI = [
 ]
 
 # ── Stato di lavorazione della pratica (workflow ordinato) ──────────────────
-# Avanzamento della pratica, indipendente dalla fatturazione.
-STATI_LAVORAZIONE = ["Segnalato", "Valutato", "ASL", "Ordini", "Consegna"]
+# Avanzamento della pratica. Gli stati sono ORDINATI: lo stato avanza in automatico
+# quando si generano i moduli o si conferma l'ordine (vedi ricalcola_stato_pratica
+# in app.py), ma resta correggibile a mano dal dropdown. L'ultimo stato "Fatturato"
+# coincide con pratiche.fatturata = TRUE e sparisce dalla lista pratiche.
+STATI_LAVORAZIONE = ["Da valutare", "Prescritto", "ASL", "Ordinato", "Fatturato"]
+
+# Rimappatura dei vecchi stati (prima del workflow automatico) verso i nuovi.
+# Usata una tantum in migrate_stati() per non perdere i dati in produzione.
+STATI_LAVORAZIONE_LEGACY = {
+    "Segnalato": "Da valutare",
+    "Valutato":  "Da valutare",
+    "ASL":       "ASL",
+    "Ordini":    "Ordinato",
+    "Consegna":  "Ordinato",
+}
 
 # ── Tipologia ausilio: valori "seme" dalle codifiche LEA (Nomenclatore protesi,
 # classi ISO 9999 dell'assistenza protesica). La lista mostrata nei form è questa
@@ -96,6 +109,9 @@ if not GOOGLE_CREDENTIALS_JSON:
 # cartelle già esistenti di cui si incolla il link nella pratica (scope: drive).
 GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
 GOOGLE_OAUTH_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET", "")
+# Cartella Drive da cui parte il navigatore quando si sceglie la cartella predefinita
+# (comodità: è la cartella "madre" dell'archivio). Override in DB o via env.
+DRIVE_BROWSE_ROOT = os.environ.get("DRIVE_BROWSE_ROOT", "19kXde5XNsco4XrfQRVaAvKlcCABEFXUg")
 
 # ── Backup automatico (backup_auto.py) ──────────────────────────────────────────
 # Recapito del backup JSON via email (SMTP). Tutte opzionali: se SMTP_HOST o

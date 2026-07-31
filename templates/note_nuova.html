@@ -163,15 +163,21 @@
 
         {% if utenti %}
         <div class="mb-3">
-          <label>Assegna a <span class="text-muted fw-normal">(facoltativo)</span></label>
-          {% set ass_sel = (nota.assegnato_a if nota and nota.assegnato_a else '') %}
-          <select name="assegnato_a" class="form-select">
-            <option value="">— Nessuno —</option>
+          <label>Assegna a <span class="text-muted fw-normal">(uno o più, facoltativo)</span></label>
+          {% set sel_ids = nota.getlist('assegnato_a') if (nota and nota.getlist is defined) else [] %}
+          <div class="row g-1">
             {% for u in utenti %}
-            <option value="{{ u.id }}" {% if ass_sel and ass_sel|string == u.id|string %}selected{% endif %}>{{ u.nome }}</option>
+            <div class="col-6 col-sm-4">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="assegnato_a"
+                       value="{{ u.id }}" id="ass{{ u.id }}"
+                       {% if u.id|string in sel_ids %}checked{% endif %}>
+                <label class="form-check-label" for="ass{{ u.id }}">{{ u.nome }}</label>
+              </div>
+            </div>
             {% endfor %}
-          </select>
-          <div class="form-text">Comparirà nei suoi <strong>Task</strong> assegnati.</div>
+          </div>
+          <div class="form-text">Comparirà nei <strong>Task</strong> assegnati di ciascuno.</div>
         </div>
         {% endif %}
 

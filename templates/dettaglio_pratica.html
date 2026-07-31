@@ -59,25 +59,75 @@
       </div>
     </div>
 
-    <!-- Cartella Drive di riferimento -->
+    <!-- Cartella Drive di destinazione (per questa pratica) -->
     <div class="card mb-4">
       <div class="card-body py-2 px-3">
-        <form method="post" action="{{ url_for('pratica_drive_link', pratica_id=pratica.id) }}"
-              class="d-flex flex-wrap align-items-center gap-2">
+        {% if not drive_configurato %}
+        <span class="fw-semibold text-nowrap"><i class="bi bi-folder-fill text-warning me-1"></i>Cartella Drive</span>
+        <span class="text-muted small ms-2"><i class="bi bi-info-circle me-1"></i>Archiviazione Drive non configurata sul server.</span>
+        {% elif not drive_collegato %}
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <span class="fw-semibold text-nowrap"><i class="bi bi-google text-primary me-1"></i>Google Drive</span>
+          <span class="text-muted small">Collega il tuo Drive per salvare qui i moduli generati.</span>
+          <a href="{{ url_for('drive_collega', torna=request.path) }}" class="btn btn-sm btn-primary ms-auto">
+            <i class="bi bi-link-45deg me-1"></i>Collega Google Drive
+          </a>
+        </div>
+        {% else %}
+        {% set effettiva = pratica.drive_archivio_id or drive_root_id %}
+        <div class="d-flex flex-wrap align-items-center gap-2">
           <span class="fw-semibold text-nowrap"><i class="bi bi-folder-fill text-warning me-1"></i>Cartella Drive</span>
-          {% if pratica.drive_archivio_id %}
-          <a href="https://drive.google.com/drive/folders/{{ pratica.drive_archivio_id }}"
+          {% if effettiva %}
+          <a href="https://drive.google.com/drive/folders/{{ effettiva }}"
              target="_blank" rel="noopener" class="btn btn-sm btn-success text-nowrap">
             <i class="bi bi-box-arrow-up-right me-1"></i>Apri cartella
           </a>
-          <span class="text-muted small">i PDF generati vengono archiviati qui</span>
           {% endif %}
-          <input type="text" name="drive_link" class="form-control form-control-sm" style="min-width:220px; max-width:420px"
-                 placeholder="Incolla qui il link della cartella Drive…"
-                 value="{% if pratica.drive_archivio_id %}https://drive.google.com/drive/folders/{{ pratica.drive_archivio_id }}{% endif %}">
-          <input type="hidden" name="torna" value="{{ request.path }}">
-          <button type="submit" class="btn btn-sm btn-outline-primary">Salva</button>
-        </form>
+          {% if drive_email %}
+          <span class="ms-auto small text-muted">Drive di {{ drive_email }}</span>
+          <form method="post" action="{{ url_for('drive_scollega') }}" class="d-inline"
+                onsubmit="return confirm('Scollegare Google Drive?');">
+            <input type="hidden" name="torna" value="{{ request.path }}">
+            <button type="submit" class="btn btn-sm btn-link text-danger p-0 text-decoration-none" title="Scollega">scollega</button>
+          </form>
+          {% endif %}
+        </div>
+
+        {# Cartella PREDEFINITA (vale per tutte le pratiche) #}
+        <div class="small mt-2 d-flex flex-wrap align-items-center gap-2">
+          <span><i class="bi bi-star-fill text-warning me-1"></i>Predefinita:
+            {% if drive_root_nome %}<strong>{{ drive_root_nome }}</strong>{% else %}<span class="text-muted">non impostata</span>{% endif %}
+          </span>
+          <form id="drive-form-default" method="post" action="{{ url_for('drive_imposta_cartella') }}"
+                class="d-inline-flex align-items-center gap-1">
+            <input type="hidden" name="torna" value="{{ request.path }}">
+            <input type="hidden" name="folder_id" id="default-folder-id">
+            <input type="hidden" name="folder_nome" id="default-folder-nome">
+            <button type="button" class="btn btn-sm btn-outline-secondary"
+                    onclick="apriDrivePicker('default')"><i class="bi bi-folder2-open me-1"></i>Sfoglia…</button>
+          </form>
+        </div>
+
+        {# Cartella solo per QUESTA pratica (override) #}
+        <div class="small mt-1 d-flex flex-wrap align-items-center gap-2">
+          <span class="text-muted"><i class="bi bi-folder me-1"></i>Solo questa pratica:</span>
+          <form id="drive-form-pratica" method="post" action="{{ url_for('pratica_drive_cartella', pratica_id=pratica.id) }}"
+                class="d-inline-flex align-items-center gap-1">
+            <input type="hidden" name="torna" value="{{ request.path }}">
+            <input type="hidden" name="folder_id" id="pratica-folder-id">
+            <button type="button" class="btn btn-sm btn-outline-secondary"
+                    onclick="apriDrivePicker('pratica')"><i class="bi bi-folder2-open me-1"></i>Scegli cartella…</button>
+          </form>
+          {% if pratica.drive_archivio_id %}
+          <span class="badge bg-primary-subtle text-primary">cartella specifica impostata</span>
+          <form method="post" action="{{ url_for('pratica_drive_cartella', pratica_id=pratica.id) }}" class="d-inline">
+            <input type="hidden" name="torna" value="{{ request.path }}">
+            <input type="hidden" name="folder_id" value="__default__">
+            <button type="submit" class="btn btn-sm btn-link text-secondary p-0 text-decoration-none">↩ torna alla predefinita</button>
+          </form>
+          {% endif %}
+        </div>
+        {% endif %}
       </div>
     </div>
 
@@ -584,6 +634,56 @@
             </div>
           </div>
 
+          <!-- Stato ordine e fatturazione -->
+          {% set stato_col = {'Da valutare':'secondary','Prescritto':'info','ASL':'primary','Ordinato':'warning','Fatturato':'success'} %}
+          {% set st = pratica.stato_lavorazione or 'Da valutare' %}
+          <div class="col-12">
+            <div class="card">
+              <div class="card-header bg-light py-2 d-flex align-items-center justify-content-between">
+                <span class="fw-semibold"><i class="bi bi-flag me-2"></i>Stato pratica</span>
+                <span class="badge bg-{{ stato_col.get(st,'secondary') }}-subtle text-{{ stato_col.get(st,'secondary') }}">{{ st }}</span>
+              </div>
+              <div class="card-body d-flex flex-wrap align-items-center gap-3">
+                <form method="post" action="{{ url_for('conferma_ordine', pratica_id=pratica.id) }}" class="m-0">
+                  <input type="hidden" name="torna" value="{{ request.path }}#tab-margine">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="ordineConfermato"
+                           name="confermato" value="1"
+                           {% if pratica.ordine_confermato %}checked{% endif %}
+                           {% if pratica.fatturata %}disabled{% endif %}
+                           onchange="this.form.submit()">
+                    <label class="form-check-label" for="ordineConfermato">
+                      Ordine confermato <span class="text-muted small">(porta lo stato a “Ordinato”)</span>
+                    </label>
+                  </div>
+                </form>
+
+                <div class="ms-auto">
+                  {% if pratica.fatturata %}
+                  <span class="badge bg-success-subtle text-success me-2">
+                    <i class="bi bi-check-circle me-1"></i>Fatturata {{ pratica.data_fatturazione }}
+                  </span>
+                  <form method="post" action="{{ url_for('fattura_pratica', pratica_id=pratica.id) }}" class="d-inline"
+                        onsubmit="return confirm('Annullare la fatturazione? La pratica tornerà nella lista pratiche.');">
+                    <input type="hidden" name="torna" value="{{ request.path }}#tab-margine">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary">
+                      <i class="bi bi-arrow-counterclockwise me-1"></i>Annulla fatturazione
+                    </button>
+                  </form>
+                  {% else %}
+                  <form method="post" action="{{ url_for('fattura_pratica', pratica_id=pratica.id) }}" class="d-inline"
+                        onsubmit="return confirm('Spostare la pratica in Fatturati? Sparirà dalla lista pratiche.');">
+                    <input type="hidden" name="torna" value="{{ request.path }}#tab-margine">
+                    <button type="submit" class="btn btn-sm btn-success">
+                      <i class="bi bi-receipt me-1"></i>Sposta in Fatturati
+                    </button>
+                  </form>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -608,6 +708,36 @@
         <form method="post" action="{{ url_for('elimina_pratica', pratica_id=pratica.id) }}">
           <button type="submit" class="btn btn-sm btn-danger">Elimina</button>
         </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Navigatore cartelle Google Drive -->
+<div class="modal fade" id="modalDrive" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="bi bi-google text-primary me-2"></i>Scegli la cartella Drive</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <nav id="drive-breadcrumb" class="small mb-2 text-nowrap overflow-auto"></nav>
+        <div id="drive-nav-err" class="alert alert-warning py-1 px-2 small d-none"></div>
+        <div id="drive-nav-list" class="list-group" style="max-height:46vh; overflow:auto"></div>
+        <div id="drive-nav-empty" class="text-muted small p-2 d-none">Nessuna sottocartella qui dentro.</div>
+        <div class="input-group input-group-sm mt-3">
+          <span class="input-group-text"><i class="bi bi-folder-plus"></i></span>
+          <input type="text" id="drive-newfolder-name" class="form-control" placeholder="Nuova sottocartella qui…">
+          <button type="button" class="btn btn-outline-secondary" id="drive-newfolder-btn">Crea</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <span class="me-auto small text-muted">Selezionerai: <strong id="drive-current-name"></strong></span>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+        <button type="button" class="btn btn-sm btn-primary" id="drive-select-btn">
+          <i class="bi bi-check-lg me-1"></i>Usa questa cartella
+        </button>
       </div>
     </div>
   </div>
@@ -1220,6 +1350,121 @@ function eurPlain(n) {
   });
 
   aggiornaBottone();
+})();
+
+// ── Navigatore cartelle Drive ────────────────────────────────────────────────
+(function () {
+  var modalEl = document.getElementById('modalDrive');
+  if (!modalEl) return;
+  var modal = new bootstrap.Modal(modalEl);
+  var BROWSE_ROOT = {{ (drive_browse_root or '')|tojson }};
+  var mode = 'default';         // 'default' | 'pratica'
+  var path = [];                // [{id, name}] dalla base fino alla cartella corrente
+
+  var elList = document.getElementById('drive-nav-list');
+  var elCrumb = document.getElementById('drive-breadcrumb');
+  var elEmpty = document.getElementById('drive-nav-empty');
+  var elCurrent = document.getElementById('drive-current-name');
+  var elErr = document.getElementById('drive-nav-err');
+
+  function corrente() { return path[path.length - 1]; }
+
+  function renderCrumb() {
+    elCrumb.innerHTML = '';
+    path.forEach(function (p, i) {
+      var a = document.createElement(i === path.length - 1 ? 'span' : 'a');
+      a.textContent = p.name || 'Cartella';
+      a.className = (i === path.length - 1) ? 'fw-semibold' : 'text-decoration-none';
+      if (i !== path.length - 1) {
+        a.href = '#';
+        a.addEventListener('click', function (e) { e.preventDefault(); path = path.slice(0, i + 1); carica(); });
+      }
+      elCrumb.appendChild(a);
+      if (i !== path.length - 1) {
+        var sep = document.createElement('span');
+        sep.className = 'text-muted mx-1'; sep.textContent = '/';
+        elCrumb.appendChild(sep);
+      }
+    });
+    elCurrent.textContent = corrente() ? (corrente().name || '') : '';
+  }
+
+  function carica() {
+    renderCrumb();
+    elList.innerHTML = '<div class="text-muted small p-2">Carico…</div>';
+    elEmpty.classList.add('d-none');
+    if (elErr) elErr.classList.add('d-none');
+    var pid = corrente() ? corrente().id : '~';
+    fetch('/drive/cartelle?parent=' + encodeURIComponent(pid))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        elList.innerHTML = '';
+        if (d.errore) { if (elErr) { elErr.textContent = d.errore; elErr.classList.remove('d-none'); } return; }
+        var cart = d.cartelle || [];
+        if (!cart.length) { elEmpty.classList.remove('d-none'); return; }
+        cart.forEach(function (c) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'list-group-item list-group-item-action d-flex align-items-center';
+          b.innerHTML = '<i class="bi bi-folder-fill text-warning me-2"></i>' +
+                        '<span class="flex-grow-1 text-start"></span>' +
+                        '<i class="bi bi-chevron-right text-muted small"></i>';
+          b.querySelector('span').textContent = c.name;
+          b.addEventListener('click', function () { path.push({ id: c.id, name: c.name }); carica(); });
+          elList.appendChild(b);
+        });
+      })
+      .catch(function () { if (elErr) { elErr.textContent = 'Errore di rete'; elErr.classList.remove('d-none'); } });
+  }
+
+  window.apriDrivePicker = function (m) {
+    mode = m;
+    if (BROWSE_ROOT) {
+      path = [{ id: BROWSE_ROOT, name: 'Cartella base' }];
+      // nome reale della base (best-effort)
+      fetch('/drive/cartella-info?id=' + encodeURIComponent(BROWSE_ROOT))
+        .then(function (r) { return r.json(); })
+        .then(function (d) { if (d && d.name) { path[0].name = d.name; renderCrumb(); } })
+        .catch(function () {});
+    } else {
+      path = [{ id: '~', name: 'Il mio Drive' }];
+    }
+    carica();
+    modal.show();
+  };
+
+  // Seleziona la cartella corrente → riempie il form giusto e salva.
+  document.getElementById('drive-select-btn').addEventListener('click', function () {
+    var cur = corrente();
+    if (!cur) return;
+    if (mode === 'default') {
+      document.getElementById('default-folder-id').value = cur.id;
+      document.getElementById('default-folder-nome').value = cur.name || '';
+      document.getElementById('drive-form-default').submit();
+    } else {
+      document.getElementById('pratica-folder-id').value = cur.id;
+      document.getElementById('drive-form-pratica').submit();
+    }
+  });
+
+  // Crea una sottocartella nella cartella corrente e ci entra.
+  document.getElementById('drive-newfolder-btn').addEventListener('click', function () {
+    var inp = document.getElementById('drive-newfolder-name');
+    var nome = (inp.value || '').trim();
+    if (!nome) { inp.focus(); return; }
+    var fd = new FormData();
+    fd.append('nome', nome);
+    fd.append('parent', corrente() ? corrente().id : '~');
+    fetch('/drive/crea-cartella', { method: 'POST', body: fd })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.errore || !d.id) { if (elErr) { elErr.textContent = d.errore || 'Errore'; elErr.classList.remove('d-none'); } return; }
+        inp.value = '';
+        path.push({ id: d.id, name: d.name });
+        carica();
+      })
+      .catch(function () {});
+  });
 })();
 </script>
 {% endblock %}

@@ -127,3 +127,17 @@ body {
 .modal-content { border-radius: 14px; border: none; }
 .modal-header { border-radius: 14px 14px 0 0; background: var(--primary); color: #fff; }
 .modal-header .btn-close { filter: invert(1); }
+
+/* Vista Stato pratica: sfumatura riga per pratiche ferme nello stesso stato.
+   Giallo dopo 1 settimana, rosso dopo 2 (impostato lato server in stato_fermo_classe). */
+.table > tbody > tr.row-fermo-warn { --bs-table-bg: rgba(255, 193, 7, 0.13); }
+.table > tbody > tr.row-fermo-bad  { --bs-table-bg: rgba(220, 53, 69, 0.13); }
+
+/* Vista pratiche compatta: righe più basse per maggiore ordine. */
+.tab-compatta > tbody > tr > td,
+.tab-compatta > thead > tr > th { padding-top: .3rem; padding-bottom: .3rem; }
+.tab-compatta .form-control-sm,
+.tab-compatta .form-select-sm {
+  padding-top: .12rem; padding-bottom: .12rem;
+  min-height: calc(1.4em + .24rem); line-height: 1.3;
+}
