@@ -22,3 +22,7 @@ services:
         sync: false           # ID cartella Google Drive
       - key: GOOGLE_CREDENTIALS_JSON
         sync: false           # contenuto JSON service account (tutto su una riga)
+      - key: GOOGLE_OAUTH_CLIENT_ID
+        value: 1069228139534-utnvp7nh0kupjmrh50mr9et0jr33qa43.apps.googleusercontent.com
+      - key: GOOGLE_OAUTH_CLIENT_SECRET
+        sync: false           # secret OAuth (GOCSPX-…): impostare nel pannello Render
