@@ -845,7 +845,9 @@ def compila_pdf(template_id: str, pratica: dict, cliente: dict, righe: list = No
         _prepara_stile_campi(writer, set(field_map.keys()), center_hints=_CENTER_HINTS,
                              font_size=tpl.get("font_size", _FORM_FONT_SIZE))
         for page in writer.pages:
-            writer.update_page_form_field_values(page, field_map, auto_regenerate=False)
+            # flatten=True fonde il valore nel contenuto di pagina (verrà poi
+            # reso non modificabile rimuovendo i campi interattivi qui sotto).
+            writer.update_page_form_field_values(page, field_map, auto_regenerate=False, flatten=True)
 
         # Overlay dell'intestazione anagrafica (dimensione unica = header_font_size)
         if header_overlay:
@@ -857,17 +859,34 @@ def compila_pdf(template_id: str, pratica: dict, cliente: dict, righe: list = No
                 import sys
                 print("WARN overlay intestazione non riuscito:", _ov_err, file=sys.stderr)
 
-    # NeedAppearances come fallback: i viewer che lo onorano rigenerano dal /DA
-    # (stessa dimensione), gli altri usano l'/AP già generato. In entrambi i casi
-    # il testo è visibile e coerente.
-    try:
-        writer.set_need_appearances_writer(True)
-    except Exception:
-        pass
+    # PDF non modificabile: i valori sono già disegnati nel contenuto di pagina
+    # (flatten dei campi + overlay), quindi rimuoviamo i campi interattivi e
+    # l'AcroForm. Restano solo caselle vuote non più editabili e testo fisso.
+    # NB: niente NeedAppearances qui — non ci sono più campi da rigenerare.
+    _rendi_non_modificabile(writer)
 
     buf = io.BytesIO()
     writer.write(buf)
     return buf.getvalue()
+
+
+def _rendi_non_modificabile(writer) -> None:
+    """Rimuove i widget dei campi modulo e l'AcroForm, rendendo il PDF non
+    più editabile. I valori compilati restano visibili perché già fusi nel
+    contenuto di pagina (flatten degli AcroForm + overlay disegnati)."""
+    import sys
+    # 1) via i widget dei campi da ogni pagina
+    try:
+        writer.remove_annotations(subtypes="/Widget")
+    except Exception as e:  # pragma: no cover
+        print("WARN rimozione widget non riuscita:", e, file=sys.stderr)
+    # 2) via l'AcroForm dal catalogo (niente più modulo interattivo)
+    try:
+        root = writer._root_object
+        if "/AcroForm" in root:
+            del root["/AcroForm"]
+    except Exception as e:  # pragma: no cover
+        print("WARN rimozione AcroForm non riuscita:", e, file=sys.stderr)
 
 
 def nome_file_consigliato(template_id: str, pratica: dict, cliente: dict) -> str:
