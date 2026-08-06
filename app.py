@@ -198,7 +198,19 @@ def inietta_utente():
                 n_task = cur.fetchone()["n"]
         except Exception:
             n_task = 0
-    return {"current_user": u, "is_admin": is_admin(), "task_aperti_count": n_task}
+    return {
+        "current_user": u, "is_admin": is_admin(), "task_aperti_count": n_task,
+        # Ultima vista usata delle liste (filtri/ordine/vista/ricerca), così i link
+        # del menu e le scorciatoie tornano dov'eri invece che alla lista pulita.
+        "lista_pratiche_url": _url_lista("pratiche", session.get("qs_pratiche", "")),
+        "lista_clienti_url": _url_lista("clienti", session.get("qs_clienti", "")),
+    }
+
+
+def _url_lista(endpoint: str, qs: str) -> str:
+    """Costruisce l'URL di una lista riattaccando la querystring salvata in sessione."""
+    base = url_for(endpoint)
+    return f"{base}?{qs}" if qs else base
 
 
 def segna_lavorazione(tabella: str, entita_id) -> None:
@@ -2119,6 +2131,7 @@ def _colonne_attive(nome: str, catalogo: list) -> list:
 
 @app.route("/clienti")
 def clienti():
+    session["qs_clienti"] = request.query_string.decode("utf-8")
     q = (request.args.get("q") or "").strip()
     centro = (request.args.get("centro") or "").strip()
     solo_verificare = request.args.get("da_verificare") == "1"
@@ -2182,6 +2195,7 @@ def clienti():
 def pratiche():
     """Scheda di tutte le pratiche, raggruppate per Centro (del cliente) e
     ordinate per data, con la stessa ricerca dei clienti."""
+    session["qs_pratiche"] = request.query_string.decode("utf-8")
     q = (request.args.get("q") or "").strip()
     centro = (request.args.get("centro") or "").strip()
     where, params = [], []

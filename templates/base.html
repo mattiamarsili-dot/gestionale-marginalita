@@ -77,10 +77,10 @@
           <i class="bi bi-speedometer2 me-1"></i>Panoramica
         </a>
         {% endif %}
-        <a class="nav-link {% if request.endpoint in ['clienti', 'cliente_nuovo', 'cliente_dettaglio', 'cliente_modifica'] %}active{% endif %}" href="{{ url_for('clienti') }}">
+        <a class="nav-link {% if request.endpoint in ['clienti', 'cliente_nuovo', 'cliente_dettaglio', 'cliente_modifica'] %}active{% endif %}" href="{{ lista_clienti_url }}">
           <i class="bi bi-people-fill me-1"></i>Clienti
         </a>
-        <a class="nav-link {% if request.endpoint in ['pratiche', 'dettaglio_pratica', 'modifica_pratica', 'nuova_pratica'] %}active{% endif %}" href="{{ url_for('pratiche') }}">
+        <a class="nav-link {% if request.endpoint in ['pratiche', 'dettaglio_pratica', 'modifica_pratica', 'nuova_pratica'] %}active{% endif %}" href="{{ lista_pratiche_url }}">
           <i class="bi bi-folder2-open me-1"></i>Pratiche
         </a>
         <a class="nav-link {% if request.endpoint == 'fatturati' %}active{% endif %}" href="{{ url_for('fatturati') }}">
@@ -145,6 +145,20 @@
       }).then(r => { if (!r.ok) throw 0; finisci(); })
         .catch(() => { row.classList.remove('anim-removing'); alert('Eliminazione non riuscita.'); });
     });
+  </script>
+  <script>
+    // Ripristino della posizione di scroll nelle liste Pratiche/Clienti:
+    // tornando all'elenco si riparte da dov'eri, non dall'inizio.
+    (function () {
+      var liste = ['{{ url_for("pratiche") }}', '{{ url_for("clienti") }}'];
+      if (liste.indexOf(location.pathname) === -1) return;
+      var key = 'scroll:' + location.pathname;
+      var y = sessionStorage.getItem(key);
+      if (y !== null) requestAnimationFrame(function () { window.scrollTo(0, parseInt(y, 10)); });
+      window.addEventListener('pagehide', function () {
+        sessionStorage.setItem(key, String(window.scrollY || window.pageYOffset || 0));
+      });
+    })();
   </script>
   {% block scripts %}{% endblock %}
 </body>
