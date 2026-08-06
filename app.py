@@ -810,6 +810,26 @@ def modifica_pratica(pratica_id):
 
 # ── Segna/deseleziona fatturata ───────────────────────────────────────────────
 
+def _valida_mese(mese: str) -> bool:
+    """True se `mese` è una stringa 'YYYY-MM' valida."""
+    try:
+        y, m = mese.split("-")
+        return len(y) == 4 and 1 <= int(m) <= 12 and int(y) >= 1000
+    except (ValueError, AttributeError):
+        return False
+
+
+def _data_nel_mese(mese: str, giorno=None) -> str:
+    """Data ISO (YYYY-MM-DD) dentro `mese` ('YYYY-MM'), mantenendo `giorno`
+    (clampato all'ultimo giorno valido del mese). Senza `giorno` usa oggi.
+    Così scegliere un mese produce una data reale (oggi, o il giorno originale
+    spostato di mese) e il raggruppamento in /fatturati finisce nel mese giusto."""
+    y, m = int(mese[:4]), int(mese[5:7])
+    g = giorno or date.today().day
+    ultimo = calendar.monthrange(y, m)[1]
+    return date(y, m, min(g, ultimo)).isoformat()
+
+
 @app.route("/pratica/<int:pratica_id>/fattura", methods=["POST"])
 def fattura_pratica(pratica_id):
     with get_db() as conn:
@@ -828,11 +848,13 @@ def fattura_pratica(pratica_id):
             )
             ricalcola_stato_pratica(conn, pratica_id, forza=True)
         else:
-            oggi = date.today().isoformat()
+            # Mese scelto al momento dello spostamento (default: mese corrente).
+            mese = (request.form.get("mese") or "").strip()
+            data_fatt = _data_nel_mese(mese) if _valida_mese(mese) else date.today().isoformat()
             cur.execute(
                 f"UPDATE pratiche SET fatturata = {_PH}, data_fatturazione = {_PH}, "
                 f"stato_lavorazione = {_PH}, stato_da = {_PH} WHERE id = {_PH}",
-                (True, oggi, "Fatturato", _now_iso(), pratica_id),
+                (True, data_fatt, "Fatturato", _now_iso(), pratica_id),
             )
 
     torna = request.form.get("torna", url_for("dashboard"))
@@ -888,11 +910,27 @@ def aggiorna_data_ordine(pratica_id):
 @app.route("/pratica/<int:pratica_id>/data-fattura", methods=["POST"])
 def aggiorna_data_fattura(pratica_id):
     nuova_data = request.form.get("data_fatturazione", "").strip()
-    if not nuova_data:
-        torna = request.form.get("torna", url_for("dashboard"))
-        return redirect(torna)
+    mese = (request.form.get("mese") or "").strip()
     with get_db() as conn:
         cur = conn.cursor()
+        # Spostamento del solo mese (dall'elenco Fatturati): mantiene il giorno
+        # della data attuale, cambiando solo il mese di fatturazione.
+        if not nuova_data and _valida_mese(mese):
+            cur.execute(
+                f"SELECT CAST(data_fatturazione AS TEXT) AS df FROM pratiche WHERE id = {_PH}",
+                (pratica_id,))
+            row = cur.fetchone()
+            giorno = None
+            df = str(row["df"]) if row and row["df"] else ""
+            if len(df) >= 10:
+                try:
+                    giorno = int(df[8:10])
+                except ValueError:
+                    giorno = None
+            nuova_data = _data_nel_mese(mese, giorno)
+        if not nuova_data:
+            torna = request.form.get("torna", url_for("dashboard"))
+            return redirect(torna)
         cur.execute(
             f"UPDATE pratiche SET data_fatturazione = {_PH} WHERE id = {_PH}",
             (nuova_data, pratica_id),

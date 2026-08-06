@@ -101,6 +101,7 @@
   </div>
 </div></div>
 {% endif %}
+{% include "_modal_fattura_mese.html" %}
 <!-- Suggerimenti tipologia (semi LEA + tipologie già usate), condiviso da tutte le righe -->
 <datalist id="lista-tipologie">
   {% for t in tipologie %}<option value="{{ t }}">{% endfor %}

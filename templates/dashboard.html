@@ -356,12 +356,16 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <p class="mb-0">Segna la pratica di <strong id="modal-paziente"></strong> come fatturata oggi?</p>
+        <p class="mb-2">Segna la pratica di <strong id="modal-paziente"></strong> come fatturata.</p>
+        <label class="form-label small fw-semibold mb-1">Mese di fatturazione</label>
+        <input type="month" id="modal-fatt-mese" class="form-control form-control-sm">
+        <small class="text-muted d-block mt-1">Determina in quale mese comparirà nell'elenco Fatturati.</small>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annulla</button>
         <form id="form-fattura" method="post">
           <input type="hidden" name="torna" value="{{ request.url }}">
+          <input type="hidden" name="mese" id="hidden-fatt-mese">
           <button type="submit" class="btn btn-success btn-sm">
             <i class="bi bi-check-circle me-1"></i>Conferma
           </button>
@@ -534,7 +538,13 @@ document.getElementById('cerca-paziente').addEventListener('input', function() {
 document.getElementById('modalFattura').addEventListener('show.bs.modal', function(e) {
   const btn = e.relatedTarget;
   document.getElementById('modal-paziente').textContent = btn.dataset.paziente;
+  const mese = new Date().toISOString().slice(0, 7);
+  document.getElementById('modal-fatt-mese').value = mese;
+  document.getElementById('hidden-fatt-mese').value = mese;
   document.getElementById('form-fattura').action = '/pratica/' + btn.dataset.praticaId + '/fattura';
+});
+document.getElementById('modal-fatt-mese').addEventListener('input', function() {
+  document.getElementById('hidden-fatt-mese').value = this.value;
 });
 </script>
 {% if drive_attivo %}

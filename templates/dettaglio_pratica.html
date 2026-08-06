@@ -686,13 +686,12 @@
                     </button>
                   </form>
                   {% else %}
-                  <form method="post" action="{{ url_for('fattura_pratica', pratica_id=pratica.id) }}" class="d-inline"
-                        onsubmit="return confirm('Spostare la pratica in Fatturati? Sparirà dalla lista pratiche.');">
-                    <input type="hidden" name="torna" value="{{ request.path }}#tab-margine">
-                    <button type="submit" class="btn btn-sm btn-success">
-                      <i class="bi bi-receipt me-1"></i>Sposta in Fatturati
-                    </button>
-                  </form>
+                  <button type="button" class="btn btn-sm btn-success"
+                          data-bs-toggle="modal" data-bs-target="#modalFatturaMese"
+                          data-pratica-id="{{ pratica.id }}" data-paziente="{{ pratica.nome_paziente }}"
+                          data-torna="{{ request.path }}#tab-margine">
+                    <i class="bi bi-receipt me-1"></i>Sposta in Fatturati
+                  </button>
                   {% endif %}
                 </div>
               </div>
@@ -757,6 +756,7 @@
     </div>
   </div>
 </div>
+{% include "_modal_fattura_mese.html" %}
 {% endblock %}
 
 {% block scripts %}

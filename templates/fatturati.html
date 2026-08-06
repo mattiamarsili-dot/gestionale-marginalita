@@ -109,18 +109,19 @@
   <div class="modal-dialog modal-sm">
     <div class="modal-content">
       <div class="modal-header">
-        <h6 class="modal-title"><i class="bi bi-calendar-check me-2 text-success"></i>Data fatturazione</h6>
+        <h6 class="modal-title"><i class="bi bi-calendar-check me-2 text-success"></i>Mese di fatturazione</h6>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
         <p class="mb-2 small text-muted">Pratica: <strong id="modal-df-paziente"></strong></p>
-        <input type="date" id="modal-df-data" class="form-control form-control-sm">
+        <input type="month" id="modal-df-mese" class="form-control form-control-sm">
+        <small class="text-muted d-block mt-1">Sposta la pratica nel mese scelto dell'elenco (il giorno resta invariato).</small>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annulla</button>
         <form id="form-data-fattura" method="post">
           <input type="hidden" name="torna" value="{{ request.url }}">
-          <input type="hidden" name="data_fatturazione" id="hidden-df-data">
+          <input type="hidden" name="mese" id="hidden-df-mese">
           <button type="submit" class="btn btn-success btn-sm">
             <i class="bi bi-check-circle me-1"></i>Salva
           </button>
@@ -136,13 +137,13 @@
 document.getElementById('modalDataFattura').addEventListener('show.bs.modal', function(e) {
   const btn = e.relatedTarget;
   document.getElementById('modal-df-paziente').textContent = btn.dataset.paziente;
-  const data = btn.dataset.data || '';
-  document.getElementById('modal-df-data').value = data;
-  document.getElementById('hidden-df-data').value = data;
+  const mese = (btn.dataset.data || '').slice(0, 7) || new Date().toISOString().slice(0, 7);
+  document.getElementById('modal-df-mese').value = mese;
+  document.getElementById('hidden-df-mese').value = mese;
   document.getElementById('form-data-fattura').action = '/pratica/' + btn.dataset.praticaId + '/data-fattura';
 });
-document.getElementById('modal-df-data').addEventListener('change', function() {
-  document.getElementById('hidden-df-data').value = this.value;
+document.getElementById('modal-df-mese').addEventListener('change', function() {
+  document.getElementById('hidden-df-mese').value = this.value;
 });
 </script>
 {% endblock %}

@@ -1,0 +1,46 @@
+{# Modal riutilizzabile: scegli il mese e sposta la pratica in Fatturati.
+   Il pulsante che lo apre deve avere:
+     data-bs-toggle="modal" data-bs-target="#modalFatturaMese"
+     data-pratica-id, data-paziente, (opz.) data-mese, data-torna #}
+<div class="modal fade" id="modalFatturaMese" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="bi bi-receipt me-2 text-success"></i>Sposta in Fatturati</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-2 small text-muted">Pratica: <strong id="modalFM-paziente"></strong></p>
+        <label class="form-label small fw-semibold mb-1">Mese di fatturazione</label>
+        <input type="month" id="modalFM-mese" class="form-control form-control-sm">
+        <small class="text-muted d-block mt-1">Determina in quale mese comparirà nell'elenco Fatturati.</small>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annulla</button>
+        <form id="modalFM-form" method="post">
+          <input type="hidden" name="torna" id="modalFM-torna">
+          <input type="hidden" name="mese" id="modalFM-mese-hidden">
+          <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-check-circle me-1"></i>Sposta</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var modal = document.getElementById('modalFatturaMese');
+  if (!modal || modal.dataset.bound) return;
+  modal.dataset.bound = '1';
+  var mese  = document.getElementById('modalFM-mese');
+  var meseH = document.getElementById('modalFM-mese-hidden');
+  modal.addEventListener('show.bs.modal', function (e) {
+    var btn = e.relatedTarget;
+    document.getElementById('modalFM-paziente').textContent = btn.dataset.paziente || '';
+    var m = btn.dataset.mese || new Date().toISOString().slice(0, 7);
+    mese.value = m; meseH.value = m;
+    document.getElementById('modalFM-torna').value = btn.dataset.torna || window.location.href;
+    document.getElementById('modalFM-form').action = '/pratica/' + btn.dataset.praticaId + '/fattura';
+  });
+  mese.addEventListener('input', function () { meseH.value = this.value; });
+})();
+</script>
