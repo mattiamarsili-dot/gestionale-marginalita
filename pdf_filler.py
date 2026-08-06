@@ -812,6 +812,22 @@ def compila_pdf(template_id: str, pratica: dict, cliente: dict, righe: list = No
     # Scarta i valori vuoti: non serve riscriverli e si evita di azzerare default
     field_map = {k: v for k, v in field_map.items() if v not in ("", None)}
 
+    # Modalità di modificabilità del PDF scaricato, per categoria:
+    #   - prescrizione → "editabile": tutti i campi restano compilabili
+    #   - delega       → "parziale":  i campi valorizzati dal DB diventano fissi,
+    #                    quelli senza dato restano compilabili a mano
+    #   - altri        → "bloccato":  nessun campo modificabile (tutto fisso)
+    categoria = tpl.get("categoria")
+    if categoria == "prescrizione":
+        modo = "editabile"
+    elif categoria == "delega":
+        modo = "parziale"
+    else:
+        modo = "bloccato"
+    # Nomi di TUTTI i campi per cui abbiamo un dato (inclusa l'intestazione resa
+    # via overlay): per la delega sono quelli da bloccare, tenendo editabili gli altri.
+    campi_valorizzati = set(field_map.keys())
+
     reader = PdfReader(path)
     writer = PdfWriter()
     writer.append(reader)
@@ -844,10 +860,13 @@ def compila_pdf(template_id: str, pratica: dict, cliente: dict, righe: list = No
         # 2) compilazione: pypdf genera l'/AP con quello stile → visibile ovunque
         _prepara_stile_campi(writer, set(field_map.keys()), center_hints=_CENTER_HINTS,
                              font_size=tpl.get("font_size", _FORM_FONT_SIZE))
+        # Con flatten il valore viene fuso nel contenuto di pagina (poi il campo
+        # sarà bloccato). In modalità "editabile" NON si fa flatten: il campo resta
+        # compilabile col valore pre-inserito.
+        flatten = modo != "editabile"
         for page in writer.pages:
-            # flatten=True fonde il valore nel contenuto di pagina (verrà poi
-            # reso non modificabile rimuovendo i campi interattivi qui sotto).
-            writer.update_page_form_field_values(page, field_map, auto_regenerate=False, flatten=True)
+            writer.update_page_form_field_values(
+                page, field_map, auto_regenerate=False, flatten=flatten)
 
         # Overlay dell'intestazione anagrafica (dimensione unica = header_font_size)
         if header_overlay:
@@ -859,15 +878,69 @@ def compila_pdf(template_id: str, pratica: dict, cliente: dict, righe: list = No
                 import sys
                 print("WARN overlay intestazione non riuscito:", _ov_err, file=sys.stderr)
 
-    # PDF non modificabile: i valori sono già disegnati nel contenuto di pagina
-    # (flatten dei campi + overlay), quindi rimuoviamo i campi interattivi e
-    # l'AcroForm. Restano solo caselle vuote non più editabili e testo fisso.
-    # NB: niente NeedAppearances qui — non ci sono più campi da rigenerare.
-    _rendi_non_modificabile(writer)
+    if modo == "bloccato":
+        # Tutto fisso: i valori sono già nel contenuto di pagina (flatten +
+        # overlay), rimuoviamo ogni campo interattivo e l'AcroForm.
+        _rendi_non_modificabile(writer)
+    elif modo == "parziale":
+        # Delega: blocca solo i campi valorizzati dal DB; quelli senza dato
+        # restano compilabili a mano.
+        _blocca_campi_valorizzati(writer, campi_valorizzati)
+        _abilita_appearances(writer)
+    else:
+        # Prescrizione: tutto resta compilabile; NeedAppearances fa rendere i
+        # valori pre-inseriti in ogni viewer.
+        _abilita_appearances(writer)
 
     buf = io.BytesIO()
     writer.write(buf)
     return buf.getvalue()
+
+
+def _abilita_appearances(writer) -> None:
+    """Imposta NeedAppearances così i viewer rigenerano l'aspetto dei campi
+    ancora interattivi (valori pre-inseriti e caselle vuote) in modo coerente."""
+    try:
+        writer.set_need_appearances_writer(True)
+    except Exception:
+        pass
+
+
+def _blocca_campi_valorizzati(writer, nomi) -> None:
+    """Rende non modificabili SOLO i campi in `nomi` (quelli valorizzati dal DB):
+    ne rimuove i widget dalle pagine e le voci dall'AcroForm. Gli altri campi
+    (senza dato) restano compilabili. I valori bloccati sono già visibili perché
+    fusi nel contenuto di pagina (flatten degli AcroForm + overlay intestazione)."""
+    import sys
+    from pypdf.generic import ArrayObject, NameObject
+    nomi = set(nomi)
+    # 1) togli dalle pagine i widget dei campi valorizzati
+    for page in writer.pages:
+        annots = page.get("/Annots")
+        if not annots:
+            continue
+        tenuti = ArrayObject()
+        for a in annots:
+            o = a.get_object()
+            if o.get("/Subtype") == "/Widget" and _qualified_name(o) in nomi:
+                continue
+            tenuti.append(a)
+        page[NameObject("/Annots")] = tenuti
+    # 2) togli dall'AcroForm le voci /Fields dei campi valorizzati
+    try:
+        acro = writer._root_object.get("/AcroForm")
+        if acro is not None:
+            acro = acro.get_object()
+            fields = acro.get("/Fields")
+            if fields is not None:
+                restanti = ArrayObject()
+                for f in fields:
+                    if _qualified_name(f.get_object()) in nomi:
+                        continue
+                    restanti.append(f)
+                acro[NameObject("/Fields")] = restanti
+    except Exception as e:  # pragma: no cover
+        print("WARN blocco campi valorizzati (AcroForm) non riuscito:", e, file=sys.stderr)
 
 
 def _rendi_non_modificabile(writer) -> None:
