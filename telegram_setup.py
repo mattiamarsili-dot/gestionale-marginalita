@@ -30,6 +30,7 @@ def main():
         url = f"{BASE_URL}/telegram/webhook"
         r = tb.set_webhook(url, TELEGRAM_WEBHOOK_SECRET)
         print("setWebhook →", r)
+        print("setMyCommands →", tb.set_commands())
         print("Webhook:", url, "| secret:", "sì" if TELEGRAM_WEBHOOK_SECRET else "NO (consigliato impostarlo)")
     elif azione == "delete":
         print("deleteWebhook →", tb.delete_webhook())

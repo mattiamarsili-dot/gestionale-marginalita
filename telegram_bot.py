@@ -69,10 +69,12 @@ def _kb(rows):
     return {"inline_keyboard": keyboard}
 
 
-def send_message(chat_id, text, rows=None):
+def send_message(chat_id, text, rows=None, reply_markup=None):
     payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML",
                "disable_web_page_preview": True}
-    if rows:
+    if reply_markup is not None:
+        payload["reply_markup"] = reply_markup
+    elif rows:
         payload["reply_markup"] = _kb(rows)
     return _api("sendMessage", payload)
 
@@ -97,6 +99,22 @@ def set_webhook(url, secret=""):
     if secret:
         payload["secret_token"] = secret
     return _api("setWebhook", payload)
+
+
+# Menu comandi ufficiale (pulsante "Menu" blu della chat).
+COMANDI = [
+    ("start", "Avvia e mostra il menu"),
+    ("menu", "Mostra il menu a pulsanti"),
+    ("task", "Crea un task per te"),
+    ("cerca", "Cerca clienti e pratiche"),
+    ("collega", "Collega il tuo account (codice)"),
+    ("aiuto", "Come si usa il bot"),
+]
+
+
+def set_commands():
+    return _api("setMyCommands",
+                {"commands": [{"command": c, "description": d} for c, d in COMANDI]})
 
 
 def delete_webhook():
@@ -340,14 +358,43 @@ def trova_utenti_per_nome(nome, limit=5):
         return [dict(r) for r in cur.fetchall()]
 
 
+# ── Menu a pulsanti (tastiera persistente) ───────────────────────────────────
+BTN_CERCA      = "🔎 Cerca"
+BTN_MIEI       = "📋 I miei task"
+BTN_TASK_ME    = "✅ Task a me"
+BTN_TASK_ALTRO = "👥 Task a un collega"
+BTN_RIEPILOGO  = "🌅 Riepilogo"
+BTN_AIUTO      = "❓ Aiuto"
+MENU_LABELS = {BTN_CERCA, BTN_MIEI, BTN_TASK_ME, BTN_TASK_ALTRO, BTN_RIEPILOGO, BTN_AIUTO}
+
+
+def _menu_markup():
+    """Tastiera persistente sempre disponibile in fondo alla chat."""
+    return {
+        "keyboard": [
+            [{"text": BTN_CERCA}, {"text": BTN_MIEI}],
+            [{"text": BTN_TASK_ME}, {"text": BTN_TASK_ALTRO}],
+            [{"text": BTN_RIEPILOGO}, {"text": BTN_AIUTO}],
+        ],
+        "resize_keyboard": True,
+        "is_persistent": True,
+        "input_field_placeholder": "Scrivi un nome o usa i pulsanti…",
+    }
+
+
+def send_menu(chat_id, text):
+    return send_message(chat_id, text, reply_markup=_menu_markup())
+
+
 # ── Dispatcher principale ────────────────────────────────────────────────────
 AIUTO = (
-    "🤖 <b>Gestionale — comandi</b>\n"
-    "• Scrivi un <b>nome</b> per cercare clienti e pratiche.\n"
-    "• <code>/task testo</code> — crea un task per te.\n"
-    "• <code>avvisa NOME di testo</code> — assegna un task a un collega e lo avvisa.\n"
-    "• <code>/collega CODICE</code> — collega questo Telegram al tuo account.\n"
-    "• <code>/aiuto</code> — questo messaggio."
+    "🤖 <b>Gestionale — come si usa</b>\n"
+    "Usa i <b>pulsanti</b> in basso, oppure scrivi:\n"
+    "• un <b>nome</b> → cerca clienti e pratiche;\n"
+    "• <code>/task testo</code> → task per te;\n"
+    "• <code>avvisa NOME di testo</code> → task a un collega, con avviso.\n\n"
+    "Dai risultati apri una pratica e usa i pulsanti "
+    "<b>➡️ stato</b>, <b>🧾 Fatturata</b>, <b>➕ Task</b>."
 )
 
 
@@ -373,7 +420,7 @@ def _handle_message(msg):
     if low.startswith("/start"):
         u = get_utente_by_chat_id(chat_id)
         if u:
-            send_message(chat_id, f"Ciao {_esc(u['nome'])}! 👋\n\n{AIUTO}")
+            send_menu(chat_id, f"Ciao {_esc(u['nome'])}! 👋\n\n{AIUTO}")
         else:
             send_message(chat_id,
                 "👋 Benvenuto nel bot del gestionale.\n"
@@ -385,7 +432,7 @@ def _handle_message(msg):
         codice = parti[1].strip() if len(parti) > 1 else ""
         u = collega_telegram(codice, chat_id)
         if u:
-            send_message(chat_id, f"✅ Collegato come <b>{_esc(u['nome'])}</b>.\n\n{AIUTO}")
+            send_menu(chat_id, f"✅ Collegato come <b>{_esc(u['nome'])}</b>.\n\n{AIUTO}")
         else:
             send_message(chat_id, "❌ Codice non valido o scaduto. Rigeneralo in Gestione utenti.")
         return
@@ -398,8 +445,14 @@ def _handle_message(msg):
             "<code>/collega CODICE</code>.")
         return
 
-    if low in ("/aiuto", "/help"):
-        send_message(chat_id, AIUTO)
+    if low in ("/aiuto", "/help", "/menu"):
+        send_menu(chat_id, AIUTO)
+        return
+
+    # Pulsanti del menu (tastiera persistente): hanno priorità e annullano l'attesa
+    if text in MENU_LABELS:
+        clear_pending(chat_id)
+        _menu_azione(chat_id, u, text)
         return
 
     # C'è un'azione in sospeso? (es. attesa del testo di un task)
@@ -455,21 +508,98 @@ def _rispondi_ricerca(chat_id, q):
 def _consuma_pending(chat_id, u, pend, text):
     azione = pend["azione"]
     clear_pending(chat_id)
-    if azione == "task_pratica":
+    if azione == "cerca":
+        _rispondi_ricerca(chat_id, text)
+    elif azione == "task_self":
+        crea_task(text, autore_id=u["id"], assegnatari=[u["id"]], notifica=False)
+        send_menu(chat_id, "✅ Task creato (assegnato a te).")
+    elif azione == "task_altro":
+        dest_id = int(pend["ref_id"])
+        crea_task(text, autore_id=u["id"], assegnatari=[dest_id], notifica=True)
+        send_menu(chat_id, f"✅ Task assegnato a <b>{_esc(_nome_utente(dest_id))}</b> e avvisato.")
+    elif azione == "task_pratica":
         pratica_id = pend["ref_id"]
         cliente_id = _cliente_di_pratica(pratica_id)
         crea_task(text, autore_id=u["id"], assegnatari=[u["id"]],
                   cliente_id=cliente_id, notifica=False)
         send_message(chat_id, "✅ Task aggiunto alla pratica (assegnato a te).",
                      [[("🔗 Apri pratica", {"url": _url(f"/pratica/{pratica_id}")})]])
-    elif azione == "avvisa":
-        # extra = id utente destinatario
-        dest_id = int(pend["extra"])
-        crea_task(text, autore_id=u["id"], assegnatari=[dest_id], notifica=True)
-        nome = _nome_utente(dest_id)
-        send_message(chat_id, f"✅ Task assegnato a <b>{_esc(nome)}</b> e avvisato.")
     else:
         send_message(chat_id, "Ok.")
+
+
+# ── Azioni del menu a pulsanti ───────────────────────────────────────────────
+def _menu_azione(chat_id, u, label):
+    if label == BTN_CERCA:
+        set_pending(chat_id, "cerca")
+        send_message(chat_id, "🔎 Scrivi cosa cercare (nome, cognome o n° pratica):")
+    elif label == BTN_TASK_ME:
+        set_pending(chat_id, "task_self")
+        send_message(chat_id, "✅ Scrivi il testo del task (verrà assegnato a te):")
+    elif label == BTN_TASK_ALTRO:
+        _scegli_collega(chat_id, u)
+    elif label == BTN_MIEI:
+        _miei_task(chat_id, u)
+    elif label == BTN_RIEPILOGO:
+        _riepilogo(chat_id, u)
+    elif label == BTN_AIUTO:
+        send_menu(chat_id, AIUTO)
+
+
+def _scegli_collega(chat_id, u):
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"SELECT id, nome FROM utenti WHERE attivo AND id <> {_PH} ORDER BY nome",
+            (u["id"],))
+        altri = [dict(r) for r in cur.fetchall()]
+    if not altri:
+        send_message(chat_id, "Non ci sono altri utenti a cui assegnare un task.")
+        return
+    rows = [[(a["nome"], {"cb": f"nt:{a['id']}"})] for a in altri]
+    send_message(chat_id, "👥 A chi assegno il task?", rows)
+
+
+def _miei_task(chat_id, u):
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"""SELECT n.id, n.testo, n.scadenza FROM note n
+                JOIN note_assegnatari na ON na.note_id = n.id
+                WHERE na.utente_id = {_PH} AND NOT n.completata
+                ORDER BY COALESCE(n.scadenza, '9999-12-31') ASC, n.id DESC LIMIT 15""",
+            (u["id"],))
+        task = [dict(r) for r in cur.fetchall()]
+    if not task:
+        send_message(chat_id, "🎉 Non hai task aperti.")
+        return
+    send_message(chat_id, f"📋 <b>I tuoi task aperti</b> ({len(task)}):")
+    for t in task:
+        scad = f"  <i>⏰ {t['scadenza']}</i>" if t.get("scadenza") else ""
+        rows = [[("✓ Fatto", {"cb": f"done:{t['id']}"}),
+                 ("🗑 Elimina", {"cb": f"del:{t['id']}"})]]
+        send_message(chat_id, f"• {_esc(t['testo'])}{scad}", rows)
+
+
+def _riepilogo(chat_id, u):
+    res = _costruisci_digest(u["id"])
+    if not res:
+        send_message(chat_id, "✅ Nulla in scadenza e nessuna pratica ferma. Tutto in ordine!")
+        return
+    testo, rows = res
+    send_message(chat_id, testo, rows)
+
+
+def _completa_task(note_id):
+    with get_db() as conn:
+        conn.cursor().execute(
+            f"UPDATE note SET completata = {_PH}, stato = {_PH} WHERE id = {_PH}",
+            (True, "Completata", note_id))
+
+
+def _elimina_task(note_id):
+    with get_db() as conn:
+        conn.cursor().execute(f"DELETE FROM note WHERE id = {_PH}", (note_id,))
 
 
 def _avvisa_collega(chat_id, u, nome, testo):
@@ -533,6 +663,21 @@ def _handle_callback(cb):
         answer_callback(cb_id)
         send_message(chat_id, "✍️ Scrivi il testo del task per questa pratica:")
         return
+    if tipo == "nt":  # nuovo task per un collega scelto dal menu
+        set_pending(chat_id, "task_altro", ref_id=int(arg))
+        answer_callback(cb_id)
+        send_message(chat_id, f"✍️ Scrivi il testo del task per <b>{_esc(_nome_utente(int(arg)))}</b>:")
+        return
+    if tipo == "done":  # segna un task come fatto (dalla lista "I miei task")
+        _completa_task(int(arg))
+        answer_callback(cb_id, "Fatto ✓")
+        edit_message(chat_id, message_id, "✅ <s>task completato</s>")
+        return
+    if tipo == "del":  # elimina un task
+        _elimina_task(int(arg))
+        answer_callback(cb_id, "Eliminato")
+        edit_message(chat_id, message_id, "🗑 <i>task eliminato</i>")
+        return
     if tipo == "avv":
         pend = get_pending(chat_id)
         testo = (pend or {}).get("extra") if pend else None
@@ -587,54 +732,66 @@ def _cliente_di_pratica(pratica_id):
         return row["cliente_id"] if row else None
 
 
-# ── Digest giornaliero ───────────────────────────────────────────────────────
-def invia_digest():
-    """Manda a ogni utente collegato: pratiche ferme >7gg + suoi task in scadenza.
-    Pensata per essere chiamata una volta al giorno (cron/UptimeRobot)."""
-    if not attivo():
-        return {"inviati": 0}
-    inviati = 0
+# ── Digest / riepilogo ───────────────────────────────────────────────────────
+def _pratiche_ferme(limite=15):
     with get_db() as conn:
         cur = conn.cursor()
-        # Pratiche ferme da >7 giorni e non fatturate (globali)
         cur.execute(
             f"""SELECT p.id, p.nome_paziente, p.stato_lavorazione, c.cognome, c.nome
                 FROM pratiche p LEFT JOIN clienti c ON c.id = p.cliente_id
                 WHERE p.fatturata <> {_FATTURATA_TRUE} AND p.stato_da IS NOT NULL
                   AND p.stato_da <= {_PH}
-                ORDER BY p.stato_da ASC LIMIT 15""",
+                ORDER BY p.stato_da ASC LIMIT {int(limite)}""",
             ((datetime.now() - timedelta(days=7)).isoformat(),))
-        ferme = [dict(r) for r in cur.fetchall()]
-        # Utenti collegati
-        cur.execute("SELECT id, nome, telegram_chat_id FROM utenti "
+        return [dict(r) for r in cur.fetchall()]
+
+
+def _costruisci_digest(utente_id, ferme=None):
+    """(testo, righe_bottoni) del riepilogo per un utente, o None se non c'è nulla."""
+    if ferme is None:
+        ferme = _pratiche_ferme()
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"""SELECT n.testo, n.scadenza FROM note n
+                JOIN note_assegnatari na ON na.note_id = n.id
+                WHERE na.utente_id = {_PH} AND NOT n.completata
+                  AND n.scadenza IS NOT NULL AND n.scadenza <= {_PH}
+                ORDER BY n.scadenza ASC LIMIT 10""",
+            (utente_id, (date.today() + timedelta(days=3)).isoformat()))
+        task = [dict(r) for r in cur.fetchall()]
+    if not ferme and not task:
+        return None
+    parti = ["🌅 <b>Riepilogo</b>"]
+    if task:
+        parti.append("\n<b>I tuoi task in scadenza:</b>")
+        for t in task:
+            parti.append(f"• {_esc(t['testo'])} <i>({t['scadenza']})</i>")
+    if ferme:
+        parti.append("\n<b>Pratiche ferme da &gt;7 giorni:</b>")
+        for p in ferme[:8]:
+            parti.append(f"• {_esc(_nome_pratica(p))} — {_esc(p.get('stato_lavorazione') or '')}")
+    rows = [[("📋 Apri i task", {"url": _url("/task-assegnati")})]]
+    return "\n".join(parti), rows
+
+
+def invia_digest():
+    """Manda a ogni utente collegato pratiche ferme >7gg + suoi task in scadenza.
+    Pensata per una chiamata al giorno (cron/UptimeRobot)."""
+    if not attivo():
+        return {"inviati": 0}
+    inviati = 0
+    ferme = _pratiche_ferme()
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id, telegram_chat_id FROM utenti "
                     "WHERE attivo AND telegram_chat_id IS NOT NULL")
         utenti = [dict(r) for r in cur.fetchall()]
-
     for u in utenti:
-        # task aperti in scadenza (entro 3 giorni) assegnati a questo utente
-        with get_db() as conn:
-            cur = conn.cursor()
-            cur.execute(
-                f"""SELECT n.testo, n.scadenza FROM note n
-                    JOIN note_assegnatari na ON na.note_id = n.id
-                    WHERE na.utente_id = {_PH} AND NOT n.completata
-                      AND n.scadenza IS NOT NULL AND n.scadenza <= {_PH}
-                    ORDER BY n.scadenza ASC LIMIT 10""",
-                (u["id"], (date.today() + timedelta(days=3)).isoformat()))
-            task = [dict(r) for r in cur.fetchall()]
-        if not ferme and not task:
+        res = _costruisci_digest(u["id"], ferme=ferme)
+        if not res:
             continue
-        parti = ["🌅 <b>Riepilogo di oggi</b>"]
-        if task:
-            parti.append("\n<b>I tuoi task in scadenza:</b>")
-            for t in task:
-                parti.append(f"• {_esc(t['testo'])} <i>({t['scadenza']})</i>")
-        if ferme:
-            parti.append("\n<b>Pratiche ferme da &gt;7 giorni:</b>")
-            for p in ferme[:8]:
-                nome = _nome_pratica(p)
-                parti.append(f"• {_esc(nome)} — {_esc(p.get('stato_lavorazione') or '')}")
-        rows = [[("📋 Apri i task", {"url": _url("/task-assegnati")})]]
-        if send_message(u["telegram_chat_id"], "\n".join(parti), rows):
+        testo, rows = res
+        if send_message(u["telegram_chat_id"], testo, rows):
             inviati += 1
     return {"inviati": inviati}
