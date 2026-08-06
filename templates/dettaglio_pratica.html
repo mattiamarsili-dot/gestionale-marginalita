@@ -557,6 +557,7 @@
           <div class="col-12 col-lg-5">
             <div class="card" id="card-margine"
                  data-asl-url="{{ url_for('aggiorna_importo_asl', pratica_id=pratica.id) }}"
+                 data-priv-url="{{ url_for('aggiorna_importo_privato', pratica_id=pratica.id) }}"
                  data-prov-pct="{{ pratica.provvigione_pct }}"
                  data-strutt-pct="{{ margine.struttura_pct / 100 }}"
                  data-privato="{{ margine.importo_privato }}"
@@ -582,6 +583,20 @@
                            value="{{ "%.2f"|format(pratica.importo_asl) }}">
                   </div>
                   <small class="text-muted" id="asl-stato"></small>
+                </div>
+
+                {# Differenza a carico del paziente (privato): opzionale, si somma ai ricavi #}
+                <div class="mb-3">
+                  <label class="form-label form-label-sm mb-1" for="inp-importo-privato">
+                    Differenza a carico paziente
+                    <span class="text-muted">(privato · opzionale)</span>
+                  </label>
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text">€</span>
+                    <input type="number" step="0.01" min="0" id="inp-importo-privato" class="form-control"
+                           value="{{ "%.2f"|format(pratica.importo_privato or 0) }}">
+                  </div>
+                  <small class="text-muted" id="priv-stato">Si somma ai ricavi nel calcolo del margine.</small>
                 </div>
 
                 <div id="riepilogo-margine">
@@ -1128,21 +1143,25 @@ function eurPlain(n) {
   const card = document.getElementById('card-margine');
   if (!card) return;
   const inp     = document.getElementById('inp-importo-asl');
+  const inpPriv = document.getElementById('inp-importo-privato');
   const usaTot  = document.getElementById('usa-totale-codici');
   const stato   = document.getElementById('asl-stato');
+  const statoPriv = document.getElementById('priv-stato');
   const aslUrl  = card.dataset.aslUrl;
+  const privUrl = card.dataset.privUrl;
   const provPct = parseFloat(card.dataset.provPct) || 0.16;
   const sogliaOk   = parseFloat(card.dataset.sogliaOk) || 20;
   const sogliaWarn = parseFloat(card.dataset.sogliaWarn) || 10;
   const struttPct  = parseFloat(card.dataset.struttPct) || 0.10;
-  const privato    = parseFloat(card.dataset.privato) || 0;
   const footCostoMax = document.getElementById('foot-costo-max');
-  let timer = null;
+  let timer = null, timerPriv = null;
+
+  const getPrivato = () => (inpPriv ? parseFloat(inpPriv.value) : parseFloat(card.dataset.privato)) || 0;
 
   // Costo fornitori massimo per restare alla soglia di margine (default 20%).
   function aggiornaCostoMax(asl) {
     if (!footCostoMax) return;
-    const ricavi = asl + privato;
+    const ricavi = asl + getPrivato();
     const costoMax = ricavi * (1 - provPct - struttPct - sogliaOk / 100);
     footCostoMax.textContent = eur(Math.max(costoMax, 0));
   }
@@ -1161,7 +1180,7 @@ function eurPlain(n) {
     const costo = parseFloat(card.dataset.costo) || 0;   // letto fresco: cambia se modifico i costi fornitori
     aggiornaCostoMax(asl);
     try {
-      const res = await fetch(`/api/calcola-margine?asl=${asl}&costo=${costo}&provvigione_pct=${provPct}`);
+      const res = await fetch(`/api/calcola-margine?asl=${asl}&costo=${costo}&provvigione_pct=${provPct}&privato=${getPrivato()}`);
       const d = await res.json();
       document.getElementById('m-provvigione').textContent = '— ' + eur(d.provvigione);
       document.getElementById('m-struttura').textContent   = '— ' + eur(d.struttura);
@@ -1195,10 +1214,28 @@ function eurPlain(n) {
     }
   }
 
+  async function salvaPrivato() {
+    const priv = getPrivato();
+    const body = new URLSearchParams({ importo_privato: priv });
+    try {
+      await fetch(privUrl, { method: 'POST', headers: { 'X-Requested-With': 'fetch' }, body });
+      card.dataset.privato = priv;
+      if (statoPriv) { statoPriv.textContent = '✓ salvato'; setTimeout(() => statoPriv.textContent = 'Si somma ai ricavi nel calcolo del margine.', 1500); }
+    } catch (_) {
+      if (statoPriv) statoPriv.textContent = '⚠️ non salvato';
+    }
+  }
+
   inp.addEventListener('input', () => {
     clearTimeout(timer);
     ricalcola();
     timer = setTimeout(salva, 600);
+  });
+
+  if (inpPriv) inpPriv.addEventListener('input', () => {
+    clearTimeout(timerPriv);
+    ricalcola();
+    timerPriv = setTimeout(salvaPrivato, 600);
   });
 
   if (usaTot) usaTot.addEventListener('click', (e) => {

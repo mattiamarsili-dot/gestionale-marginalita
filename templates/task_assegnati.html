@@ -35,7 +35,7 @@
         {% if task %}
         <ul class="list-group list-group-flush">
           {% for n in task %}
-          <li class="list-group-item d-flex align-items-start gap-2 {% if n.completata %}opacity-50{% endif %}">
+          <li class="list-group-item d-flex align-items-start gap-2 {% if n.completata %}opacity-50{% endif %}" data-anim-row>
             <form method="post" action="{{ url_for('note_completata', nota_id=n.id) }}" class="mt-1">
               <input type="hidden" name="torna" value="{{ url_for('task_assegnati', scheda=scheda, stato='aperti' if solo_aperti else 'tutti') }}">
               <input type="hidden" name="completa" value="{{ '0' if n.completata else '1' }}">
@@ -63,6 +63,19 @@
                   {% else %}bg-light text-muted{% endif %} ms-1">{{ n.priorita }}</span>
                 {% if n.scadenza %}<i class="bi bi-calendar-event ms-1"></i> {{ n.scadenza }}{% endif %}
               </div>
+            </div>
+            <!-- Azioni: modifica + elimina (animata) -->
+            <div class="d-flex align-items-center gap-1 mt-1">
+              <a href="{{ url_for('note_modifica', nota_id=n.id, torna=url_for('task_assegnati', scheda=scheda, stato='aperti' if solo_aperti else 'tutti')) }}"
+                 class="btn btn-sm p-0 border-0 bg-transparent text-muted" title="Modifica">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <form method="post" action="{{ url_for('note_elimina', nota_id=n.id) }}"
+                    data-anim-delete data-confirm="Eliminare questo task?">
+                <button class="btn btn-sm p-0 border-0 bg-transparent text-muted" title="Elimina">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
             </div>
           </li>
           {% endfor %}

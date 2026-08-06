@@ -86,11 +86,8 @@
         <a class="nav-link {% if request.endpoint == 'fatturati' %}active{% endif %}" href="{{ url_for('fatturati') }}">
           <i class="bi bi-receipt me-1"></i>Fatturati
         </a>
-        <a class="nav-link {% if request.endpoint in ['note_inbox', 'note_nuova'] %}active{% endif %}" href="{{ url_for('note_inbox') }}">
-          <i class="bi bi-sticky me-1"></i>Note
-        </a>
         {% if current_user %}
-        <a class="nav-link position-relative {% if request.endpoint == 'task_assegnati' %}active{% endif %}" href="{{ url_for('task_assegnati') }}">
+        <a class="nav-link position-relative {% if request.endpoint in ['task_assegnati', 'note_nuova', 'note_modifica'] %}active{% endif %}" href="{{ url_for('task_assegnati') }}">
           <i class="bi bi-check2-square me-1"></i>Task
           {% if task_aperti_count %}
           <span class="badge rounded-pill bg-danger" style="font-size:.65rem">{{ task_aperti_count }}</span>
@@ -114,6 +111,40 @@
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () { navigator.serviceWorker.register('/sw.js').catch(function () {}); });
     }
+  </script>
+  <script>
+    // Eliminazione animata riusabile: su qualsiasi <form data-anim-delete>
+    // la riga [data-anim-row] più vicina sfuma e collassa, poi si invia via fetch.
+    document.addEventListener('submit', function (e) {
+      const form = e.target.closest('form[data-anim-delete]');
+      if (!form) return;
+      e.preventDefault();
+      if (form.dataset.confirm && !confirm(form.dataset.confirm)) return;
+      const row = form.closest('[data-anim-row]') || form.parentElement;
+      const h = row.offsetHeight;
+      row.classList.add('anim-removing');
+      const finisci = () => {
+        row.style.height = h + 'px';
+        // forza reflow poi collassa
+        void row.offsetHeight;
+        row.classList.add('anim-collapsing');
+        row.style.height = '0px';
+        row.style.paddingTop = '0'; row.style.paddingBottom = '0';
+        row.style.marginTop = '0'; row.style.marginBottom = '0';
+        setTimeout(() => {
+          const ul = row.parentElement;
+          row.remove();
+          // se la lista è rimasta vuota, ricarica per mostrare lo stato "vuoto"
+          if (ul && !ul.querySelector('[data-anim-row]')) location.reload();
+        }, 260);
+      };
+      fetch(form.action, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: new URLSearchParams(new FormData(form)),
+      }).then(r => { if (!r.ok) throw 0; finisci(); })
+        .catch(() => { row.classList.remove('anim-removing'); alert('Eliminazione non riuscita.'); });
+    });
   </script>
   {% block scripts %}{% endblock %}
 </body>

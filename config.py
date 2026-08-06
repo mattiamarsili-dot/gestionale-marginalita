@@ -58,6 +58,12 @@ STATI_LAVORAZIONE_LEGACY = {
     "Consegna":  "Ordinato",
 }
 
+# ── Note/Task: priorità e scadenza automatica ────────────────────────────────
+NOTE_PRIORITA = ["Media", "Alta", "Urgente"]
+# Giorni entro cui il task va gestito, per priorità: definiscono la scadenza/avviso
+# calcolata in automatico quando non viene impostata a mano.
+NOTE_PRIORITA_GIORNI = {"Media": 14, "Alta": 6, "Urgente": 3}
+
 # ── Tipologia ausilio: valori "seme" dalle codifiche LEA (Nomenclatore protesi,
 # classi ISO 9999 dell'assistenza protesica). La lista mostrata nei form è questa
 # UNITA ai valori già usati nelle pratiche: ogni nuova tipologia salvata ricompare
@@ -86,6 +92,17 @@ MAX_UPLOAD_MB = 20
 # Vuota = funzione "Incolla messaggio" disattivata (nessuna chiamata, nessun costo).
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 ANTHROPIC_MODEL   = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-8")
+
+# ── Bot Telegram (apertura rapida, task, avvisi, cambio stato) ────────────────
+# Token del bot creato con @BotFather. Vuoto = bot disattivato (nessun webhook).
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+# Secret verificato sull'header del webhook (Telegram lo rimanda a ogni update):
+# protegge la route /telegram/webhook da chiamate spoofate.
+TELEGRAM_WEBHOOK_SECRET = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "")
+# Token che protegge la route del digest giornaliero (chiamata da UptimeRobot/cron).
+TELEGRAM_DIGEST_TOKEN = os.environ.get("TELEGRAM_DIGEST_TOKEN", "")
+# URL pubblico dell'app, per i deep-link nei messaggi (es. https://...onrender.com).
+BASE_URL = os.environ.get("BASE_URL", "").rstrip("/")
 
 # ── Database ──────────────────────────────────────────────────────────────────
 # Se DATABASE_URL è impostato (produzione) → PostgreSQL, altrimenti → SQLite

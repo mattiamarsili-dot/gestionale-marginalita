@@ -67,6 +67,44 @@
       </div>
     </form>
 
+    {% if modifica %}
+    <div class="card mt-4">
+      <div class="card-header bg-light py-2 d-flex align-items-center gap-2">
+        <i class="bi bi-telegram text-primary"></i>
+        <span class="fw-semibold">Bot Telegram</span>
+        {% if tg_collegato %}
+        <span class="badge bg-success-subtle text-success ms-auto"><i class="bi bi-check-circle me-1"></i>Collegato</span>
+        {% else %}
+        <span class="badge bg-secondary-subtle text-secondary ms-auto">Non collegato</span>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        {% if tg_codice %}
+        <div class="alert alert-info d-flex flex-column gap-1">
+          <span>Codice di collegamento (usalo una volta sola):</span>
+          <span class="fs-4 fw-bold font-monospace">{{ tg_codice }}</span>
+          <span class="small text-muted">Chiedi alla persona di aprire il bot su Telegram e scrivere:
+            <code>/collega {{ tg_codice }}</code></span>
+        </div>
+        {% endif %}
+
+        {% if tg_collegato %}
+        <p class="text-muted small mb-3">Questo account riceve avvisi e può cercare/creare task e cambiare stato dal bot.</p>
+        <form method="post" action="{{ url_for('utente_telegram_scollega', utente_id=utente.id) }}"
+              onsubmit="return confirm('Scollegare l\'account Telegram di questo utente?')">
+          <button class="btn btn-outline-danger btn-sm"><i class="bi bi-x-circle me-1"></i>Scollega Telegram</button>
+        </form>
+        {% else %}
+        <p class="text-muted small mb-3">Genera un codice una-tantum: la persona lo invierà al bot con
+          <code>/collega CODICE</code> per abbinare il proprio Telegram a questo account.</p>
+        <form method="post" action="{{ url_for('utente_telegram_codice', utente_id=utente.id) }}">
+          <button class="btn btn-outline-primary btn-sm"><i class="bi bi-key me-1"></i>Genera codice di collegamento</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
   </div>
 </div>
 {% endblock %}

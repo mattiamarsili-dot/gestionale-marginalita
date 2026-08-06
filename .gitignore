@@ -45,3 +45,6 @@ __pycache__/
 
 # macOS
 .DS_Store
+
+# connection string Neon per script una-tantum (mai committare)
+.neon_url

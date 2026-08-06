@@ -44,7 +44,7 @@
   </div>
 </div>
 
-<!-- Barra compatta: azioni rapide + note in sospeso -->
+<!-- Barra compatta: azioni rapide + task in sospeso -->
 <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
   <a href="{{ url_for('nuova_pratica') }}" class="btn btn-primary btn-sm">
     <i class="bi bi-folder-plus me-1"></i>Pratica
@@ -53,13 +53,13 @@
     <i class="bi bi-person-plus me-1"></i>Cliente
   </a>
   <a href="{{ url_for('note_nuova') }}" class="btn btn-outline-primary btn-sm">
-    <i class="bi bi-sticky me-1"></i>Nota
+    <i class="bi bi-check2-square me-1"></i>Task
   </a>
-  <a href="{{ url_for('note_inbox', filtro='aperte') }}"
+  <a href="{{ url_for('task_assegnati') }}"
      class="btn btn-sm ms-sm-auto d-inline-flex align-items-center gap-1
             {% if note_sospese %}btn-warning{% else %}btn-outline-secondary{% endif %}">
     <i class="bi bi-bell{% if note_sospese %}-fill{% endif %}"></i>
-    Note in sospeso
+    Task in sospeso
     <span class="badge rounded-pill bg-light text-dark">{{ note_sospese }}</span>
   </a>
 </div>

@@ -16,8 +16,10 @@ from config import (
     PROVVIGIONE_PCT_17, PROVVIGIONE_PCT_18, SOGLIA_PROV_17, SOGLIA_PROV_18,
     MARGINE_SOGLIA_OK, MARGINE_SOGLIA_WARN, CENTRI, ASL_OPZIONI,
     STATI_LAVORAZIONE, LEA_TIPOLOGIE,
-    ANTHROPIC_API_KEY,
+    ANTHROPIC_API_KEY, NOTE_PRIORITA, NOTE_PRIORITA_GIORNI,
+    TELEGRAM_WEBHOOK_SECRET, TELEGRAM_DIGEST_TOKEN,
 )
+import telegram_bot
 from database import (
     init_db, migrate_db, migrate_stati_e_assegnatari, backfill_clienti, get_db,
     calcola_margine, provvigione_corrente,
@@ -42,6 +44,7 @@ from presets import (
 from utenti import (
     RUOLI, utenti_esistono, lista_utenti, get_utente, verifica_credenziali,
     crea_utente, aggiorna_utente, reset_password, seed_admin,
+    genera_codice_telegram, scollega_telegram,
 )
 
 # ── Periodi predefiniti ────────────────────────────────────────────────────────
@@ -144,7 +147,9 @@ def _allowed_file(filename: str) -> bool:
 # ── Autenticazione ────────────────────────────────────────────────────────────
 
 ROUTE_PUBBLICHE = {"login", "logout", "static", "manifest", "service_worker",
-                   "modulo_paziente"}
+                   "modulo_paziente",
+                   # Bot Telegram: protetti da secret token / digest token, non da login.
+                   "telegram_webhook", "telegram_digest"}
 
 # Hardening cookie di sessione (multiutente + dati sanitari).
 app.config.update(
@@ -325,8 +330,16 @@ def utente_modifica(utente_id):
         if nuova_pw:
             reset_password(utente_id, nuova_pw)
         return redirect(url_for("utenti_lista"))
+    # Stato collegamento Telegram (per la card in fondo al form)
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT telegram_chat_id FROM utenti WHERE id = {_PH}", (utente_id,))
+        row = cur.fetchone()
+    tg_collegato = bool(row and row["telegram_chat_id"])
     return render_template("utente_form.html", utente=utente, RUOLI=RUOLI,
-                           errore=None, modifica=True)
+                           errore=None, modifica=True,
+                           tg_collegato=tg_collegato,
+                           tg_codice=request.args.get("tg_codice"))
 
 
 # ── PWA: manifest + service worker (app installabile su telefono/tablet) ──────
@@ -890,6 +903,8 @@ def aggiorna_importo_privato(pratica_id):
             f"UPDATE pratiche SET importo_privato = {_PH} WHERE id = {_PH}",
             (importo, pratica_id),
         )
+    if request.headers.get("X-Requested-With") == "fetch":
+        return jsonify({"ok": True, "importo_privato": importo})
     torna = request.form.get("torna", url_for("dashboard"))
     return redirect(torna)
 
@@ -2470,11 +2485,8 @@ def mobile_nuovo():
 NOTE_TIPI      = ["Assistenza", "Valutazione", "Documenti"]
 # Sottoscelta grafica disponibile quando il tipo è "Documenti"
 NOTE_SOTTOTIPI = ["Relazione", "Documenti", "Ordine"]
-NOTE_PRIORITA  = ["Media", "Alta", "Urgente"]
 NOTE_STATI     = ["Aperta", "In lavorazione", "Completata"]
-# Giorni entro cui la nota va gestita, per priorità: definiscono la scadenza/avviso
-# calcolata in automatico quando non viene impostata a mano.
-NOTE_PRIORITA_GIORNI = {"Media": 14, "Alta": 6, "Urgente": 3}
+# NOTE_PRIORITA e NOTE_PRIORITA_GIORNI ora vivono in config.py (condivisi col bot).
 
 
 def _assegnatari_dal_form(form) -> list:
@@ -2563,31 +2575,70 @@ def _crea_nota(form) -> int:
                 f"INSERT INTO note_assegnatari (note_id, utente_id) VALUES ({_PH}, {_PH})",
                 (nota_id, uid),
             )
-        return nota_id
+    # Notifica Telegram agli assegnatari collegati (fuori dalla transazione).
+    if assegnatari:
+        autore_nome = None
+        if autore_id:
+            au = get_utente(autore_id)
+            autore_nome = au["nome"] if au else None
+        try:
+            telegram_bot.notify_task_assegnato(assegnatari, testo, autore_nome or "un collega",
+                                               escludi=autore_id)
+        except Exception:
+            pass
+    return nota_id
+
+
+def _aggiorna_nota(nota_id, form) -> None:
+    """Aggiorna un task/nota esistente e ri-sincronizza gli assegnatari.
+    Non tocca autore, stato di completamento e data di creazione."""
+    cliente_id = (form.get("cliente_id") or "").strip() or None
+    nominativo = (form.get("nominativo") or "").strip()
+    tipo       = (form.get("tipo") or "Assistenza").strip()
+    sottotipo  = (form.get("sottotipo") or "").strip() if tipo == "Documenti" else ""
+    priorita   = (form.get("priorita") or "Media").strip()
+    testo      = (form.get("testo") or "").strip()
+    scadenza   = (form.get("scadenza") or "").strip() or None
+    assegnatari = _assegnatari_dal_form(form)
+    assegnato_a = assegnatari[0] if assegnatari else None
+
+    if not scadenza:
+        giorni = NOTE_PRIORITA_GIORNI.get(priorita)
+        if giorni:
+            scadenza = (date.today() + timedelta(days=giorni)).isoformat()
+
+    if cliente_id and not nominativo:
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute(f"SELECT cognome, nome FROM clienti WHERE id = {_PH}", (cliente_id,))
+            row = cur.fetchone()
+            if row:
+                nominativo = f"{row['cognome']} {row['nome']}".strip()
+
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"""UPDATE note SET cliente_id = {_PH}, nominativo = {_PH}, tipo = {_PH},
+                    sottotipo = {_PH}, priorita = {_PH}, testo = {_PH}, scadenza = {_PH},
+                    assegnato_a = {_PH}
+                WHERE id = {_PH}""",
+            (cliente_id, nominativo, tipo, sottotipo, priorita, testo, scadenza,
+             assegnato_a, nota_id),
+        )
+        # ri-sincronizza gli assegnatari: cancella e reinserisce quelli scelti
+        cur.execute(f"DELETE FROM note_assegnatari WHERE note_id = {_PH}", (nota_id,))
+        for uid in assegnatari:
+            cur.execute(
+                f"INSERT INTO note_assegnatari (note_id, utente_id) VALUES ({_PH}, {_PH})",
+                (nota_id, uid),
+            )
 
 
 @app.route("/note")
 def note_inbox():
-    """Elenco note: di default le aperte, con evidenza alle pratiche ferme (>7 giorni)."""
-    filtro = request.args.get("filtro", "aperte")  # aperte | tutte | ferme
-    where = ""
-    if filtro == "aperte":
-        where = "WHERE NOT n.completata"
-    elif filtro == "ferme":
-        where = ("WHERE NOT n.completata AND n.creato_il <= "
-                 + ("NOW() - INTERVAL '7 days'" if _IS_POSTGRES_NOTE() else "datetime('now','-7 days')"))
-    with get_db() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            f"""SELECT n.*, c.cognome AS c_cognome, c.nome AS c_nome
-                FROM note n
-                LEFT JOIN clienti c ON c.id = n.cliente_id
-                {where}
-                ORDER BY n.completata ASC, COALESCE(n.scadenza, '9999-12-31') ASC, n.creato_il DESC"""
-        )
-        note = cur.fetchall()
-    return render_template("note_inbox.html", note=note, filtro=filtro,
-                           NOTE_PRIORITA=NOTE_PRIORITA)
+    """La sezione 'Note' è stata unificata nei Task: reindirizza per compatibilità
+    con vecchi link/segnalibri."""
+    return redirect(url_for("task_assegnati"))
 
 
 @app.route("/task-assegnati")
@@ -2633,17 +2684,18 @@ def note_nuova():
     """Form mobile-first per salvare una nota veloce, collegabile a un cliente."""
     if request.method == "POST":
         if not (request.form.get("testo") or "").strip():
-            return render_template("note_nuova.html", errore="Scrivi il testo della nota.",
+            return render_template("note_nuova.html", errore="Scrivi il testo del task.",
                                    nota=request.form, NOTE_TIPI=NOTE_TIPI,
                                    NOTE_SOTTOTIPI=NOTE_SOTTOTIPI, NOTE_PRIORITA=NOTE_PRIORITA,
                                    NOTE_PRIORITA_GIORNI=NOTE_PRIORITA_GIORNI,
-                                   utenti=lista_utenti(solo_attivi=True))
+                                   utenti=lista_utenti(solo_attivi=True),
+                                   assegnatari_sel=request.form.getlist("assegnato_a"))
         _crea_nota(request.form)
-        # Torna alla scheda cliente se collegata, altrimenti all'inbox note.
+        # Torna alla scheda cliente se collegata, altrimenti ai Task.
         cid = (request.form.get("cliente_id") or "").strip()
         if cid:
             return redirect(url_for("cliente_dettaglio", cliente_id=cid))
-        return redirect(url_for("note_inbox"))
+        return redirect(url_for("task_assegnati"))
     # Precompilazione opzionale quando si arriva da una scheda cliente.
     cliente = None
     cid = request.args.get("cliente_id")
@@ -2655,7 +2707,49 @@ def note_nuova():
     return render_template("note_nuova.html", errore=None, nota={}, cliente=cliente,
                            NOTE_TIPI=NOTE_TIPI, NOTE_SOTTOTIPI=NOTE_SOTTOTIPI,
                            NOTE_PRIORITA=NOTE_PRIORITA, NOTE_PRIORITA_GIORNI=NOTE_PRIORITA_GIORNI,
-                           utenti=lista_utenti(solo_attivi=True))
+                           utenti=lista_utenti(solo_attivi=True), assegnatari_sel=[])
+
+
+@app.route("/note/<int:nota_id>/modifica", methods=["GET", "POST"])
+def note_modifica(nota_id):
+    """Modifica un task/nota dopo la creazione (riusa il form di creazione)."""
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"""SELECT n.*, c.cognome AS c_cognome, c.nome AS c_nome
+                FROM note n LEFT JOIN clienti c ON c.id = n.cliente_id
+                WHERE n.id = {_PH}""", (nota_id,))
+        nota = cur.fetchone()
+        if not nota:
+            abort(404)
+        nota = dict(nota)
+        cur.execute(f"SELECT utente_id FROM note_assegnatari WHERE note_id = {_PH}", (nota_id,))
+        assegnatari_sel = [str(r["utente_id"]) for r in cur.fetchall()]
+
+    if request.method == "POST":
+        if not (request.form.get("testo") or "").strip():
+            return render_template("note_nuova.html", errore="Scrivi il testo del task.",
+                                   nota=request.form, edit_id=nota_id, NOTE_TIPI=NOTE_TIPI,
+                                   NOTE_SOTTOTIPI=NOTE_SOTTOTIPI, NOTE_PRIORITA=NOTE_PRIORITA,
+                                   NOTE_PRIORITA_GIORNI=NOTE_PRIORITA_GIORNI,
+                                   utenti=lista_utenti(solo_attivi=True),
+                                   assegnatari_sel=request.form.getlist("assegnato_a"))
+        _aggiorna_nota(nota_id, request.form)
+        cid = (request.form.get("cliente_id") or "").strip()
+        if cid:
+            return redirect(url_for("cliente_dettaglio", cliente_id=cid))
+        return redirect(request.args.get("torna") or url_for("task_assegnati"))
+
+    # GET: il nominativo pre-compilato lo passa il template dal cliente collegato
+    # oppure dal campo nota.nominativo; qui esponiamo cliente per il collegamento.
+    cliente = None
+    if nota.get("cliente_id"):
+        cliente = {"id": nota["cliente_id"], "cognome": nota.get("c_cognome") or "",
+                   "nome": nota.get("c_nome") or ""}
+    return render_template("note_nuova.html", errore=None, nota=nota, cliente=cliente,
+                           edit_id=nota_id, NOTE_TIPI=NOTE_TIPI, NOTE_SOTTOTIPI=NOTE_SOTTOTIPI,
+                           NOTE_PRIORITA=NOTE_PRIORITA, NOTE_PRIORITA_GIORNI=NOTE_PRIORITA_GIORNI,
+                           utenti=lista_utenti(solo_attivi=True), assegnatari_sel=assegnatari_sel)
 
 
 @app.route("/cliente/<int:cliente_id>/note/aggiungi", methods=["POST"])
@@ -2681,7 +2775,7 @@ def note_completata(nota_id):
         )
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return jsonify({"ok": True, "completata": completa})
-    return redirect(request.form.get("torna") or url_for("note_inbox"))
+    return redirect(request.form.get("torna") or url_for("task_assegnati"))
 
 
 @app.route("/note/<int:nota_id>/elimina", methods=["POST"])
@@ -2689,7 +2783,49 @@ def note_elimina(nota_id):
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute(f"DELETE FROM note WHERE id = {_PH}", (nota_id,))
-    return redirect(request.form.get("torna") or url_for("note_inbox"))
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"ok": True})
+    return redirect(request.form.get("torna") or url_for("task_assegnati"))
+
+
+# ── Bot Telegram ──────────────────────────────────────────────────────────────
+
+@app.route("/telegram/webhook", methods=["POST"])
+def telegram_webhook():
+    """Riceve gli update da Telegram. Protetto dal secret token (header)."""
+    if TELEGRAM_WEBHOOK_SECRET:
+        header = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+        if header != TELEGRAM_WEBHOOK_SECRET:
+            abort(403)
+    update = request.get_json(silent=True) or {}
+    telegram_bot.handle_update(update)
+    return jsonify({"ok": True})  # rispondi sempre 200: niente retry infiniti
+
+
+@app.route("/telegram/digest", methods=["GET", "POST"])
+def telegram_digest():
+    """Invia il digest giornaliero. Chiamata da un cron/UptimeRobot con ?token=…"""
+    if not TELEGRAM_DIGEST_TOKEN or request.args.get("token") != TELEGRAM_DIGEST_TOKEN:
+        abort(403)
+    return jsonify(telegram_bot.invia_digest())
+
+
+@app.route("/utente/<int:utente_id>/telegram/codice", methods=["POST"])
+def utente_telegram_codice(utente_id):
+    """Genera un codice una-tantum per collegare l'account Telegram dell'utente."""
+    if not is_admin():
+        abort(403)
+    codice = genera_codice_telegram(utente_id)
+    return redirect(url_for("utente_modifica", utente_id=utente_id,
+                            tg_codice=codice))
+
+
+@app.route("/utente/<int:utente_id>/telegram/scollega", methods=["POST"])
+def utente_telegram_scollega(utente_id):
+    if not is_admin():
+        abort(403)
+    scollega_telegram(utente_id)
+    return redirect(url_for("utente_modifica", utente_id=utente_id))
 
 
 @app.route("/api/note/suggerisci")

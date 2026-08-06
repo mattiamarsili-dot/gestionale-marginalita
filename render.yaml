@@ -26,3 +26,11 @@ services:
         value: 1069228139534-utnvp7nh0kupjmrh50mr9et0jr33qa43.apps.googleusercontent.com
       - key: GOOGLE_OAUTH_CLIENT_SECRET
         sync: false           # secret OAuth (GOCSPX-…): impostare nel pannello Render
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false           # token del bot da @BotFather
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false           # stringa casuale: protegge /telegram/webhook
+      - key: TELEGRAM_DIGEST_TOKEN
+        sync: false           # stringa casuale: protegge /telegram/digest (cron)
+      - key: BASE_URL
+        sync: false           # https://gestionale-marginalita.onrender.com (per i deep-link)

@@ -4,6 +4,7 @@ Gli utenti vivono nella tabella `utenti` (creata in database.py, dual DB).
 Le password sono salvate come hash (werkzeug), mai in chiaro.
 """
 import os
+import secrets
 
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -103,6 +104,68 @@ def reset_password(utente_id, nuova_password: str) -> None:
             f"UPDATE utenti SET password_hash = {_PH} WHERE id = {_PH}",
             (generate_password_hash(nuova_password), int(utente_id)),
         )
+
+
+def genera_codice_telegram(utente_id) -> str:
+    """Genera (o rigenera) un codice una-tantum per collegare l'account Telegram
+    dell'utente. Restituisce il codice da comunicare alla persona."""
+    codice = secrets.token_hex(3).upper()  # 6 caratteri, facile da digitare
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"UPDATE utenti SET telegram_link_code = {_PH} WHERE id = {_PH}",
+            (codice, int(utente_id)),
+        )
+    return codice
+
+
+def collega_telegram(codice: str, chat_id) -> dict | None:
+    """Collega un chat-id Telegram all'utente che possiede quel codice.
+    Consuma il codice (lo azzera). Restituisce l'utente collegato o None."""
+    codice = (codice or "").strip().upper()
+    if not codice:
+        return None
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"SELECT id, nome FROM utenti WHERE telegram_link_code = {_PH} AND attivo",
+            (codice,))
+        row = cur.fetchone()
+        if not row:
+            return None
+        cur.execute(
+            f"UPDATE utenti SET telegram_chat_id = {_PH}, telegram_link_code = NULL WHERE id = {_PH}",
+            (str(chat_id), row["id"]),
+        )
+        return {"id": row["id"], "nome": row["nome"]}
+
+
+def scollega_telegram(utente_id) -> None:
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"UPDATE utenti SET telegram_chat_id = NULL, telegram_link_code = NULL WHERE id = {_PH}",
+            (int(utente_id),))
+
+
+def get_utente_by_chat_id(chat_id) -> dict | None:
+    """Restituisce l'utente attivo collegato a un chat-id Telegram, o None."""
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"SELECT id, nome, email, ruolo FROM utenti "
+            f"WHERE telegram_chat_id = {_PH} AND attivo", (str(chat_id),))
+        row = cur.fetchone()
+        return dict(row) if row else None
+
+
+def chat_id_utente(utente_id):
+    """Restituisce il chat-id Telegram di un utente (o None se non collegato)."""
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT telegram_chat_id FROM utenti WHERE id = {_PH}", (int(utente_id),))
+        row = cur.fetchone()
+        return (row["telegram_chat_id"] if row else None) or None
 
 
 def seed_admin() -> int:

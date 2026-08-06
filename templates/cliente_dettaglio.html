@@ -160,7 +160,7 @@
         <ul class="list-group list-group-flush">
           {% for n in note %}
           <li class="list-group-item d-flex align-items-start gap-2 px-0
-                     {% if n.completata %}opacity-50{% endif %}">
+                     {% if n.completata %}opacity-50{% endif %}" data-anim-row>
             <form method="post" action="{{ url_for('note_completata', nota_id=n.id) }}" class="mt-1">
               <input type="hidden" name="torna" value="{{ url_for('cliente_dettaglio', cliente_id=cliente.id) }}">
               <input type="hidden" name="completa" value="{{ '0' if n.completata else '1' }}">
@@ -179,13 +179,18 @@
                 {% if n.scadenza %}<i class="bi bi-calendar-event ms-1"></i> {{ n.scadenza }}{% endif %}
               </div>
             </div>
-            <form method="post" action="{{ url_for('note_elimina', nota_id=n.id) }}" class="mt-1"
-                  onsubmit="return confirm('Eliminare questa nota?')">
-              <input type="hidden" name="torna" value="{{ url_for('cliente_dettaglio', cliente_id=cliente.id) }}">
-              <button class="btn btn-sm p-0 border-0 bg-transparent text-muted" title="Elimina">
-                <i class="bi bi-trash"></i>
-              </button>
-            </form>
+            <div class="d-flex align-items-center gap-1 mt-1">
+              <a href="{{ url_for('note_modifica', nota_id=n.id, torna=url_for('cliente_dettaglio', cliente_id=cliente.id)) }}"
+                 class="btn btn-sm p-0 border-0 bg-transparent text-muted" title="Modifica">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <form method="post" action="{{ url_for('note_elimina', nota_id=n.id) }}"
+                    data-anim-delete data-confirm="Eliminare questo task?">
+                <button class="btn btn-sm p-0 border-0 bg-transparent text-muted" title="Elimina">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </div>
           </li>
           {% endfor %}
         </ul>

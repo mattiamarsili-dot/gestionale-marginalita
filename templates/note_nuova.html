@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>Nuova nota — Gestionale</title>
+  <title>{{ 'Modifica task' if edit_id else 'Nuovo task' }} — Gestionale</title>
   <link rel="manifest" href="{{ url_for('manifest') }}">
   <meta name="theme-color" content="#0d6efd">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -67,12 +67,12 @@
 </head>
 <body>
   <div class="m-header py-3 px-3 d-flex align-items-center gap-2 shadow-sm">
-    <i class="bi bi-sticky fs-4"></i>
+    <i class="bi bi-check2-square fs-4"></i>
     <div class="lh-sm">
-      <div class="fw-bold">Nuova nota</div>
-      <small class="opacity-75">Salva veloce, ritrovala nel gestionale</small>
+      <div class="fw-bold">{{ 'Modifica task' if edit_id else 'Nuovo task' }}</div>
+      <small class="opacity-75">{{ 'Aggiorna il promemoria' if edit_id else 'Crea un promemoria, assegnalo e ritrovalo nei Task' }}</small>
     </div>
-    <a href="{{ url_for('note_inbox') }}" class="btn btn-sm btn-light ms-auto"><i class="bi bi-list-ul"></i></a>
+    <a href="{{ url_for('task_assegnati') }}" class="btn btn-sm btn-light ms-auto" title="Elenco task"><i class="bi bi-list-ul"></i></a>
   </div>
 
   <form method="post" class="m-form">
@@ -87,7 +87,7 @@
       <div class="card-header"><i class="bi bi-pencil-square me-2"></i>Cosa devi ricordare</div>
       <div class="card-body">
         <div class="mb-3">
-          <label>Testo della nota</label>
+          <label>Testo del task</label>
           <textarea name="testo" class="form-control" required
                     placeholder="Es. Richiamare per integrazione documenti ASL…">{{ nota.testo if nota else '' }}</textarea>
         </div>
@@ -164,7 +164,7 @@
         {% if utenti %}
         <div class="mb-3">
           <label>Assegna a <span class="text-muted fw-normal">(uno o più, facoltativo)</span></label>
-          {% set sel_ids = nota.getlist('assegnato_a') if (nota and nota.getlist is defined) else [] %}
+          {% set sel_ids = assegnatari_sel | default([]) %}
           <div class="row g-1">
             {% for u in utenti %}
             <div class="col-6 col-sm-4">
@@ -194,7 +194,7 @@
   <div class="m-footer">
     <div class="m-wrap mx-auto">
       <button type="submit" class="btn btn-primary btn-salva w-100">
-        <i class="bi bi-check-circle me-2"></i>Salva nota
+        <i class="bi bi-check-circle me-2"></i>{{ 'Salva modifiche' if edit_id else 'Salva task' }}
       </button>
     </div>
   </div>

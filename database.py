@@ -146,13 +146,15 @@ _SQLITE_SCHEMA = """
     );
 
     CREATE TABLE IF NOT EXISTS utenti (
-        id            INTEGER PRIMARY KEY AUTOINCREMENT,
-        nome          TEXT NOT NULL,
-        email         TEXT NOT NULL UNIQUE,
-        password_hash TEXT NOT NULL,
-        ruolo         TEXT NOT NULL DEFAULT 'operatore',
-        attivo        INTEGER NOT NULL DEFAULT 1,
-        creato_il     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome               TEXT NOT NULL,
+        email              TEXT NOT NULL UNIQUE,
+        password_hash      TEXT NOT NULL,
+        ruolo              TEXT NOT NULL DEFAULT 'operatore',
+        attivo             INTEGER NOT NULL DEFAULT 1,
+        telegram_chat_id   TEXT,
+        telegram_link_code TEXT,
+        creato_il          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS preset_ausili (
@@ -309,13 +311,15 @@ _POSTGRES_SCHEMA = """
     );
 
     CREATE TABLE IF NOT EXISTS utenti (
-        id            SERIAL PRIMARY KEY,
-        nome          TEXT NOT NULL,
-        email         TEXT NOT NULL UNIQUE,
-        password_hash TEXT NOT NULL,
-        ruolo         TEXT NOT NULL DEFAULT 'operatore',
-        attivo        BOOLEAN NOT NULL DEFAULT TRUE,
-        creato_il     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        id                 SERIAL PRIMARY KEY,
+        nome               TEXT NOT NULL,
+        email              TEXT NOT NULL UNIQUE,
+        password_hash      TEXT NOT NULL,
+        ruolo              TEXT NOT NULL DEFAULT 'operatore',
+        attivo             BOOLEAN NOT NULL DEFAULT TRUE,
+        telegram_chat_id   TEXT,
+        telegram_link_code TEXT,
+        creato_il          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS preset_ausili (
@@ -441,6 +445,8 @@ def migrate_db():
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS ultima_attivita TIMESTAMPTZ",
             "ALTER TABLE clienti ADD COLUMN IF NOT EXISTS ultimo_utente_id INTEGER REFERENCES utenti(id) ON DELETE SET NULL",
             "ALTER TABLE clienti ADD COLUMN IF NOT EXISTS ultima_attivita TIMESTAMPTZ",
+            "ALTER TABLE utenti ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT",
+            "ALTER TABLE utenti ADD COLUMN IF NOT EXISTS telegram_link_code TEXT",
         ]
     else:
         statements = [
@@ -483,12 +489,24 @@ def migrate_db():
             "ALTER TABLE pratiche ADD COLUMN ultima_attivita TIMESTAMP",
             "ALTER TABLE clienti ADD COLUMN ultimo_utente_id INTEGER REFERENCES utenti(id)",
             "ALTER TABLE clienti ADD COLUMN ultima_attivita TIMESTAMP",
+            "ALTER TABLE utenti ADD COLUMN telegram_chat_id TEXT",
+            "ALTER TABLE utenti ADD COLUMN telegram_link_code TEXT",
         ]
 
     # Indici: la colonna cliente_id viene aggiunta dagli ALTER qui sopra.
     statements += [
         "CREATE INDEX IF NOT EXISTS idx_pratiche_cliente ON pratiche(cliente_id)",
         "CREATE INDEX IF NOT EXISTS idx_clienti_centro ON clienti(centro)",
+        "CREATE INDEX IF NOT EXISTS idx_utenti_telegram ON utenti(telegram_chat_id)",
+        # Stato conversazionale del bot Telegram (es. attesa del testo di un task).
+        # SQL compatibile con SQLite e PostgreSQL.
+        """CREATE TABLE IF NOT EXISTS telegram_pending (
+               chat_id   TEXT PRIMARY KEY,
+               azione    TEXT NOT NULL,
+               ref_id    INTEGER,
+               extra     TEXT,
+               creato_il TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+           )""",
     ]
 
     for ddl in statements:
