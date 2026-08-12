@@ -206,11 +206,33 @@ _SQLITE_SCHEMA = """
         FOREIGN KEY (utente_id) REFERENCES utenti(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS rinnovi (
+        id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+        cliente_id         INTEGER,
+        nome               TEXT NOT NULL DEFAULT '',
+        cognome            TEXT NOT NULL DEFAULT '',
+        categoria          TEXT NOT NULL DEFAULT 'standard',
+        tipologia          TEXT,
+        ausilio            TEXT,
+        data_pratica       DATE,
+        mesi_rinnovo       INTEGER,
+        data_rinnovo       DATE,
+        pratica_origine_id INTEGER,
+        stato              TEXT NOT NULL DEFAULT 'da_rinnovare',
+        note               TEXT,
+        creato_da          INTEGER,
+        creato_il          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (cliente_id)         REFERENCES clienti(id)  ON DELETE SET NULL,
+        FOREIGN KEY (pratica_origine_id) REFERENCES pratiche(id) ON DELETE SET NULL
+    );
+
     CREATE TABLE IF NOT EXISTS app_config (
         chiave  TEXT PRIMARY KEY,
         valore  TEXT
     );
 
+    CREATE INDEX IF NOT EXISTS idx_rinnovi_scadenza   ON rinnovi(data_rinnovo);
+    CREATE INDEX IF NOT EXISTS idx_rinnovi_origine    ON rinnovi(pratica_origine_id);
     CREATE INDEX IF NOT EXISTS idx_pratiche_data      ON pratiche(data_pratica);
     CREATE INDEX IF NOT EXISTS idx_preventivi_pratica ON preventivi(pratica_id);
     CREATE INDEX IF NOT EXISTS idx_righe_pratica      ON righe_ausili(pratica_id);
@@ -368,11 +390,31 @@ _POSTGRES_SCHEMA = """
         PRIMARY KEY (note_id, utente_id)
     );
 
+    CREATE TABLE IF NOT EXISTS rinnovi (
+        id                 SERIAL PRIMARY KEY,
+        cliente_id         INTEGER REFERENCES clienti(id)  ON DELETE SET NULL,
+        nome               TEXT NOT NULL DEFAULT '',
+        cognome            TEXT NOT NULL DEFAULT '',
+        categoria          TEXT NOT NULL DEFAULT 'standard',
+        tipologia          TEXT,
+        ausilio            TEXT,
+        data_pratica       DATE,
+        mesi_rinnovo       INTEGER,
+        data_rinnovo       DATE,
+        pratica_origine_id INTEGER REFERENCES pratiche(id) ON DELETE SET NULL,
+        stato              TEXT NOT NULL DEFAULT 'da_rinnovare',
+        note               TEXT,
+        creato_da          INTEGER,
+        creato_il          TIMESTAMPTZ DEFAULT NOW()
+    );
+
     CREATE TABLE IF NOT EXISTS app_config (
         chiave  TEXT PRIMARY KEY,
         valore  TEXT
     );
 
+    CREATE INDEX IF NOT EXISTS idx_rinnovi_scadenza   ON rinnovi(data_rinnovo);
+    CREATE INDEX IF NOT EXISTS idx_rinnovi_origine    ON rinnovi(pratica_origine_id);
     CREATE INDEX IF NOT EXISTS idx_pratiche_data      ON pratiche(data_pratica);
     CREATE INDEX IF NOT EXISTS idx_preventivi_pratica ON preventivi(pratica_id);
     CREATE INDEX IF NOT EXISTS idx_righe_pratica      ON righe_ausili(pratica_id);

@@ -81,6 +81,39 @@ LEA_TIPOLOGIE = [
     "Ausili per stomia e incontinenza",
 ]
 
+# ── Rinnovi ausili/ortesi: tempi di rinnovo per categoria ─────────────────────
+# La scadenza si calcola dalla DATA PRATICA (solo mese/anno) + i mesi qui sotto.
+# Regola minori: se il paziente ha < 18 anni alla data pratica, si usano i mesi
+# ridotti (RINNOVO_MESI_MINORE). L'età si valuta dalla data di nascita.
+RINNOVO_CATEGORIE = {            # chiave interna → etichetta mostrata
+    "standard":               "Standard (5 anni)",
+    "carrozzina_elettronica": "Carrozzina elettronica (6 anni)",
+    "ortesi_superiore":       "Ortesi arto superiore — busto/avambraccio-mano-dita/shoulder (36 mesi)",
+    "ortesi_inferiore":       "Ortesi arto inferiore — hip/afo/knee (24 mesi)",
+}
+RINNOVO_MESI = {                 # adulti (≥ 18 anni)
+    "standard":               60,
+    "carrozzina_elettronica": 72,
+    "ortesi_superiore":       36,
+    "ortesi_inferiore":       24,
+}
+RINNOVO_MESI_MINORE = {          # minorenni (< 18 anni alla data pratica)
+    "standard":               24,
+    "carrozzina_elettronica": 24,
+    "ortesi_superiore":       12,
+    "ortesi_inferiore":       12,
+}
+RINNOVO_MESI_DEFAULT = 60        # fallback se categoria sconosciuta
+# Parole chiave (minuscolo) per classificare tipologia/ausilio in una categoria.
+# L'ordine conta: la prima categoria che combacia vince.
+RINNOVO_KEYWORDS = {
+    "carrozzina_elettronica": ["elettronic", "comandi alt"],
+    "ortesi_superiore":       ["shoulder", "busto", "spine", "spinal", "avambraccio",
+                               "mano", "dita", "hand", "arto superiore"],
+    "ortesi_inferiore":       ["hip", "afo", "knee", "arto inferiore", "ginocchio",
+                               "anca", "caviglia"],
+}
+
 # ── App ───────────────────────────────────────────────────────────────────────
 SECRET_KEY    = os.environ.get("SECRET_KEY", "dev-only-change-in-prod")
 ACCESS_CODE   = os.environ.get("ACCESS_CODE", "")   # vuoto = nessun login in sviluppo

@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}Rinnovi — Gestionale{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h4 class="fw-bold mb-0"><i class="bi bi-arrow-repeat me-2 text-primary"></i>Rinnovi ausili</h4>
+    <small class="text-muted">Pazienti in scadenza entro {{ finestra_mesi }} mesi (incluse le scadute)</small>
+  </div>
+  <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalNuovoRinnovo">
+    <i class="bi bi-plus-lg me-1"></i>Nuovo rinnovo
+  </button>
+</div>
+
+{% if righe %}
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-pratiche align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Paziente</th>
+            <th>Ausilio / tipologia</th>
+            <th>Categoria</th>
+            <th>Data pratica</th>
+            <th>Scadenza</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in righe %}
+          <tr>
+            <td class="fw-semibold">
+              {% if r.cliente_id %}
+              <a href="{{ url_for('cliente_dettaglio', cliente_id=r.cliente_id) }}" class="text-decoration-none">{{ r.nominativo }}</a>
+              {% else %}{{ r.nominativo }}{% endif %}
+              {% if r.origine == 'pratica' %}
+              <span class="badge bg-info-subtle text-info ms-1" title="Suggerito da una pratica fatturata">auto</span>
+              {% endif %}
+            </td>
+            <td class="text-muted small">
+              {{ r.ausilio or r.tipologia or '—' }}
+              {% if r.ausilio and r.tipologia %}<span class="d-block text-secondary">{{ r.tipologia }}</span>{% endif %}
+            </td>
+            <td class="small">{{ r.categoria_label }}</td>
+            <td class="text-muted">{{ r.data_pratica.strftime('%m/%Y') if r.data_pratica else '—' }}</td>
+            <td style="white-space:nowrap">
+              {% if r.data_rinnovo %}
+                <span class="fw-semibold">{{ r.data_rinnovo.strftime('%m/%Y') }}</span>
+                {% if r.scaduto %}
+                <span class="badge bg-danger-subtle text-danger ms-1">Scaduto</span>
+                {% elif r.mesi_mancanti is not none and r.mesi_mancanti <= 1 %}
+                <span class="badge bg-warning-subtle text-warning ms-1">Imminente</span>
+                {% else %}
+                <span class="badge bg-success-subtle text-success ms-1">tra {{ r.mesi_mancanti }} mesi</span>
+                {% endif %}
+              {% else %}—{% endif %}
+            </td>
+            <td class="text-end text-nowrap">
+              {% if r.origine == 'manuale' %}
+                <form method="post" action="{{ url_for('rinnovo_stato', rinnovo_id=r.id) }}" class="d-inline">
+                  <input type="hidden" name="stato" value="rinnovato">
+                  <input type="hidden" name="torna" value="{{ request.full_path }}">
+                  <button class="btn btn-sm btn-outline-success" title="Segna come rinnovato"><i class="bi bi-check2"></i></button>
+                </form>
+                <a href="{{ url_for('rinnovo_modifica', rinnovo_id=r.id) }}" class="btn btn-sm btn-outline-secondary" title="Modifica"><i class="bi bi-pencil"></i></a>
+                {% if is_admin %}
+                <form method="post" action="{{ url_for('rinnovo_elimina', rinnovo_id=r.id) }}" class="d-inline"
+                      onsubmit="return confirm('Eliminare questo rinnovo?')">
+                  <input type="hidden" name="torna" value="{{ request.full_path }}">
+                  <button class="btn btn-sm btn-outline-danger" title="Elimina"><i class="bi bi-trash"></i></button>
+                </form>
+                {% endif %}
+              {% else %}
+                <form method="post" action="{{ url_for('rinnovo_da_pratica', pratica_id=r.pratica_id) }}" class="d-inline">
+                  <input type="hidden" name="stato" value="rinnovato">
+                  <input type="hidden" name="torna" value="{{ request.full_path }}">
+                  <button class="btn btn-sm btn-outline-success" title="Segna come rinnovato"><i class="bi bi-check2"></i></button>
+                </form>
+                <form method="post" action="{{ url_for('rinnovo_da_pratica', pratica_id=r.pratica_id) }}" class="d-inline">
+                  <input type="hidden" name="stato" value="da_rinnovare">
+                  <input type="hidden" name="torna" value="{{ request.full_path }}">
+                  <button class="btn btn-sm btn-outline-primary" title="Aggiungi ai rinnovi (modificabile)"><i class="bi bi-plus-lg"></i></button>
+                </form>
+                <form method="post" action="{{ url_for('rinnovo_da_pratica', pratica_id=r.pratica_id) }}" class="d-inline"
+                      onsubmit="return confirm('Ignorare questo rinnovo suggerito?')">
+                  <input type="hidden" name="stato" value="ignorato">
+                  <input type="hidden" name="torna" value="{{ request.full_path }}">
+                  <button class="btn btn-sm btn-outline-secondary" title="Ignora"><i class="bi bi-x-lg"></i></button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="card"><div class="card-body text-center py-5 text-muted">
+  <i class="bi bi-arrow-repeat fs-1 d-block mb-2 opacity-25"></i>
+  Nessun rinnovo in scadenza nei prossimi {{ finestra_mesi }} mesi.
+  <p class="mt-2 small">Usa <strong>Nuovo rinnovo</strong> per aggiungerne uno a mano.</p>
+</div></div>
+{% endif %}
+
+<!-- Modal nuovo rinnovo -->
+<div class="modal fade" id="modalNuovoRinnovo" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="{{ url_for('rinnovo_aggiungi') }}">
+        <div class="modal-header">
+          <h6 class="modal-title"><i class="bi bi-arrow-repeat me-2 text-primary"></i>Nuovo rinnovo</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Paziente in anagrafica</label>
+            <select name="cliente_id" class="form-select form-select-sm" id="rin-cliente">
+              <option value="">— Nuovo paziente (scrivi sotto) —</option>
+              {% for c in clienti %}
+              <option value="{{ c.id }}">{{ c.cognome }} {{ c.nome }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="row g-2 mb-3" id="rin-nuovo-nome">
+            <div class="col">
+              <label class="form-label small">Cognome</label>
+              <input type="text" name="cognome" class="form-control form-control-sm" placeholder="Cognome">
+            </div>
+            <div class="col">
+              <label class="form-label small">Nome</label>
+              <input type="text" name="nome" class="form-control form-control-sm" placeholder="Nome">
+            </div>
+            <div class="form-text">Se non selezioni un paziente esistente, verrà creata la scheda cliente.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small">Tipologia / ausilio fornito</label>
+            <input type="text" name="tipologia" class="form-control form-control-sm" list="lista-tipologie-rin" placeholder="es. Ortesi Moveon, Shoulder, Carrozzina elettronica…">
+            <datalist id="lista-tipologie-rin">
+              {% for t in tipologie %}<option value="{{ t }}">{% endfor %}
+            </datalist>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small">Categoria di rinnovo</label>
+            <select name="categoria" class="form-select form-select-sm">
+              <option value="auto" selected>Automatica (dalla tipologia)</option>
+              {% for k, label in categorie.items() %}
+              <option value="{{ k }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="row g-2">
+            <div class="col-7">
+              <label class="form-label small">Data pratica (mese)</label>
+              <input type="month" name="data_pratica" class="form-control form-control-sm" value="{{ oggi_mese }}" required>
+            </div>
+            <div class="col-5">
+              <label class="form-label small">Mesi rinnovo</label>
+              <input type="number" name="mesi_rinnovo" class="form-control form-control-sm" min="1" placeholder="auto">
+            </div>
+          </div>
+          <div class="mt-3">
+            <label class="form-label small">Note</label>
+            <input type="text" name="note" class="form-control form-control-sm">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annulla</button>
+          <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-check-circle me-1"></i>Salva rinnovo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Nasconde i campi nome/cognome quando si seleziona un paziente esistente.
+(function () {
+  var sel = document.getElementById('rin-cliente');
+  var box = document.getElementById('rin-nuovo-nome');
+  function agg() { box.style.display = sel.value ? 'none' : ''; }
+  sel.addEventListener('change', agg); agg();
+})();
+</script>
+{% endblock %}

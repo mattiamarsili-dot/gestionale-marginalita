@@ -18,8 +18,10 @@ from config import (
     STATI_LAVORAZIONE, LEA_TIPOLOGIE,
     ANTHROPIC_API_KEY, NOTE_PRIORITA, NOTE_PRIORITA_GIORNI,
     TELEGRAM_WEBHOOK_SECRET, TELEGRAM_DIGEST_TOKEN,
+    RINNOVO_CATEGORIE,
 )
 import telegram_bot
+import rinnovi
 from database import (
     init_db, migrate_db, migrate_stati_e_assegnatari, backfill_clienti, get_db,
     calcola_margine, provvigione_corrente,
@@ -1000,6 +1002,159 @@ def fatturati():
         soglia_ok=MARGINE_SOGLIA_OK,
         soglia_warn=MARGINE_SOGLIA_WARN,
     )
+
+
+# ── Rinnovi ausili/ortesi ─────────────────────────────────────────────────────
+
+def _mese_a_data(mese: str):
+    """'YYYY-MM' → 'YYYY-MM-01' (o None) per l'input di tipo month."""
+    mese = (mese or "").strip()
+    if len(mese) == 7 and mese[4] == "-":
+        return mese + "-01"
+    if len(mese) >= 10:
+        return mese[:10]
+    return None
+
+
+def _cliente_data_nascita(cliente_id):
+    if not cliente_id:
+        return None
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT data_nascita FROM clienti WHERE id = {_PH}", (cliente_id,))
+        row = cur.fetchone()
+        return row["data_nascita"] if row else None
+
+
+def _crea_cliente_minimo(cognome, nome):
+    """Crea un cliente 'da verificare' con solo nome/cognome. Ritorna l'id."""
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"INSERT INTO clienti (cognome, nome, da_verificare) VALUES ({_PH},{_PH},{_PH})",
+            ((cognome or "").strip(), (nome or "").strip(), True))
+        return last_inserted_id(cur)
+
+
+def _leggi_form_rinnovo():
+    """Estrae e normalizza i campi comuni del form rinnovo (aggiungi/modifica)."""
+    tipologia = (request.form.get("tipologia") or "").strip()
+    ausilio   = (request.form.get("ausilio") or "").strip()
+    categoria = (request.form.get("categoria") or "auto").strip()
+    if categoria in ("", "auto"):
+        categoria = rinnovi.classifica_categoria(tipologia, ausilio)
+    mesi_raw = (request.form.get("mesi_rinnovo") or "").strip()
+    try:
+        mesi_override = int(mesi_raw) if mesi_raw else None
+    except ValueError:
+        mesi_override = None
+    return {
+        "categoria": categoria,
+        "tipologia": tipologia,
+        "ausilio": ausilio,
+        "data_pratica": _mese_a_data(request.form.get("data_pratica")),
+        "mesi_override": mesi_override,
+        "note": (request.form.get("note") or "").strip() or None,
+    }
+
+
+def _clienti_opzioni():
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id, cognome, nome FROM clienti ORDER BY cognome, nome")
+        return [dict(r) for r in cur.fetchall()]
+
+
+@app.route("/rinnovi")
+def rinnovi_lista():
+    return render_template(
+        "rinnovi.html",
+        righe=rinnovi.elenco(),
+        categorie=RINNOVO_CATEGORIE,
+        clienti=_clienti_opzioni(),
+        tipologie=opzioni_tipologia(),
+        finestra_mesi=rinnovi.FINESTRA_MESI,
+        oggi_mese=date.today().strftime("%Y-%m"),
+    )
+
+
+@app.route("/rinnovo/aggiungi", methods=["POST"])
+def rinnovo_aggiungi():
+    dati = _leggi_form_rinnovo()
+    cliente_id = request.form.get("cliente_id") or None
+    if cliente_id:
+        try:
+            cliente_id = int(cliente_id)
+        except ValueError:
+            cliente_id = None
+    cognome = (request.form.get("cognome") or "").strip()
+    nome    = (request.form.get("nome") or "").strip()
+    # Paziente non in anagrafica → crea la scheda cliente (scelta utente)
+    if not cliente_id and cognome:
+        cliente_id = _crea_cliente_minimo(cognome, nome)
+    data_nascita = _cliente_data_nascita(cliente_id)
+    u = utente_corrente()
+    rinnovi.crea(
+        cliente_id=cliente_id, nome=nome, cognome=cognome,
+        data_nascita=data_nascita, creato_da=(u["id"] if u else None), **dati)
+    return redirect(url_for("rinnovi_lista"))
+
+
+@app.route("/rinnovo/<int:rinnovo_id>/modifica", methods=["GET", "POST"])
+def rinnovo_modifica(rinnovo_id):
+    r = rinnovi.leggi(rinnovo_id)
+    if not r:
+        abort(404)
+    if request.method == "POST":
+        dati = _leggi_form_rinnovo()
+        rinnovi.aggiorna(rinnovo_id, data_nascita=r.get("data_nascita"), **dati)
+        return redirect(url_for("rinnovi_lista"))
+    dp = rinnovi._as_date(r.get("data_pratica"))
+    r["data_pratica_mese"] = dp.strftime("%Y-%m") if dp else ""
+    return render_template(
+        "rinnovo_form.html", r=r, categorie=RINNOVO_CATEGORIE,
+        clienti=_clienti_opzioni(), tipologie=opzioni_tipologia())
+
+
+@app.route("/rinnovo/<int:rinnovo_id>/stato", methods=["POST"])
+def rinnovo_stato(rinnovo_id):
+    stato = (request.form.get("stato") or "").strip()
+    if stato in ("rinnovato", "ignorato", "da_rinnovare"):
+        rinnovi.imposta_stato(rinnovo_id, stato)
+    if request.headers.get("X-Requested-With") in ("fetch", "XMLHttpRequest"):
+        return jsonify({"ok": True})
+    return redirect(request.form.get("torna") or url_for("rinnovi_lista"))
+
+
+@app.route("/rinnovo/da-pratica/<int:pratica_id>", methods=["POST"])
+def rinnovo_da_pratica(pratica_id):
+    """Materializza un rinnovo da un suggerimento (pratica fatturata):
+    stato 'rinnovato'/'ignorato' lo toglie dall'elenco; 'da_rinnovare' lo porta
+    tra i rinnovi (modificabile)."""
+    stato = (request.form.get("stato") or "da_rinnovare").strip()
+    p = rinnovi.pratica_per_rinnovo(pratica_id)
+    if not p:
+        abort(404)
+    categoria = rinnovi.classifica_categoria(p.get("tipologia"), p.get("ausilio"))
+    u = utente_corrente()
+    rinnovi.crea(
+        cliente_id=p.get("cliente_id"),
+        nome=(p.get("nome") or ""),
+        cognome=(p.get("cognome") or p.get("nome_paziente") or ""),
+        categoria=categoria, tipologia=p.get("tipologia"), ausilio=p.get("ausilio"),
+        data_pratica=p.get("data_pratica"), data_nascita=p.get("data_nascita"),
+        pratica_origine_id=pratica_id, stato=stato,
+        creato_da=(u["id"] if u else None))
+    if request.headers.get("X-Requested-With") in ("fetch", "XMLHttpRequest"):
+        return jsonify({"ok": True})
+    return redirect(request.form.get("torna") or url_for("rinnovi_lista"))
+
+
+@app.route("/rinnovo/<int:rinnovo_id>/elimina", methods=["POST"])
+@admin_required
+def rinnovo_elimina(rinnovo_id):
+    rinnovi.elimina(rinnovo_id)
+    return redirect(request.form.get("torna") or url_for("rinnovi_lista"))
 
 
 # ── Aggiungi / rimuovi fornitore singolo ─────────────────────────────────────
