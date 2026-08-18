@@ -15,7 +15,7 @@ from config import (
     PROVVIGIONE_PCT, PROVVIGIONE_PCT_RIDOTTA, STRUTTURA_PCT,
     PROVVIGIONE_PCT_17, PROVVIGIONE_PCT_18, SOGLIA_PROV_17, SOGLIA_PROV_18,
     MARGINE_SOGLIA_OK, MARGINE_SOGLIA_WARN, CENTRI, ASL_OPZIONI,
-    STATI_LAVORAZIONE, LEA_TIPOLOGIE,
+    STATI_LAVORAZIONE, LEA_TIPOLOGIE, PRATICHE_FERME_GIORNI,
     ANTHROPIC_API_KEY, NOTE_PRIORITA, NOTE_PRIORITA_GIORNI,
     TELEGRAM_WEBHOOK_SECRET, TELEGRAM_DIGEST_TOKEN,
     RINNOVO_CATEGORIE,
@@ -449,9 +449,27 @@ def dashboard():
                 ORDER BY ultima_attivita DESC LIMIT 10""",
             (u["id"],))
         clienti_recenti = cur.fetchall()
+        # Pratiche ferme nello stesso stato da ≥ soglia giorni (promemoria visibile
+        # in Home). Non le fatturate. Le più vecchie in cima.
+        cur.execute(
+            f"""SELECT p.id, p.nome_paziente, p.stato_lavorazione, p.stato_da,
+                       c.cognome AS c_cognome, c.nome AS c_nome
+                FROM pratiche p LEFT JOIN clienti c ON c.id = p.cliente_id
+                WHERE p.fatturata <> {_FATTURATA_TRUE} AND p.stato_da IS NOT NULL
+                  AND p.stato_da <= {_PH}
+                ORDER BY p.stato_da ASC LIMIT 12""",
+            ((datetime.now() - timedelta(days=PRATICHE_FERME_GIORNI)).isoformat(),))
+        pratiche_ferme = []
+        for r in cur.fetchall():
+            r = dict(r)
+            r["giorni_fermo"] = _giorni_da(r.get("stato_da"))
+            r["nominativo"] = (f"{r.get('c_cognome') or ''} {r.get('c_nome') or ''}".strip()
+                               or r.get("nome_paziente") or "—")
+            pratiche_ferme.append(r)
     return render_template(
         "dashboard_personale.html",
         task=task, pratiche_recenti=pratiche_recenti, clienti_recenti=clienti_recenti,
+        pratiche_ferme=pratiche_ferme, ferme_giorni=PRATICHE_FERME_GIORNI,
         NOTE_PRIORITA=NOTE_PRIORITA,
     )
 

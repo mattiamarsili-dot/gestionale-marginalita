@@ -19,6 +19,7 @@ from datetime import date, datetime, timedelta
 
 from config import (
     TELEGRAM_BOT_TOKEN, BASE_URL, STATI_LAVORAZIONE, NOTE_PRIORITA_GIORNI,
+    PRATICHE_FERME_GIORNI, PRATICHE_FERME_GIORNO_SETTIMANA,
 )
 from database import get_db, _PH, _LIKE, _FATTURATA_TRUE, last_inserted_id
 from utenti import (
@@ -788,17 +789,34 @@ def _cliente_di_pratica(pratica_id):
 
 
 # ── Digest / riepilogo ───────────────────────────────────────────────────────
-def _pratiche_ferme(limite=15):
+def _giorni_fermo(ts):
+    """Giorni interi da `ts` (stato_da) a oggi, o None."""
+    if not ts:
+        return None
+    try:
+        dt = ts if isinstance(ts, datetime) else datetime.fromisoformat(str(ts).replace(" ", "T"))
+    except ValueError:
+        return None
+    if dt.tzinfo is not None:
+        dt = dt.replace(tzinfo=None)
+    return max((datetime.now() - dt).days, 0)
+
+
+def _pratiche_ferme(limite=15, giorni=PRATICHE_FERME_GIORNI):
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute(
-            f"""SELECT p.id, p.nome_paziente, p.stato_lavorazione, c.cognome, c.nome
+            f"""SELECT p.id, p.nome_paziente, p.stato_lavorazione, p.stato_da,
+                       c.cognome, c.nome
                 FROM pratiche p LEFT JOIN clienti c ON c.id = p.cliente_id
                 WHERE p.fatturata <> {_FATTURATA_TRUE} AND p.stato_da IS NOT NULL
                   AND p.stato_da <= {_PH}
                 ORDER BY p.stato_da ASC LIMIT {int(limite)}""",
-            ((datetime.now() - timedelta(days=7)).isoformat(),))
-        return [dict(r) for r in cur.fetchall()]
+            ((datetime.now() - timedelta(days=int(giorni))).isoformat(),))
+        righe = [dict(r) for r in cur.fetchall()]
+    for r in righe:
+        r["giorni_fermo"] = _giorni_fermo(r.get("stato_da"))
+    return righe
 
 
 def _costruisci_digest(utente_id, ferme=None):
@@ -823,20 +841,29 @@ def _costruisci_digest(utente_id, ferme=None):
         for t in task:
             parti.append(f"• {_esc(t['testo'])} <i>({t['scadenza']})</i>")
     if ferme:
-        parti.append("\n<b>Pratiche ferme da &gt;7 giorni:</b>")
-        for p in ferme[:8]:
-            parti.append(f"• {_esc(_nome_pratica(p))} — {_esc(p.get('stato_lavorazione') or '')}")
+        parti.append(f"\n<b>Pratiche ferme da &ge;{PRATICHE_FERME_GIORNI} giorni:</b>")
+        for p in ferme[:10]:
+            gg = p.get("giorni_fermo")
+            suffisso = f" · <i>da {gg} gg</i>" if gg is not None else ""
+            parti.append(f"• {_esc(_nome_pratica(p))} — {_esc(p.get('stato_lavorazione') or '')}{suffisso}")
     rows = [[("📋 Apri i task", {"url": _url("/task-assegnati")})]]
     return "\n".join(parti), rows
 
 
 def invia_digest():
-    """Manda a ogni utente collegato pratiche ferme >7gg + suoi task in scadenza.
-    Pensata per una chiamata al giorno (cron/UptimeRobot)."""
+    """Manda a ogni utente collegato i suoi task in scadenza (ogni giorno) e, una
+    volta a settimana, le pratiche ferme da ≥N giorni. Pensata per una chiamata al
+    giorno (cron/UptimeRobot): la sezione "ferme" compare solo nel giorno stabilito
+    (PRATICHE_FERME_GIORNO_SETTIMANA), così il promemoria è settimanale."""
     if not attivo():
         return {"inviati": 0}
     inviati = 0
-    ferme = _pratiche_ferme()
+    # Le pratiche ferme entrano nel digest solo nel giorno settimanale scelto;
+    # negli altri giorni si mandano solo i task in scadenza.
+    if datetime.now().weekday() == PRATICHE_FERME_GIORNO_SETTIMANA:
+        ferme = _pratiche_ferme()
+    else:
+        ferme = []
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute("SELECT id, telegram_chat_id FROM utenti "

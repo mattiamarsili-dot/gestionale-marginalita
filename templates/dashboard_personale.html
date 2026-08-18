@@ -16,6 +16,29 @@
 
 <div class="row g-4">
 
+  <!-- Pratiche ferme (promemoria) -->
+  {% if pratiche_ferme %}
+  <div class="col-12">
+    <div class="card border-warning-subtle">
+      <div class="card-header bg-warning bg-opacity-10 d-flex align-items-center justify-content-between">
+        <span class="fw-semibold text-warning-emphasis"><i class="bi bi-hourglass-split me-2"></i>Pratiche ferme da ≥ {{ ferme_giorni }} giorni</span>
+        <a href="{{ url_for('pratiche') }}" class="small text-decoration-none">Apri Pratiche</a>
+      </div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush">
+          {% for p in pratiche_ferme %}
+          <li class="list-group-item d-flex align-items-center gap-2">
+            <a href="{{ url_for('dettaglio_pratica', pratica_id=p.id) }}" class="text-decoration-none fw-semibold flex-grow-1">{{ p.nominativo }}</a>
+            <span class="badge bg-secondary-subtle text-secondary">{{ p.stato_lavorazione or 'Da valutare' }}</span>
+            <span class="badge {% if p.giorni_fermo and p.giorni_fermo >= 30 %}bg-danger-subtle text-danger{% else %}bg-warning-subtle text-warning-emphasis{% endif %}">da {{ p.giorni_fermo }} gg</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   <!-- Task assegnati a me -->
   <div class="col-12 col-lg-6">
     <div class="card h-100">

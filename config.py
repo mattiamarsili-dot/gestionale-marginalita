@@ -58,6 +58,14 @@ STATI_LAVORAZIONE_LEGACY = {
     "Consegna":  "Ordinato",
 }
 
+# ── Pratiche ferme (promemoria) ──────────────────────────────────────────────
+# Una pratica è "ferma" se resta nello stesso stato (stato_da) da almeno N giorni.
+# Mostrata nel riquadro Home e nel promemoria settimanale del bot Telegram.
+PRATICHE_FERME_GIORNI = 14
+# Giorno della settimana in cui il digest include le pratiche ferme (0 = lunedì),
+# così il promemoria è settimanale pur girando il digest ogni giorno.
+PRATICHE_FERME_GIORNO_SETTIMANA = 0
+
 # ── Note/Task: priorità e scadenza automatica ────────────────────────────────
 NOTE_PRIORITA = ["Media", "Alta", "Urgente"]
 # Giorni entro cui il task va gestito, per priorità: definiscono la scadenza/avviso
