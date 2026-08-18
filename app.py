@@ -1614,12 +1614,14 @@ def aggiorna_dati_moduli(pratica_id):
 # ── Stato di lavorazione automatico ───────────────────────────────────────────
 # Lo stato avanza da solo con gli eventi della pratica, ma resta correggibile a
 # mano dal dropdown in lista. Gli stati sono ordinati (vedi STATI_LAVORAZIONE):
-#   Da valutare → Prescritto → ASL → Ordinato → Fatturato
-# Regole di avanzamento:
+#   Da valutare → Prescritto → ASL → Autorizzato → Ordinato → Fatturato
+# Regole di avanzamento AUTOMATICO:
 #   - prescrizione generata            → Prescritto
 #   - preventivo E delega generati     → ASL
 #   - ordine confermato (spunta)       → Ordinato
 #   - fatturata                        → Fatturato (gestito dalla route /fattura)
+# 'Autorizzato' è uno stato SOLO MANUALE (nessun evento lo imposta): si seleziona
+# a mano dall'elenco/bot. L'avanzamento automatico lo scavalca senza retrocedere.
 
 STATO_INDICE = {s: i for i, s in enumerate(STATI_LAVORAZIONE)}
 

@@ -46,7 +46,7 @@ ASL_OPZIONI = [
 # quando si generano i moduli o si conferma l'ordine (vedi ricalcola_stato_pratica
 # in app.py), ma resta correggibile a mano dal dropdown. L'ultimo stato "Fatturato"
 # coincide con pratiche.fatturata = TRUE e sparisce dalla lista pratiche.
-STATI_LAVORAZIONE = ["Da valutare", "Prescritto", "ASL", "Ordinato", "Fatturato"]
+STATI_LAVORAZIONE = ["Da valutare", "Prescritto", "ASL", "Autorizzato", "Ordinato", "Fatturato"]
 
 # Rimappatura dei vecchi stati (prima del workflow automatico) verso i nuovi.
 # Usata una tantum in migrate_stati() per non perdere i dati in produzione.

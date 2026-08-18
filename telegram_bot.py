@@ -244,13 +244,13 @@ def scheda_pratica(pratica_id):
 
     rows = []
     prossimo = _prossimo_stato(stato)
-    azioni = []
-    if prossimo and not p.get("fatturata"):
-        azioni.append((f"➡️ {prossimo}", {"cb": f"adv:{pratica_id}"}))
     if not p.get("fatturata"):
-        azioni.append(("🧾 Fatturata", {"cb": f"fat:{pratica_id}"}))
-    if azioni:
-        rows.append(azioni)
+        avanti = []
+        if prossimo:
+            avanti.append((f"➡️ {prossimo}", {"cb": f"adv:{pratica_id}"}))
+        avanti.append(("🔄 Stato", {"cb": f"st:{pratica_id}"}))
+        rows.append(avanti)
+        rows.append([("🧾 Fatturata", {"cb": f"fat:{pratica_id}"})])
     rows.append([("➕ Task", {"cb": f"tk:{pratica_id}"}),
                  ("🔗 Apri", {"url": _url(f"/pratica/{pratica_id}")})])
     return testo, rows
@@ -282,6 +282,40 @@ def avanza_stato(pratica_id):
             f"UPDATE pratiche SET stato_lavorazione = {_PH}, stato_da = {_PH} WHERE id = {_PH}",
             (nuovo, _now_iso(), pratica_id))
         return nuovo
+
+
+def imposta_stato(pratica_id, stato):
+    """Imposta DIRETTAMENTE lo stato scelto (senza rispettare la sequenza).
+    'Fatturato' passa da set_fatturato. Ritorna lo stato o None se non valido."""
+    if stato not in STATI_LAVORAZIONE:
+        return None
+    if stato == "Fatturato":
+        return set_fatturato(pratica_id)
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT id FROM pratiche WHERE id = {_PH}", (pratica_id,))
+        if not cur.fetchone():
+            return None
+        cur.execute(
+            f"UPDATE pratiche SET stato_lavorazione = {_PH}, stato_da = {_PH} WHERE id = {_PH}",
+            (stato, _now_iso(), pratica_id))
+    return stato
+
+
+def _tastiera_stati(pratica_id):
+    """Righe di bottoni per scegliere direttamente uno stato (escluso Fatturato,
+    che ha il pulsante 🧾 dedicato). Usa l'indice dello stato nel callback."""
+    rows, fila = [], []
+    for i, s in enumerate(STATI_LAVORAZIONE):
+        if s == "Fatturato":
+            continue
+        fila.append((s, {"cb": f"sts:{pratica_id}:{i}"}))
+        if len(fila) == 2:
+            rows.append(fila); fila = []
+    if fila:
+        rows.append(fila)
+    rows.append([("⬅️ Indietro", {"cb": f"p:{pratica_id}"})])
+    return rows
 
 
 def set_fatturato(pratica_id):
@@ -648,6 +682,27 @@ def _handle_callback(cb):
         nuovo = avanza_stato(int(arg))
         answer_callback(cb_id, f"Stato: {nuovo}" if nuovo else "Non modificabile")
         testo, rows = scheda_pratica(int(arg))
+        if testo:
+            edit_message(chat_id, message_id, testo, rows)
+        return
+    if tipo == "st":  # mostra la tastiera per scegliere direttamente lo stato
+        pid = int(arg)
+        testo, _ = scheda_pratica(pid)
+        answer_callback(cb_id)
+        if testo:
+            edit_message(chat_id, message_id, testo + "\n\n<i>Scegli il nuovo stato:</i>",
+                         _tastiera_stati(pid))
+        return
+    if tipo == "sts":  # imposta direttamente lo stato scelto (arg = "<pid>:<indice>")
+        pid_s, _, idx_s = arg.partition(":")
+        stato = None
+        try:
+            stato = STATI_LAVORAZIONE[int(idx_s)]
+        except (ValueError, IndexError):
+            stato = None
+        nuovo = imposta_stato(int(pid_s), stato) if stato else None
+        answer_callback(cb_id, f"Stato: {nuovo}" if nuovo else "Non valido")
+        testo, rows = scheda_pratica(int(pid_s))
         if testo:
             edit_message(chat_id, message_id, testo, rows)
         return
