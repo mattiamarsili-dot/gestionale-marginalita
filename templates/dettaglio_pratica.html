@@ -74,15 +74,45 @@
           </a>
         </div>
         {% else %}
-        {% set effettiva = pratica.drive_archivio_id or drive_root_id %}
+        {% set specifica = pratica.drive_archivio_id %}
+        {% set effettiva = specifica or drive_root_id %}
         <div class="d-flex flex-wrap align-items-center gap-2">
-          <span class="fw-semibold text-nowrap"><i class="bi bi-folder-fill text-warning me-1"></i>Cartella Drive</span>
+          <span class="fw-semibold text-nowrap">
+            <i class="bi bi-folder-fill {% if specifica %}text-success{% else %}text-warning{% endif %} me-1"></i>Cartella Drive
+            {% if specifica %}
+            <span class="badge bg-success-subtle text-success ms-1" title="Questa pratica archivia in una cartella propria, diversa dalla predefinita">
+              <i class="bi bi-check-lg"></i> specifica
+            </span>
+            {% endif %}
+          </span>
           {% if effettiva %}
           <a href="https://drive.google.com/drive/folders/{{ effettiva }}"
              target="_blank" rel="noopener" class="btn btn-sm btn-success text-nowrap">
             <i class="bi bi-box-arrow-up-right me-1"></i>Apri cartella
           </a>
           {% endif %}
+
+          {# Cartella solo per QUESTA pratica (override). La predefinita non ha più
+             una riga propria: resta solo come punto di partenza del navigatore
+             (vedi BROWSE_ROOT più sotto), da usare come riferimento quando si
+             cerca la cartella specifica. #}
+          <form id="drive-form-pratica" method="post" action="{{ url_for('pratica_drive_cartella', pratica_id=pratica.id) }}"
+                class="d-inline-flex align-items-center gap-1">
+            <input type="hidden" name="torna" value="{{ request.path }}">
+            <input type="hidden" name="folder_id" id="pratica-folder-id">
+            <button type="button" class="btn btn-sm btn-outline-secondary"
+                    onclick="apriDrivePicker('pratica')">
+              <i class="bi bi-folder2-open me-1"></i>{% if specifica %}Cambia{% else %}Scegli{% endif %} cartella…
+            </button>
+          </form>
+          {% if specifica %}
+          <form method="post" action="{{ url_for('pratica_drive_cartella', pratica_id=pratica.id) }}" class="d-inline">
+            <input type="hidden" name="torna" value="{{ request.path }}">
+            <input type="hidden" name="folder_id" value="__default__">
+            <button type="submit" class="btn btn-sm btn-link text-secondary p-0 text-decoration-none">↩ predefinita</button>
+          </form>
+          {% endif %}
+
           {% if drive_email %}
           <span class="ms-auto small text-muted">Drive di {{ drive_email }}</span>
           <form method="post" action="{{ url_for('drive_scollega') }}" class="d-inline"
@@ -93,40 +123,15 @@
           {% endif %}
         </div>
 
-        {# Cartella PREDEFINITA (vale per tutte le pratiche) #}
-        <div class="small mt-2 d-flex flex-wrap align-items-center gap-2">
-          <span><i class="bi bi-star-fill text-warning me-1"></i>Predefinita:
-            {% if drive_root_nome %}<strong>{{ drive_root_nome }}</strong>{% else %}<span class="text-muted">non impostata</span>{% endif %}
-          </span>
-          <form id="drive-form-default" method="post" action="{{ url_for('drive_imposta_cartella') }}"
-                class="d-inline-flex align-items-center gap-1">
-            <input type="hidden" name="torna" value="{{ request.path }}">
-            <input type="hidden" name="folder_id" id="default-folder-id">
-            <input type="hidden" name="folder_nome" id="default-folder-nome">
-            <button type="button" class="btn btn-sm btn-outline-secondary"
-                    onclick="apriDrivePicker('default')"><i class="bi bi-folder2-open me-1"></i>Sfoglia…</button>
-          </form>
-        </div>
-
-        {# Cartella solo per QUESTA pratica (override) #}
-        <div class="small mt-1 d-flex flex-wrap align-items-center gap-2">
-          <span class="text-muted"><i class="bi bi-folder me-1"></i>Solo questa pratica:</span>
-          <form id="drive-form-pratica" method="post" action="{{ url_for('pratica_drive_cartella', pratica_id=pratica.id) }}"
-                class="d-inline-flex align-items-center gap-1">
-            <input type="hidden" name="torna" value="{{ request.path }}">
-            <input type="hidden" name="folder_id" id="pratica-folder-id">
-            <button type="button" class="btn btn-sm btn-outline-secondary"
-                    onclick="apriDrivePicker('pratica')"><i class="bi bi-folder2-open me-1"></i>Scegli cartella…</button>
-          </form>
-          {% if pratica.drive_archivio_id %}
-          <span class="badge bg-primary-subtle text-primary">cartella specifica impostata</span>
-          <form method="post" action="{{ url_for('pratica_drive_cartella', pratica_id=pratica.id) }}" class="d-inline">
-            <input type="hidden" name="torna" value="{{ request.path }}">
-            <input type="hidden" name="folder_id" value="__default__">
-            <button type="submit" class="btn btn-sm btn-link text-secondary p-0 text-decoration-none">↩ torna alla predefinita</button>
-          </form>
-          {% endif %}
-        </div>
+        {# Form della cartella predefinita: nessuna riga visibile (il navigatore la
+           usa comunque come cartella base — vedi BROWSE_ROOT in JS più sotto), ma
+           i campi restano nel DOM per non rompere il navigatore se in futuro serve
+           di nuovo un punto d'ingresso per cambiarla. #}
+        <form id="drive-form-default" method="post" action="{{ url_for('drive_imposta_cartella') }}" class="d-none">
+          <input type="hidden" name="torna" value="{{ request.path }}">
+          <input type="hidden" name="folder_id" id="default-folder-id">
+          <input type="hidden" name="folder_nome" id="default-folder-nome">
+        </form>
         {% endif %}
       </div>
     </div>
@@ -1422,7 +1427,9 @@ function eurPlain(n) {
     const sfondo = intestazione ? 'background:#f4f4f4;' : '';
     const allineaDx = valuta ? 'text-align:right;' : '';
     const stileCella = `border:1px solid #d9d9d9;padding:4px 10px;${peso}${sfondo}`;
-    return `<tr><td style="${stileCella}">${cella1}</td>`
+    // La cella dell'etichetta non va a capo: con la tabella più larga il testo
+    // più lungo ("Totale costo fornitori") resta su una riga sola.
+    return `<tr><td style="${stileCella}white-space:nowrap;">${cella1}</td>`
          + `<td style="${stileCella}${allineaDx}">${cella2}</td></tr>`;
   }
 
@@ -1431,17 +1438,33 @@ function eurPlain(n) {
     return `<tr><td colspan="2" style="${stile}">${testo}</td></tr>`;
   }
 
+  // Importo ASL e differenza a carico paziente: letti dagli stessi input della
+  // scheda, così riflettono quello che stai scrivendo anche prima di salvare.
+  function importoAslAttuale() {
+    const inp = document.getElementById('inp-importo-asl');
+    return inp ? (parseFloat(inp.value) || 0) : 0;
+  }
+  function importoPrivatoAttuale() {
+    const inp = document.getElementById('inp-importo-privato');
+    return inp ? (parseFloat(inp.value) || 0) : 0;
+  }
+
   function costruisciHtml() {
     const paziente = card.dataset.paziente || 'Paziente';
     const numero   = card.dataset.numeroPratica;
     const asl      = card.dataset.aslNome;
     const dataP    = card.dataset.dataPratica;
     const titolo   = numero ? `Pratica ${numero} — ${paziente}` : paziente;
+    const privato  = importoPrivatoAttuale();
 
     let righe = '';
     righe += rigaTitolo(titolo);
     if (asl)   righe += riga('ASL', asl);
     if (dataP) righe += riga('Data pratica', dataP);
+    righe += riga('Importo ASL', eur(importoAslAttuale()), { valuta: true });
+    if (privato > 0) {
+      righe += riga('Differenza a carico paziente', eur(privato), { valuta: true });
+    }
 
     righe += rigaTitolo('Costi fornitori');
     const fornitori = fornitoriAttuali();
@@ -1456,7 +1479,7 @@ function eurPlain(n) {
     righe += riga('MOL', testoSpan('m-mol'), { intestazione: true, valuta: true });
     righe += riga('Margine', testoSpan('m-pct'), { intestazione: true, valuta: true });
 
-    return `<table style="border-collapse:collapse;font-family:Arial,Helvetica,sans-serif;`
+    return `<table style="border-collapse:collapse;width:520px;font-family:Arial,Helvetica,sans-serif;`
          + `font-size:13px;color:#222;">${righe}</table>`;
   }
 
@@ -1465,10 +1488,15 @@ function eurPlain(n) {
     const numero   = card.dataset.numeroPratica;
     const asl      = card.dataset.aslNome;
     const dataP    = card.dataset.dataPratica;
+    const privato  = importoPrivatoAttuale();
     const righe = [];
     righe.push(numero ? `Pratica ${numero} — ${paziente}` : paziente);
     if (asl)   righe.push(`ASL: ${asl}`);
     if (dataP) righe.push(`Data pratica: ${dataP}`);
+    righe.push(`Importo ASL: ${eur(importoAslAttuale())}`);
+    if (privato > 0) {
+      righe.push(`Differenza a carico paziente: ${eur(privato)}`);
+    }
     righe.push('');
     righe.push('Costi fornitori:');
     const fornitori = fornitoriAttuali();
