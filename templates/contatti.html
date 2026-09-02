@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Contatti clinici — Gestionale{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div>
+    <h4 class="fw-bold mb-0"><i class="bi bi-person-vcard me-2 text-primary"></i>Contatti clinici</h4>
+    <small class="text-muted">Rubrica di medici, terapisti e referenti dei centri — si compila man mano</small>
+  </div>
+  <form method="get" action="{{ url_for('contatti') }}" class="d-flex gap-2" style="max-width:340px">
+    <input type="search" name="q" value="{{ q }}" class="form-control form-control-sm"
+           placeholder="Cerca nome, centro, ruolo…" autocomplete="off">
+    {% if q %}<a href="{{ url_for('contatti') }}" class="btn btn-outline-secondary btn-sm">✕</a>{% endif %}
+    <button class="btn btn-outline-primary btn-sm" type="submit"><i class="bi bi-search"></i></button>
+  </form>
+</div>
+
+{# ── Form: nuovo contatto ─────────────────────────────────────────────── #}
+<div class="card mb-3">
+  <div class="card-body py-3">
+    <form method="post" action="{{ url_for('contatto_nuovo') }}" class="row g-2 align-items-end">
+      <div class="col-6 col-md">
+        <label class="form-label small text-muted mb-1">Cognome</label>
+        <input name="cognome" class="form-control form-control-sm" autocomplete="off">
+      </div>
+      <div class="col-6 col-md">
+        <label class="form-label small text-muted mb-1">Nome</label>
+        <input name="nome" class="form-control form-control-sm" autocomplete="off">
+      </div>
+      <div class="col-6 col-md">
+        <label class="form-label small text-muted mb-1">Ruolo</label>
+        <input name="ruolo" class="form-control form-control-sm" placeholder="es. Fisiatra" autocomplete="off">
+      </div>
+      <div class="col-6 col-md">
+        <label class="form-label small text-muted mb-1">Centro</label>
+        <input name="centro" class="form-control form-control-sm" autocomplete="off">
+      </div>
+      <div class="col-6 col-md">
+        <label class="form-label small text-muted mb-1">Telefono</label>
+        <input name="telefono" class="form-control form-control-sm" autocomplete="off">
+      </div>
+      <div class="col-6 col-md">
+        <label class="form-label small text-muted mb-1">Email</label>
+        <input name="email" type="email" class="form-control form-control-sm" autocomplete="off">
+      </div>
+      <div class="col-12 col-md-auto">
+        <button class="btn btn-primary btn-sm w-100" type="submit">
+          <i class="bi bi-plus-lg me-1"></i>Aggiungi
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── Tabella contatti ─────────────────────────────────────────────────── #}
+{% if contatti %}
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0" id="tabella-contatti">
+        <thead class="table-light">
+          <tr>
+            <th style="min-width:130px">Cognome</th>
+            <th style="min-width:120px">Nome</th>
+            <th style="min-width:130px">Ruolo</th>
+            <th style="min-width:150px">Centro</th>
+            <th style="min-width:130px">Telefono</th>
+            <th style="min-width:180px">Email</th>
+            <th style="min-width:160px">Note</th>
+            <th style="width:42px"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in contatti %}
+          <tr data-id="{{ c.id }}">
+            {% for campo in ['cognome','nome','ruolo','centro','telefono','email','note'] %}
+            <td>
+              <input class="form-control form-control-sm border-0 cella-contatto"
+                     data-campo="{{ campo }}" value="{{ c[campo] or '' }}"
+                     {% if campo == 'email' %}type="email"{% endif %}
+                     autocomplete="off">
+            </td>
+            {% endfor %}
+            <td class="text-center">
+              {% if is_admin %}
+              <form method="post" action="{{ url_for('contatto_elimina', contatto_id=c.id) }}"
+                    onsubmit="return confirm('Eliminare questo contatto?');" class="d-inline">
+                <button class="btn btn-link btn-sm text-danger p-0" title="Elimina">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<p class="text-muted small mt-2 mb-0">
+  <i class="bi bi-info-circle me-1"></i>Ogni modifica si salva da sola quando esci dal campo.
+</p>
+{% else %}
+<div class="text-center text-muted py-5">
+  <i class="bi bi-person-vcard fs-1 d-block mb-2 opacity-50"></i>
+  {% if q %}Nessun contatto trovato per «{{ q }}».{% else %}Ancora nessun contatto. Aggiungine uno dal modulo qui sopra.{% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  document.querySelectorAll('.cella-contatto').forEach(function (input) {
+    input.dataset.orig = input.value;
+    input.addEventListener('change', salva);
+    input.addEventListener('blur', salva);
+  });
+
+  function salva(e) {
+    var input = e.target;
+    var val = input.value.trim();
+    if (val === input.dataset.orig) return;      // niente da salvare
+    var id = input.closest('tr').dataset.id;
+    var body = new URLSearchParams({ campo: input.dataset.campo, valore: val });
+    input.classList.remove('is-invalid');
+    fetch('/contatto/' + id + '/campo', {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest',
+                 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString()
+    })
+    .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+    .then(function () {
+      input.dataset.orig = val;
+      input.classList.add('is-valid');
+      setTimeout(function () { input.classList.remove('is-valid'); }, 900);
+    })
+    .catch(function () {
+      input.classList.add('is-invalid');
+      input.value = input.dataset.orig;          // ripristina in caso di errore
+    });
+  }
+})();
+</script>
+{% endblock %}

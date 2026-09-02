@@ -383,6 +383,77 @@
           </div>
         </div>
 
+        <!-- Relazione tecnica (documento Word con carta intestata) -->
+        <div class="card mb-4" id="relazione"
+             data-testo-url="{{ url_for('aggiorna_testo_pratica', pratica_id=pratica.id) }}">
+          <div class="card-header bg-secondary text-white py-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <span><i class="bi bi-file-earmark-text me-2"></i>Relazione tecnica</span>
+            <span class="badge bg-success text-white {% if not relazione_generata %}d-none{% endif %}"
+                  id="badge-relazione" title="Relazione già generata">
+              <i class="bi bi-check-lg"></i> generata
+            </span>
+          </div>
+          <div class="card-body">
+            {% if not cliente %}
+            <div class="alert alert-warning py-2 small mb-3">
+              <i class="bi bi-exclamation-triangle-fill me-1"></i>
+              Collega un cliente in anagrafica per generare la relazione: servono i dati del paziente.
+              <a href="{{ url_for('modifica_pratica', pratica_id=pratica.id) }}">Collega un cliente</a>.
+            </div>
+            {% endif %}
+            {% if request.args.get('manca_template') %}
+            <div class="alert alert-danger py-2 small mb-3">
+              <i class="bi bi-exclamation-triangle-fill me-1"></i>
+              Manca il template <code>Relazione Tecnica.docx</code> in <code>assets/word-templates/</code>.
+            </div>
+            {% endif %}
+
+            <label class="form-label form-label-sm mb-1 d-flex justify-content-between align-items-end">
+              <span class="fw-semibold">Descrizione posturale</span>
+              <small id="rel-stato" class="text-muted"></small>
+            </label>
+            <textarea id="txt-posturale" class="form-control form-control-sm" rows="8"
+                      placeholder="Valutazione del paziente e motivazione della codifica consigliata…">{{ pratica.descrizione_posturale or '' }}</textarea>
+            <div class="form-text">Si salva da sola mentre scrivi. Finisce nella relazione al posto di <code>{{ '{{descrizione_posturale}}' }}</code>.</div>
+
+            <hr class="my-3">
+            <div class="small text-muted mb-1 fw-semibold">Codici consigliati che finiranno nella relazione</div>
+            {% if righe %}
+            <ul class="list-unstyled small mb-3">
+              {% for r in righe %}
+              <li class="d-flex gap-2 border-bottom py-1">
+                <code class="text-nowrap">{{ r.codice_iso or '—' }}</code>
+                <span class="flex-grow-1">{{ r.descrizione or '' }}</span>
+                <span class="text-muted text-nowrap">q.tà {{ (r.qta or 0)|round(0, 'floor')|int }}</span>
+              </li>
+              {% endfor %}
+            </ul>
+            {% else %}
+            <div class="text-muted small mb-3">
+              Nessun codice inserito: aggiungili nelle <a href="#ausili">righe ausili</a> qui sopra.
+            </div>
+            {% endif %}
+
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              {% if relazione_pronta %}
+              <a href="{{ url_for('genera_relazione', pratica_id=pratica.id) }}"
+                 class="btn btn-sm btn-primary {% if not cliente %}disabled{% endif %}" id="btn-relazione">
+                <i class="bi bi-file-earmark-word me-1"></i>Genera relazione
+              </a>
+              <small class="text-muted">Scarica un Word modificabile, già impaginato sulla tua carta intestata.</small>
+              {% else %}
+              <button class="btn btn-sm btn-primary" disabled>
+                <i class="bi bi-file-earmark-word me-1"></i>Genera relazione
+              </button>
+              <small class="text-muted">
+                Per attivarla: metti il tuo modello Word (con i segnaposto <code>{{ '{{...}}' }}</code>)
+                in <code>assets/word-templates/Relazione Tecnica.docx</code>.
+              </small>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
         <!-- Moduli PDF -->
         <div class="card" id="moduli" data-moduli-url="{{ url_for('aggiorna_moduli_attivi', pratica_id=pratica.id) }}">
           <div class="card-header bg-dark text-white py-3 d-flex align-items-center justify-content-between">
@@ -432,10 +503,19 @@
                     <i class="bi bi-download"></i>
                   </button>
                   {% else %}
-                  <a href="{{ url_for('genera_modulo', pratica_id=pratica.id, template_id=m.id) }}"
-                     class="btn btn-sm btn-primary text-nowrap modulo-genera {% if not attivo %}d-none{% endif %}">
-                    <i class="bi bi-download me-1"></i>Genera
-                  </a>
+                  <div class="d-flex gap-1">
+                    <a href="{{ url_for('genera_modulo', pratica_id=pratica.id, template_id=m.id) }}"
+                       class="btn btn-sm btn-primary text-nowrap modulo-genera {% if not attivo %}d-none{% endif %}">
+                      <i class="bi bi-download me-1"></i>Genera
+                    </a>
+                    {% if m.id in moduli_word %}
+                    <a href="{{ url_for('genera_modulo_word', pratica_id=pratica.id, template_id=m.id) }}"
+                       class="btn btn-sm btn-outline-primary text-nowrap modulo-genera {% if not attivo %}d-none{% endif %}"
+                       title="Scarica in Word (modificabile)">
+                      <i class="bi bi-file-earmark-word me-1"></i>Word
+                    </a>
+                    {% endif %}
+                  </div>
                   {% endif %}
                 </div>
               </div>
@@ -488,7 +568,7 @@
 
               <div class="card-body p-0">
                 {% if preventivi %}
-                <table class="table mb-0">
+                <table class="table mb-0" id="tabella-fornitori">
                   <thead class="table-light">
                     <tr>
                       <th>Fornitore</th>
@@ -564,9 +644,20 @@
                  data-costo="{{ margine.costo }}"
                  data-tot-ausili="{{ tot_ausili }}"
                  data-soglia-ok="{{ soglia_ok }}"
-                 data-soglia-warn="{{ soglia_warn }}">
-              <div class="card-header bg-primary text-white py-3">
-                <i class="bi bi-calculator me-2"></i>Analisi Margine
+                 data-soglia-warn="{{ soglia_warn }}"
+                 data-paziente="{{ pratica.nome_paziente or '' }}"
+                 data-numero-pratica="{{ pratica.numero_pratica or '' }}"
+                 data-asl-nome="{{ pratica.asl_destinataria or (cliente.asl if cliente else '') or '' }}"
+                 data-data-pratica="{{ pratica.data_pratica or '' }}">
+              <div class="card-header bg-primary text-white py-3 d-flex align-items-center justify-content-between">
+                <span><i class="bi bi-calculator me-2"></i>Analisi Margine</span>
+                <button type="button" class="btn btn-sm btn-light" id="btn-copia-riepilogo"
+                        title="Copia il riepilogo formattato, pronto da incollare in una mail">
+                  <i class="bi bi-clipboard-check me-1"></i>Copia per mail
+                </button>
+              </div>
+              <div class="px-3 pt-2">
+                <small id="copia-stato" class="text-muted" style="min-height:1em;display:block"></small>
               </div>
               <div class="card-body">
                 <!-- Importo ASL: precompilato dai codici, modificabile -->
@@ -609,7 +700,7 @@
                     <span id="m-provvigione">— € {{ "%.2f"|format(margine.provvigione) }}</span>
                   </div>
                   <div class="riga-calc text-muted">
-                    <span>Struttura {{ margine.struttura_pct | int }}%</span>
+                    <span id="m-strutt-label">Struttura {{ margine.struttura_pct | int }}%</span>
                     <span id="m-struttura">— € {{ "%.2f"|format(margine.struttura) }}</span>
                   </div>
                   <div class="riga-calc totale mt-1 pt-1">
@@ -772,6 +863,45 @@
     if (trigger) new bootstrap.Tab(trigger).show();
     if (target !== pane) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
+})();
+
+// ── Descrizione posturale: salvataggio automatico mentre si scrive ──────────
+(function () {
+  const box  = document.getElementById('relazione');
+  const area = document.getElementById('txt-posturale');
+  const nota = document.getElementById('rel-stato');
+  if (!box || !area) return;
+  const url = box.dataset.testoUrl;
+  let timer = null, ultimo = area.value;
+
+  function salva() {
+    const valore = area.value;
+    if (valore === ultimo) return;
+    nota.textContent = 'salvataggio…';
+    nota.className = 'text-muted';
+    const dati = new FormData();
+    dati.append('campo', 'descrizione_posturale');
+    dati.append('valore', valore);
+    fetch(url, { method: 'POST', body: dati, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(r => r.json())
+      .then(d => {
+        if (!d.ok) throw new Error(d.errore || 'errore');
+        ultimo = valore;
+        nota.textContent = 'salvato';
+        nota.className = 'text-success';
+      })
+      .catch(() => {
+        nota.textContent = 'non salvato — riprova';
+        nota.className = 'text-danger';
+      });
+  }
+
+  area.addEventListener('input', () => {
+    clearTimeout(timer);
+    nota.textContent = '';
+    timer = setTimeout(salva, 800);   // si salva 0,8s dopo l'ultimo tasto
+  });
+  area.addEventListener('blur', () => { clearTimeout(timer); salva(); });
 })();
 
 // ── Autocomplete paziente nella scheda Codifica (con ASL da anagrafica) ──────
@@ -1259,6 +1389,126 @@ function eurPlain(n) {
 
   // Esposta così l'editing degli importi fornitori può rilanciare il calcolo MOL.
   window.ricalcolaMargine = ricalcola;
+})();
+
+// ── Copia riepilogo margine formattato (per incollare in mail) ───────────────
+(function () {
+  const card = document.getElementById('card-margine');
+  const btn  = document.getElementById('btn-copia-riepilogo');
+  if (!card || !btn) return;
+  const nota = document.getElementById('copia-stato');
+
+  // Legge i valori così come sono mostrati a schermo in questo momento: restano
+  // in sync anche dopo una modifica inline (fornitore, ASL, privato…) senza
+  // bisogno di ricalcolare nulla qui.
+  function testoSpan(id) {
+    const el = document.getElementById(id);
+    return el ? el.textContent.replace(/^—\s*/, '').trim() : '';
+  }
+
+  function fornitoriAttuali() {
+    const righe = [];
+    document.querySelectorAll('#tabella-fornitori tbody tr').forEach(tr => {
+      const nome = (tr.children[0] ? tr.children[0].textContent : '').trim();
+      const inp = tr.querySelector('.inp-fornitore-importo');
+      const importo = inp ? (parseFloat(inp.value) || 0) : 0;
+      righe.push({ nome, importo });
+    });
+    return righe;
+  }
+
+  function riga(cella1, cella2, { intestazione = false, valuta = false } = {}) {
+    const peso = intestazione ? 'font-weight:bold;' : '';
+    const sfondo = intestazione ? 'background:#f4f4f4;' : '';
+    const allineaDx = valuta ? 'text-align:right;' : '';
+    const stileCella = `border:1px solid #d9d9d9;padding:4px 10px;${peso}${sfondo}`;
+    return `<tr><td style="${stileCella}">${cella1}</td>`
+         + `<td style="${stileCella}${allineaDx}">${cella2}</td></tr>`;
+  }
+
+  function rigaTitolo(testo) {
+    const stile = 'border:1px solid #d9d9d9;padding:6px 10px;font-weight:bold;background:#e9ecef;';
+    return `<tr><td colspan="2" style="${stile}">${testo}</td></tr>`;
+  }
+
+  function costruisciHtml() {
+    const paziente = card.dataset.paziente || 'Paziente';
+    const numero   = card.dataset.numeroPratica;
+    const asl      = card.dataset.aslNome;
+    const dataP    = card.dataset.dataPratica;
+    const titolo   = numero ? `Pratica ${numero} — ${paziente}` : paziente;
+
+    let righe = '';
+    righe += rigaTitolo(titolo);
+    if (asl)   righe += riga('ASL', asl);
+    if (dataP) righe += riga('Data pratica', dataP);
+
+    righe += rigaTitolo('Costi fornitori');
+    const fornitori = fornitoriAttuali();
+    if (fornitori.length) {
+      fornitori.forEach(f => { righe += riga(f.nome, eur(f.importo), { valuta: true }); });
+    } else {
+      righe += riga('Nessun costo fornitore registrato', '');
+    }
+    righe += riga('Totale costo fornitori', testoSpan('m-costo'), { valuta: true });
+    righe += riga(document.getElementById('m-prov-label').textContent, testoSpan('m-provvigione'), { valuta: true });
+    righe += riga(document.getElementById('m-strutt-label').textContent, testoSpan('m-struttura'), { valuta: true });
+    righe += riga('MOL', testoSpan('m-mol'), { intestazione: true, valuta: true });
+    righe += riga('Margine', testoSpan('m-pct'), { intestazione: true, valuta: true });
+
+    return `<table style="border-collapse:collapse;font-family:Arial,Helvetica,sans-serif;`
+         + `font-size:13px;color:#222;">${righe}</table>`;
+  }
+
+  function costruisciTesto() {
+    const paziente = card.dataset.paziente || 'Paziente';
+    const numero   = card.dataset.numeroPratica;
+    const asl      = card.dataset.aslNome;
+    const dataP    = card.dataset.dataPratica;
+    const righe = [];
+    righe.push(numero ? `Pratica ${numero} — ${paziente}` : paziente);
+    if (asl)   righe.push(`ASL: ${asl}`);
+    if (dataP) righe.push(`Data pratica: ${dataP}`);
+    righe.push('');
+    righe.push('Costi fornitori:');
+    const fornitori = fornitoriAttuali();
+    if (fornitori.length) {
+      fornitori.forEach(f => righe.push(`  ${f.nome}: ${eur(f.importo)}`));
+    } else {
+      righe.push('  (nessuno)');
+    }
+    righe.push(`Totale costo fornitori: ${testoSpan('m-costo')}`);
+    righe.push(`${document.getElementById('m-prov-label').textContent}: ${testoSpan('m-provvigione')}`);
+    righe.push(`${document.getElementById('m-strutt-label').textContent}: ${testoSpan('m-struttura')}`);
+    righe.push(`MOL: ${testoSpan('m-mol')}`);
+    righe.push(`Margine: ${testoSpan('m-pct')}`);
+    return righe.join('\n');
+  }
+
+  async function copia() {
+    const html = costruisciHtml();
+    const testo = costruisciTesto();
+    try {
+      if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+        await navigator.clipboard.write([new ClipboardItem({
+          'text/html':  new Blob([html], { type: 'text/html' }),
+          'text/plain': new Blob([testo], { type: 'text/plain' }),
+        })]);
+      } else {
+        // Browser senza supporto HTML negli appunti: copia il solo testo
+        // semplice (l'allineamento a colonna si perde, il contenuto no).
+        await navigator.clipboard.writeText(testo);
+      }
+      nota.textContent = '✓ copiato — incollalo nella mail';
+      nota.className = 'text-success';
+    } catch (_) {
+      nota.textContent = '⚠️ copia non riuscita, riprova';
+      nota.className = 'text-danger';
+    }
+    setTimeout(() => { nota.textContent = ''; }, 3500);
+  }
+
+  btn.addEventListener('click', copia);
 })();
 
 // ── Importi fornitori editabili: modifica inline + ricalcolo MOL live ────────

@@ -27,6 +27,9 @@ backup_*.json
 # Dati reali / documenti (non vanno versionati)
 *.xlsx
 *.docx
+# ...eccetto i modelli Word compilabili (come i PDF in assets/pdf-templates,
+# vanno versionati: sono l'app, non dati di un paziente).
+!assets/word-templates/*.docx
 
 # Config locale dell'editor / Claude
 .claude/

@@ -80,6 +80,9 @@
         <a class="nav-link {% if request.endpoint in ['clienti', 'cliente_nuovo', 'cliente_dettaglio', 'cliente_modifica'] %}active{% endif %}" href="{{ lista_clienti_url }}">
           <i class="bi bi-people-fill me-1"></i>Clienti
         </a>
+        <a class="nav-link {% if request.endpoint == 'contatti' %}active{% endif %}" href="{{ url_for('contatti') }}">
+          <i class="bi bi-person-vcard me-1"></i>Contatti
+        </a>
         <a class="nav-link {% if request.endpoint in ['pratiche', 'dettaglio_pratica', 'modifica_pratica', 'nuova_pratica'] %}active{% endif %}" href="{{ lista_pratiche_url }}">
           <i class="bi bi-folder2-open me-1"></i>Pratiche
         </a>

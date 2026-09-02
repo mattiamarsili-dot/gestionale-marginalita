@@ -204,13 +204,22 @@ def sottocartella_paziente(cliente: dict, root_id: str) -> str:
     return crea_cartella(etichetta, root_id)["id"]
 
 
-def carica_pdf(data: bytes, nome: str, folder_id: str) -> dict:
-    """Carica un PDF nella cartella indicata. Ritorna {id, link}."""
+DOCX_MIMETYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
+def carica_file(data: bytes, nome: str, folder_id: str,
+                mimetype: str = "application/pdf") -> dict:
+    """Carica un file nella cartella indicata. Ritorna {id, link}."""
     svc = _service()
-    media = MediaIoBaseUpload(io.BytesIO(data), mimetype="application/pdf", resumable=False)
+    media = MediaIoBaseUpload(io.BytesIO(data), mimetype=mimetype, resumable=False)
     f = svc.files().create(
         body={"name": nome, "parents": [folder_id]},
         media_body=media,
         fields="id, webViewLink",
     ).execute()
     return {"id": f["id"], "link": f.get("webViewLink", "")}
+
+
+def carica_pdf(data: bytes, nome: str, folder_id: str) -> dict:
+    """Carica un PDF nella cartella indicata. Ritorna {id, link}."""
+    return carica_file(data, nome, folder_id, "application/pdf")

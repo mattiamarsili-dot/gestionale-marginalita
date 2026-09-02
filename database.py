@@ -110,6 +110,7 @@ _SQLITE_SCHEMA = """
         medico_struttura TEXT,
         diagnosi         TEXT,
         sign_terapeutico TEXT,
+        descrizione_posturale TEXT,
         iva_percentuale  REAL NOT NULL DEFAULT 4,
         moduli_attivi    TEXT,
         moduli_generati  TEXT,
@@ -206,6 +207,18 @@ _SQLITE_SCHEMA = """
         FOREIGN KEY (utente_id) REFERENCES utenti(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS contatti_clinici (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        cognome    TEXT NOT NULL DEFAULT '',
+        nome       TEXT NOT NULL DEFAULT '',
+        ruolo      TEXT,
+        centro     TEXT,
+        telefono   TEXT,
+        email      TEXT,
+        note       TEXT,
+        creato_il  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS rinnovi (
         id                 INTEGER PRIMARY KEY AUTOINCREMENT,
         cliente_id         INTEGER,
@@ -298,6 +311,7 @@ _POSTGRES_SCHEMA = """
         medico_struttura TEXT,
         diagnosi         TEXT,
         sign_terapeutico TEXT,
+        descrizione_posturale TEXT,
         iva_percentuale  REAL NOT NULL DEFAULT 4,
         moduli_attivi    TEXT,
         moduli_generati  TEXT,
@@ -390,6 +404,18 @@ _POSTGRES_SCHEMA = """
         PRIMARY KEY (note_id, utente_id)
     );
 
+    CREATE TABLE IF NOT EXISTS contatti_clinici (
+        id         SERIAL PRIMARY KEY,
+        cognome    TEXT NOT NULL DEFAULT '',
+        nome       TEXT NOT NULL DEFAULT '',
+        ruolo      TEXT,
+        centro     TEXT,
+        telefono   TEXT,
+        email      TEXT,
+        note       TEXT,
+        creato_il  TIMESTAMPTZ DEFAULT NOW()
+    );
+
     CREATE TABLE IF NOT EXISTS rinnovi (
         id                 SERIAL PRIMARY KEY,
         cliente_id         INTEGER REFERENCES clienti(id)  ON DELETE SET NULL,
@@ -470,6 +496,8 @@ def migrate_db():
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS medico_struttura TEXT",
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS diagnosi TEXT",
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS sign_terapeutico TEXT",
+            # Descrizione posturale: testo libero della relazione tecnica.
+            "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS descrizione_posturale TEXT",
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS iva_percentuale REAL NOT NULL DEFAULT 4",
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS moduli_attivi TEXT",
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS moduli_generati TEXT",
@@ -514,6 +542,8 @@ def migrate_db():
             "ALTER TABLE pratiche ADD COLUMN medico_struttura TEXT",
             "ALTER TABLE pratiche ADD COLUMN diagnosi TEXT",
             "ALTER TABLE pratiche ADD COLUMN sign_terapeutico TEXT",
+            # Descrizione posturale: testo libero della relazione tecnica.
+            "ALTER TABLE pratiche ADD COLUMN descrizione_posturale TEXT",
             "ALTER TABLE pratiche ADD COLUMN iva_percentuale REAL NOT NULL DEFAULT 4",
             "ALTER TABLE pratiche ADD COLUMN moduli_attivi TEXT",
             "ALTER TABLE pratiche ADD COLUMN moduli_generati TEXT",
@@ -549,6 +579,19 @@ def migrate_db():
                extra     TEXT,
                creato_il TIMESTAMP DEFAULT CURRENT_TIMESTAMP
            )""",
+        # Rubrica contatti clinici (nome/cognome/ruolo/centro/tel/mail) — SQL comune.
+        """CREATE TABLE IF NOT EXISTS contatti_clinici (
+               id         INTEGER PRIMARY KEY,
+               cognome    TEXT NOT NULL DEFAULT '',
+               nome       TEXT NOT NULL DEFAULT '',
+               ruolo      TEXT,
+               centro     TEXT,
+               telefono   TEXT,
+               email      TEXT,
+               note       TEXT,
+               creato_il  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+           )""",
+        "CREATE INDEX IF NOT EXISTS idx_contatti_cognome ON contatti_clinici(cognome)",
     ]
 
     for ddl in statements:

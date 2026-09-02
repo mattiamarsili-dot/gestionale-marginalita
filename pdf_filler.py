@@ -553,7 +553,9 @@ def build_field_map(template_id: str, pratica: dict, cliente: dict, righe: list 
             "prescrizione_hbg_residente_via": D["via"],
             "prescrizione_hbg_telefono": D["telefono"],
         }
-        # Righe: solo codice ISO + quantità (nessuna colonna descrizione).
+        # Righe: codice ISO + quantità nei campi AcroForm. La colonna DESCRIZIONE
+        # non ha un campo compilabile sul modulo: la dicitura viene disegnata a
+        # parte con _overlay_hbg_descrizioni() in compila_pdf().
         # NB: il campo ISO ha un doppio spazio nel nome ("_iso  .{i}.0").
         fm.update(_mappa_righe(
             righe, _HBG_MAX_RIGHE,
@@ -797,6 +799,46 @@ def _overlay_campi(reader, valori: dict, max_size: float = 12.0, min_size: float
     return _PdfReader(buf).pages[0]
 
 
+# Colonna DESCRIZIONE del modulo HBG: sul template NON esiste un campo AcroForm
+# (ci sono solo codice ISO e q.tà), quindi la dicitura si disegna con un overlay.
+# Bordi rilevati dal template: cella descrizione ~ x[39..416], q.tà a x~428, ISO a x~473.
+_HBG_DESC_X0 = 39.0
+_HBG_DESC_GAP = 6.0          # spazio prima della colonna q.tà
+
+
+def _overlay_hbg_descrizioni(reader, righe):
+    """Overlay HBG: disegna le diciture (descrizioni) delle righe ausili nella
+    colonna DESCRIZIONE, che sul modulo non ha un campo compilabile. Il codice ISO
+    e la q.tà restano nei loro campi editabili: qui si aggiunge solo il testo
+    descrittivo, allineato in verticale alla riga del rispettivo codice."""
+    import io as _io
+    from reportlab.pdfgen import canvas
+    from pypdf import PdfReader as _PdfReader
+
+    rects = _field_rects(reader)
+    box = reader.pages[0].mediabox
+    W, H = float(box.width), float(box.height)
+    buf = _io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=(W, H))
+
+    size = 8.5
+    for i, r in enumerate((righe or [])[:_HBG_MAX_RIGHE]):
+        desc = (r.get("descrizione") or "").strip()
+        if not desc:
+            continue
+        iso_rect = rects.get(f"Text1prescrizione_hbg_riga01_iso  .{i}.0")
+        if not iso_rect:
+            continue
+        qta_rect = rects.get(f"prescrizione_hbg_riga01_qta.{i}.0")
+        x1 = (qta_rect[0] if qta_rect else 422.0) - _HBG_DESC_GAP
+        baseline = (iso_rect[1] + iso_rect[3]) / 2 - size * 0.35   # centrato in riga
+        _draw_fit(c, desc, _HBG_DESC_X0, x1, baseline, "left", size, min_size=6)
+
+    c.save()
+    buf.seek(0)
+    return _PdfReader(buf).pages[0]
+
+
 # ── Generazione PDF ───────────────────────────────────────────────────────────
 
 def compila_pdf(template_id: str, pratica: dict, cliente: dict, righe: list = None) -> bytes:
@@ -877,6 +919,15 @@ def compila_pdf(template_id: str, pratica: dict, cliente: dict, righe: list = No
             except Exception as _ov_err:
                 import sys
                 print("WARN overlay intestazione non riuscito:", _ov_err, file=sys.stderr)
+
+        # HBG: la colonna DESCRIZIONE non ha campo AcroForm → diciture via overlay.
+        if template_id == "prescrizione-hbg" and righe:
+            try:
+                ov = _overlay_hbg_descrizioni(reader, righe)
+                writer.pages[0].merge_page(ov)
+            except Exception as _ov_err:
+                import sys
+                print("WARN overlay descrizioni HBG non riuscito:", _ov_err, file=sys.stderr)
 
     if modo == "bloccato":
         # Tutto fisso: i valori sono già nel contenuto di pagina (flatten +

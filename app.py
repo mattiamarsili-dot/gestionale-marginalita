@@ -35,6 +35,9 @@ from pdf_filler import (
     moduli_automatici, medico_struttura_effettivo,
     compila_pdf, nome_file_consigliato, numero_preventivo,
 )
+from word_filler import (
+    WORD_TEMPLATES, compila_docx, moduli_word_gemelli, template_disponibile,
+)
 from presets import (
     seed_presets, migrate_presets_struttura, preset_per_categoria,
     preset_per_categoria_con_righe, get_preset, lista_preset,
@@ -724,6 +727,11 @@ def dettaglio_pratica(pratica_id):
         moduli_auto=moduli_auto,
         moduli_bloccati=moduli_bloccati,
         moduli_generati=moduli_generati,
+        moduli_word=moduli_word_gemelli(),
+        # Relazione tecnica: generabile solo se il template Word è stato caricato
+        # in assets/word-templates (vedi word_filler.WORD_TEMPLATES).
+        relazione_pronta=template_disponibile("relazione-tecnica"),
+        relazione_generata="relazione-tecnica" in moduli_generati,
         preset_categorie=preset_per_categoria(),
         significato_categorie=significato_per_categoria(),
         sign_catalogo=significato_catalogo(),
@@ -1591,6 +1599,30 @@ _PRATICA_MODULO_FIELDS = [
     "diagnosi", "sign_terapeutico",
 ]
 
+# Campi salvati con l'autosalvataggio della scheda pratica (testo libero, un
+# campo alla volta). Oggi: la descrizione posturale della relazione tecnica.
+PRATICA_CAMPI_TESTO = {"descrizione_posturale"}
+
+
+@app.route("/pratica/<int:pratica_id>/testo", methods=["POST"])
+def aggiorna_testo_pratica(pratica_id):
+    """Salvataggio automatico di un singolo campo di testo lungo della pratica
+    (niente pulsante Salva: si scrive e basta)."""
+    campo = (request.form.get("campo") or "").strip()
+    if campo not in PRATICA_CAMPI_TESTO:
+        return jsonify({"ok": False, "errore": "Campo non modificabile"}), 400
+    valore = (request.form.get("valore") or "").strip()
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT id FROM pratiche WHERE id = {_PH}", (pratica_id,))
+        if not cur.fetchone():
+            return jsonify({"ok": False, "errore": "Pratica non trovata"}), 404
+        cur.execute(
+            f"UPDATE pratiche SET {campo} = {_PH} WHERE id = {_PH}",
+            (valore, pratica_id),
+        )
+    return jsonify({"ok": True})
+
 
 @app.route("/pratica/<int:pratica_id>/dati-moduli", methods=["POST"])
 def aggiorna_dati_moduli(pratica_id):
@@ -1849,6 +1881,119 @@ def genera_modulo(pratica_id, template_id):
     )
 
 
+@app.route("/pratica/<int:pratica_id>/modulo-word/<template_id>")
+def genera_modulo_word(pratica_id, template_id):
+    """Versione Word (.docx) dei moduli che hanno un template in
+    assets/word-templates (oggi la sola Prescrizione HBG). Utile perché il Word
+    ha la colonna descrizione e resta modificabile a mano dopo il download."""
+    if template_id not in WORD_TEMPLATES:
+        return "Modulo Word non disponibile", 404
+
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT * FROM pratiche WHERE id = {_PH}", (pratica_id,))
+        pratica = cur.fetchone()
+        if not pratica:
+            return "Pratica non trovata", 404
+        cliente = None
+        if pratica["cliente_id"]:
+            cur.execute(f"SELECT * FROM clienti WHERE id = {_PH}", (pratica["cliente_id"],))
+            cliente = cur.fetchone()
+        cur.execute(
+            f"SELECT * FROM righe_ausili WHERE pratica_id = {_PH} ORDER BY ordine, id",
+            (pratica_id,),
+        )
+        righe = [dict(r) for r in cur.fetchall()]
+
+    pratica_d = dict(pratica)
+    cliente_d = dict(cliente) if cliente else None
+    if not cliente_d:
+        return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) + "#moduli")
+
+    try:
+        docx_bytes = compila_docx(template_id, pratica_d, cliente_d, righe)
+    except Exception as e:
+        import sys, traceback
+        print("ERRORE GENERAZIONE WORD:", e, file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        return f"Errore nella generazione del modulo Word: {e}", 500
+
+    # Stesso nome del PDF corrispondente, con estensione .docx
+    filename = nome_file_consigliato(template_id, pratica_d, cliente_d)
+    if filename.lower().endswith(".pdf"):
+        filename = filename[:-4] + ".docx"
+
+    _segna_modulo_generato(pratica_id, template_id)
+
+    return Response(
+        docx_bytes,
+        mimetype=drive_archive.DOCX_MIMETYPE,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.route("/pratica/<int:pratica_id>/relazione")
+def genera_relazione(pratica_id):
+    """Relazione tecnica in Word: documento nostro (non un modulo ASL), costruito
+    dal template con carta intestata in assets/word-templates sostituendo i
+    segnaposto {{...}} con i dati della pratica e duplicando la riga dei codici."""
+    if not template_disponibile("relazione-tecnica"):
+        return redirect(
+            url_for("dettaglio_pratica", pratica_id=pratica_id, manca_template=1) + "#relazione")
+
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT * FROM pratiche WHERE id = {_PH}", (pratica_id,))
+        pratica = cur.fetchone()
+        if not pratica:
+            return "Pratica non trovata", 404
+        cliente = None
+        if pratica["cliente_id"]:
+            cur.execute(f"SELECT * FROM clienti WHERE id = {_PH}", (pratica["cliente_id"],))
+            cliente = cur.fetchone()
+        cur.execute(
+            f"SELECT * FROM righe_ausili WHERE pratica_id = {_PH} ORDER BY ordine, id",
+            (pratica_id,),
+        )
+        righe = [dict(r) for r in cur.fetchall()]
+
+    pratica_d = dict(pratica)
+    cliente_d = dict(cliente) if cliente else None
+    if not cliente_d:
+        # Senza anagrafica collegata non c'è nulla da scrivere nell'intestazione.
+        return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) + "#relazione")
+
+    try:
+        docx_bytes = compila_docx("relazione-tecnica", pratica_d, cliente_d, righe)
+    except Exception as e:
+        import sys, traceback
+        print("ERRORE GENERAZIONE RELAZIONE:", e, file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        return f"Errore nella generazione della relazione: {e}", 500
+
+    cognome = (cliente_d.get("cognome") or "").strip().upper() or "CLIENTE"
+    filename = f"Relazione tecnica - {cognome} - {date.today().strftime('%d%m.%y')}.docx"
+    for ch in '/\\:*?"<>|':
+        filename = filename.replace(ch, "-")
+
+    _segna_modulo_generato(pratica_id, "relazione-tecnica")
+
+    if drive_archive.collegato():
+        try:
+            _archivia_su_drive(docx_bytes, filename, pratica_d, cliente_d,
+                               drive_archive.DOCX_MIMETYPE)
+        except Exception as e:
+            import sys, traceback
+            print("ARCHIVIAZIONE DRIVE FALLITA:", e, file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+
+    return Response(
+        docx_bytes,
+        mimetype=drive_archive.DOCX_MIMETYPE,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 # ── Archiviazione PDF su Google Drive (OAuth utente) ─────────────────────────
 
 def _cartella_archivio(pratica_d: dict, cliente_d: dict):
@@ -1865,11 +2010,12 @@ def _cartella_archivio(pratica_d: dict, cliente_d: dict):
     return root
 
 
-def _archivia_su_drive(pdf_bytes: bytes, filename: str, pratica_d: dict, cliente_d: dict):
+def _archivia_su_drive(pdf_bytes: bytes, filename: str, pratica_d: dict, cliente_d: dict,
+                       mimetype: str = "application/pdf"):
     folder_id = _cartella_archivio(pratica_d, cliente_d)
     if not folder_id:
         return
-    drive_archive.carica_pdf(pdf_bytes, filename, folder_id)
+    drive_archive.carica_file(pdf_bytes, filename, folder_id, mimetype)
     # Memorizza sulla pratica la cartella usata, così la scheda mostra il link
     # "Apri cartella Drive" (dove trovi i PDF archiviati).
     if (pratica_d.get("drive_archivio_id") or "").strip() != folder_id:
@@ -2541,6 +2687,83 @@ def cliente_campo(cliente_id):
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return jsonify({"ok": True, "valore": valore or ""})
     return redirect(request.form.get("torna") or url_for("clienti"))
+
+
+# ── Contatti clinici (rubrica) ────────────────────────────────────────────────
+CONTATTO_CAMPI = ("cognome", "nome", "ruolo", "centro", "telefono", "email", "note")
+
+
+@app.route("/contatti")
+def contatti():
+    """Rubrica dei contatti clinici (medici, terapisti, referenti dei centri).
+    Si compila man mano; ogni campo è modificabile inline dalla lista."""
+    q = (request.args.get("q") or "").strip()
+    where, params = [], []
+    if q:
+        # Ricerca per parole: ogni token deve comparire in almeno un campo.
+        for tok in q.split():
+            like = f"%{tok}%"
+            where.append(
+                f"(cognome {_LIKE} {_PH} OR nome {_LIKE} {_PH} OR ruolo {_LIKE} {_PH} "
+                f"OR centro {_LIKE} {_PH} OR telefono {_LIKE} {_PH} OR email {_LIKE} {_PH})"
+            )
+            params += [like] * 6
+    where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"SELECT * FROM contatti_clinici {where_sql} ORDER BY cognome, nome, id",
+            tuple(params),
+        )
+        elenco = cur.fetchall()
+    return render_template("contatti.html", contatti=elenco, q=q)
+
+
+@app.route("/contatto/nuovo", methods=["POST"])
+def contatto_nuovo():
+    """Aggiunge una riga alla rubrica. Serve almeno cognome o nome."""
+    dati = {c: (request.form.get(c) or "").strip() for c in CONTATTO_CAMPI}
+    if not (dati["cognome"] or dati["nome"]):
+        return redirect(url_for("contatti"))
+    cols = ", ".join(CONTATTO_CAMPI)
+    ph = ", ".join([_PH] * len(CONTATTO_CAMPI))
+    with get_db() as conn:
+        conn.cursor().execute(
+            f"INSERT INTO contatti_clinici ({cols}) VALUES ({ph})",
+            tuple(dati[c] for c in CONTATTO_CAMPI),
+        )
+    return redirect(url_for("contatti", q=(request.args.get("q") or None)))
+
+
+@app.route("/contatto/<int:contatto_id>/campo", methods=["POST"])
+def contatto_campo(contatto_id):
+    """Modifica inline di un singolo campo del contatto (sempre editabile)."""
+    campo = (request.form.get("campo") or "").strip()
+    if campo not in CONTATTO_CAMPI:
+        return jsonify({"ok": False, "errore": "Campo non modificabile"}), 400
+    valore = (request.form.get("valore") or "").strip()
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT id FROM contatti_clinici WHERE id = {_PH}", (contatto_id,))
+        if cur.fetchone() is None:
+            return jsonify({"ok": False, "errore": "Contatto inesistente"}), 404
+        cur.execute(
+            f"UPDATE contatti_clinici SET {campo} = {_PH} WHERE id = {_PH}",
+            (valore, contatto_id),
+        )
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"ok": True, "valore": valore})
+    return redirect(url_for("contatti"))
+
+
+@app.route("/contatto/<int:contatto_id>/elimina", methods=["POST"])
+@admin_required
+def contatto_elimina(contatto_id):
+    with get_db() as conn:
+        conn.cursor().execute(
+            f"DELETE FROM contatti_clinici WHERE id = {_PH}", (contatto_id,)
+        )
+    return redirect(url_for("contatti", q=(request.args.get("q") or None)))
 
 
 PRATICA_CAMPI_INLINE = {
