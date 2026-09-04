@@ -551,21 +551,64 @@
 
               <div class="collapse" id="formAggiungiFornitore">
                 <div class="border-bottom px-3 py-3 bg-light">
+                  <script type="application/json" id="dati-fornitori-sconti">{{ fornitori_sconti|tojson }}</script>
                   <form method="post" action="{{ url_for('aggiungi_fornitore', pratica_id=pratica.id) }}"
-                        class="row g-2 align-items-end">
+                        class="row g-2 align-items-end" id="form-nuovo-fornitore">
                     <input type="hidden" name="torna" value="{{ request.path }}#tab-margine">
-                    <div class="col-7">
+                    <input type="hidden" name="modalita" id="nf-modalita" value="diretto">
+
+                    <div class="col-12 col-sm-7">
                       <label class="form-label form-label-sm mb-1 fw-semibold">Fornitore</label>
-                      <input type="text" name="nome_fornitore" class="form-control form-control-sm"
+                      <input type="text" name="nome_fornitore" id="nf-nome" autocomplete="off"
+                             list="lista-fornitori-sconto" class="form-control form-control-sm"
                              placeholder="es. Medimec, Permobil…" required>
+                      <datalist id="lista-fornitori-sconto">
+                        {% for nome in fornitori_sconti %}<option value="{{ nome }}">{% endfor %}
+                      </datalist>
                     </div>
-                    <div class="col-3">
-                      <label class="form-label form-label-sm mb-1 fw-semibold">Importo €</label>
-                      <input type="number" name="importo" step="0.01" min="0"
-                             class="form-control form-control-sm" placeholder="0.00" required>
+                    <div class="col-12 col-sm-5">
+                      <label class="form-label form-label-sm mb-1 fw-semibold d-block">Come lo inserisci?</label>
+                      <div class="btn-group btn-group-sm w-100" role="group">
+                        <input type="radio" class="btn-check" name="nf-modo-radio" id="nf-modo-diretto" checked>
+                        <label class="btn btn-outline-secondary" for="nf-modo-diretto">Prezzo netto</label>
+                        <input type="radio" class="btn-check" name="nf-modo-radio" id="nf-modo-pubblico">
+                        <label class="btn btn-outline-secondary" for="nf-modo-pubblico">Pubblico + sconto</label>
+                      </div>
                     </div>
-                    <div class="col-2">
-                      <button type="submit" class="btn btn-success btn-sm w-100"><i class="bi bi-check-lg"></i></button>
+
+                    <div class="col-12" id="nf-blocco-diretto">
+                      <div class="row g-2 align-items-end">
+                        <div class="col-6 col-sm-4">
+                          <label class="form-label form-label-sm mb-1 fw-semibold">Importo €</label>
+                          <input type="number" name="importo" id="nf-importo" step="0.01" min="0"
+                                 class="form-control form-control-sm" placeholder="0.00">
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="col-12 d-none" id="nf-blocco-pubblico">
+                      <div class="row g-2 align-items-end">
+                        <div class="col-6 col-sm-4">
+                          <label class="form-label form-label-sm mb-1 fw-semibold">Prezzo pubblico €</label>
+                          <input type="number" name="prezzo_pubblico" id="nf-prezzo-pubblico" step="0.01" min="0"
+                                 class="form-control form-control-sm" placeholder="0.00">
+                        </div>
+                        <div class="col-6 col-sm-3">
+                          <label class="form-label form-label-sm mb-1 fw-semibold">Sconto %</label>
+                          <input type="number" name="sconto_pct" id="nf-sconto-pct" step="0.1" min="0" max="100"
+                                 class="form-control form-control-sm" placeholder="0">
+                        </div>
+                        <div class="col-12 col-sm-5">
+                          <label class="form-label form-label-sm mb-1 text-muted">Costo a noi</label>
+                          <div class="form-control form-control-sm bg-white fw-semibold" id="nf-costo-calcolato">€ 0,00</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="col-12">
+                      <button type="submit" class="btn btn-success btn-sm">
+                        <i class="bi bi-check-lg me-1"></i>Aggiungi costo fornitore
+                      </button>
                     </div>
                   </form>
                 </div>
@@ -584,7 +627,41 @@
                   <tbody>
                     {% for pv in preventivi %}
                     <tr>
-                      <td>{{ pv.nome_fornitore }}</td>
+                      <td>
+                        <span class="fornitore-nome">{{ pv.nome_fornitore }}</span>
+                        <div class="small text-muted fornitore-sconto-info"
+                             data-url="{{ url_for('aggiorna_sconto_fornitore', preventivo_id=pv.id) }}"
+                             data-nome="{{ pv.nome_fornitore }}"
+                             data-pubblico="{{ '1' if pv.modalita == 'pubblico' else '0' }}">
+                          <span class="fornitore-sconto-testo {% if pv.modalita != 'pubblico' %}d-none{% endif %}">
+                            listino € {{ "%.2f"|format(pv.prezzo_pubblico or 0) }} · sconto {{ "%.1f"|format(pv.sconto_pct or 0) }}%
+                          </span>
+                          <a href="#" class="fornitore-sconto-apri text-decoration-none {% if pv.modalita == 'pubblico' %}d-none{% endif %}">
+                            <i class="bi bi-percent me-1"></i>prezzo pubblico + sconto
+                          </a>
+                          <a href="#" class="fornitore-sconto-modifica text-decoration-none ms-1 {% if pv.modalita != 'pubblico' %}d-none{% endif %}" title="Modifica">
+                            <i class="bi bi-pencil"></i>
+                          </a>
+                          <div class="fornitore-sconto-editor d-none mt-1 d-flex flex-wrap gap-1 align-items-center">
+                            <div class="input-group input-group-sm" style="max-width:115px">
+                              <span class="input-group-text">€</span>
+                              <input type="number" step="0.01" min="0" class="form-control fornitore-sconto-prezzo"
+                                     placeholder="Listino" value="{{ pv.prezzo_pubblico or '' }}">
+                            </div>
+                            <div class="input-group input-group-sm" style="max-width:85px">
+                              <input type="number" step="0.1" min="0" max="100" class="form-control fornitore-sconto-pct"
+                                     placeholder="Sconto" value="{{ pv.sconto_pct or '' }}">
+                              <span class="input-group-text">%</span>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-success fornitore-sconto-applica" title="Applica">
+                              <i class="bi bi-check-lg"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-link text-secondary p-0 fornitore-sconto-annulla" title="Annulla">
+                              <i class="bi bi-x-lg"></i>
+                            </button>
+                          </div>
+                        </div>
+                      </td>
                       <td class="text-end">
                         <div class="input-group input-group-sm fornitore-importo-wrap ms-auto" style="max-width:150px">
                           <span class="input-group-text">€</span>
@@ -1414,7 +1491,8 @@ function eurPlain(n) {
   function fornitoriAttuali() {
     const righe = [];
     document.querySelectorAll('#tabella-fornitori tbody tr').forEach(tr => {
-      const nome = (tr.children[0] ? tr.children[0].textContent : '').trim();
+      const nomeEl = tr.querySelector('.fornitore-nome');
+      const nome = (nomeEl ? nomeEl.textContent : '').trim();
       const inp = tr.querySelector('.inp-fornitore-importo');
       const importo = inp ? (parseFloat(inp.value) || 0) : 0;
       righe.push({ nome, importo });
@@ -1565,6 +1643,12 @@ function eurPlain(n) {
       if (lineaCosto) lineaCosto.textContent = '— ' + eur(d.costo_totale);
       if (window.ricalcolaMargine) window.ricalcolaMargine();
 
+      // Un importo corretto qui a mano non deriva più da prezzo+sconto (il
+      // server l'ha già riportato in modalità 'diretto'): la riga torna a
+      // mostrare solo il link per impostare di nuovo prezzo pubblico + sconto.
+      const info = inp.closest('tr').querySelector('.fornitore-sconto-info');
+      if (info && window.mostraFornitoreDiretto) window.mostraFornitoreDiretto(info);
+
       if (stato) { stato.textContent = '✓ salvato'; setTimeout(() => stato.textContent = '', 1500); }
     } catch (_) {
       if (stato) { stato.className = 'text-danger fornitore-importo-stato d-block text-end';
@@ -1577,6 +1661,153 @@ function eurPlain(n) {
     inp.addEventListener('change', () => salvaImporto(inp));
     inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } });
   });
+
+  // Mostra lo stato "diretto" (nessun prezzo pubblico/sconto collegato) su una
+  // riga: usata sia qui (dopo un edit manuale dell'importo) sia dall'editor
+  // sconto quando l'utente annulla.
+  window.mostraFornitoreDiretto = function (info) {
+    info.dataset.pubblico = '0';
+    info.querySelector('.fornitore-sconto-testo').classList.add('d-none');
+    info.querySelector('.fornitore-sconto-modifica').classList.add('d-none');
+    info.querySelector('.fornitore-sconto-apri').classList.remove('d-none');
+    info.querySelector('.fornitore-sconto-editor').classList.add('d-none');
+  };
+})();
+
+// ── Prezzo pubblico + sconto: righe già inserite (editor inline per riga) ───
+(function () {
+  const card = document.getElementById('card-margine');
+  const footCosto  = document.getElementById('foot-costo');
+  const lineaCosto = document.getElementById('m-costo');
+  const blocchi = document.querySelectorAll('.fornitore-sconto-info');
+  if (!blocchi.length) return;
+
+  blocchi.forEach((info) => {
+    const testo     = info.querySelector('.fornitore-sconto-testo');
+    const apri      = info.querySelector('.fornitore-sconto-apri');
+    const modifica  = info.querySelector('.fornitore-sconto-modifica');
+    const editor    = info.querySelector('.fornitore-sconto-editor');
+    const inpPrezzo = info.querySelector('.fornitore-sconto-prezzo');
+    const inpPct    = info.querySelector('.fornitore-sconto-pct');
+    const inpImporto = info.closest('tr').querySelector('.inp-fornitore-importo');
+
+    function apriEditor() {
+      testo.classList.add('d-none');
+      apri.classList.add('d-none');
+      modifica.classList.add('d-none');
+      editor.classList.remove('d-none');
+      inpPrezzo.focus();
+    }
+    apri.addEventListener('click', (e) => { e.preventDefault(); apriEditor(); });
+    modifica.addEventListener('click', (e) => { e.preventDefault(); apriEditor(); });
+
+    info.querySelector('.fornitore-sconto-annulla').addEventListener('click', () => {
+      editor.classList.add('d-none');
+      if (info.dataset.pubblico === '1') {
+        testo.classList.remove('d-none');
+        modifica.classList.remove('d-none');
+      } else {
+        window.mostraFornitoreDiretto(info);
+      }
+    });
+
+    info.querySelector('.fornitore-sconto-applica').addEventListener('click', async () => {
+      const prezzo = Math.max(parseFloat(inpPrezzo.value) || 0, 0);
+      const pct    = Math.min(Math.max(parseFloat(inpPct.value) || 0, 0), 100);
+      try {
+        const body = new URLSearchParams({ prezzo_pubblico: prezzo, sconto_pct: pct });
+        const res = await fetch(info.dataset.url, {
+          method: 'POST', headers: { 'X-Requested-With': 'fetch' }, body,
+        });
+        const d = await res.json();
+        if (!d.ok) throw new Error();
+
+        inpImporto.value = d.importo.toFixed(2);
+        testo.textContent = `listino ${eur(prezzo)} · sconto ${pct.toFixed(1).replace('.0', '')}%`;
+        info.dataset.pubblico = '1';
+        testo.classList.remove('d-none');
+        modifica.classList.remove('d-none');
+        apri.classList.add('d-none');
+        editor.classList.add('d-none');
+
+        if (card) card.dataset.costo = d.costo_totale;
+        if (footCosto)  footCosto.textContent  = eur(d.costo_totale);
+        if (lineaCosto) lineaCosto.textContent = '— ' + eur(d.costo_totale);
+        if (window.ricalcolaMargine) window.ricalcolaMargine();
+      } catch (_) {
+        alert('Non sono riuscito a salvare lo sconto. Riprova.');
+      }
+    });
+  });
+})();
+
+// ── Prezzo pubblico + sconto: nuovo costo fornitore (form "Aggiungi") ────────
+(function () {
+  const form = document.getElementById('form-nuovo-fornitore');
+  if (!form) return;
+  const scontiEl = document.getElementById('dati-fornitori-sconti');
+  let sconti = {};
+  try { sconti = JSON.parse(scontiEl.textContent || '{}'); } catch (_) {}
+  // Lookup case-insensitive: 'Medimec' e 'medimec' sono lo stesso fornitore.
+  const scontiLower = {};
+  Object.keys(sconti).forEach((k) => { scontiLower[k.trim().toLowerCase()] = sconti[k]; });
+
+  const radioDiretto  = document.getElementById('nf-modo-diretto');
+  const radioPubblico = document.getElementById('nf-modo-pubblico');
+  const modalita   = document.getElementById('nf-modalita');
+  const nomeInput  = document.getElementById('nf-nome');
+  const blocDiretto  = document.getElementById('nf-blocco-diretto');
+  const blocPubblico = document.getElementById('nf-blocco-pubblico');
+  const inpImporto  = document.getElementById('nf-importo');
+  const inpPrezzo   = document.getElementById('nf-prezzo-pubblico');
+  const inpPct      = document.getElementById('nf-sconto-pct');
+  const elCalcolato = document.getElementById('nf-costo-calcolato');
+  let modoToccatoDaUtente = false;
+
+  function attivaModo(modo) {
+    modalita.value = modo;
+    const pubblico = modo === 'pubblico';
+    blocDiretto.classList.toggle('d-none', pubblico);
+    blocPubblico.classList.toggle('d-none', !pubblico);
+    // Gli input del blocco nascosto non devono partire col form (disabled li
+    // esclude da FormData), così il server riceve solo i campi del modo scelto.
+    // "required" segue lo stesso criterio, per bloccare l'invio a vuoto.
+    inpImporto.disabled = pubblico;
+    inpImporto.required = !pubblico;
+    inpPrezzo.disabled  = !pubblico;
+    inpPrezzo.required  = pubblico;
+    inpPct.disabled     = !pubblico;
+  }
+
+  function ricalcolaCosto() {
+    const prezzo = parseFloat(inpPrezzo.value) || 0;
+    const pct    = parseFloat(inpPct.value) || 0;
+    elCalcolato.textContent = eur(Math.max(prezzo * (1 - pct / 100), 0));
+  }
+
+  radioDiretto.addEventListener('change', () => { modoToccatoDaUtente = true; attivaModo('diretto'); });
+  radioPubblico.addEventListener('change', () => { modoToccatoDaUtente = true; attivaModo('pubblico'); });
+  inpPrezzo.addEventListener('input', ricalcolaCosto);
+  inpPct.addEventListener('input', ricalcolaCosto);
+
+  // Fornitore già visto con uno sconto salvato: precompila lo sconto e, se
+  // l'utente non ha ancora scelto una modalità a mano, passa a "pubblico".
+  nomeInput.addEventListener('change', () => {
+    const pct = scontiLower[nomeInput.value.trim().toLowerCase()];
+    if (pct === undefined) return;
+    inpPct.value = pct;
+    if (!modoToccatoDaUtente) {
+      radioPubblico.checked = true;
+      attivaModo('pubblico');
+    }
+    ricalcolaCosto();
+  });
+
+  attivaModo('diretto');
+
+  // Il form si riapre vuoto ogni volta (niente cache del browser sui radio):
+  // dopo l'invio, se la pagina viene ricaricata con lo stesso stato, resetta.
+  form.addEventListener('submit', () => { modoToccatoDaUtente = false; });
 })();
 
 // ── Codifica ASL: rileva le modifiche e auto-salva (no reload) ───────────────

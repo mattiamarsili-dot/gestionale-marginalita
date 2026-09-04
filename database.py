@@ -126,13 +126,23 @@ _SQLITE_SCHEMA = """
     );
 
     CREATE TABLE IF NOT EXISTS preventivi (
-        id             INTEGER PRIMARY KEY AUTOINCREMENT,
-        pratica_id     INTEGER NOT NULL,
-        nome_fornitore TEXT NOT NULL,
-        importo        REAL NOT NULL,
-        file_pdf       TEXT,
-        drive_file_id  TEXT,
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        pratica_id      INTEGER NOT NULL,
+        nome_fornitore  TEXT NOT NULL,
+        importo         REAL NOT NULL,
+        modalita        TEXT NOT NULL DEFAULT 'diretto',
+        prezzo_pubblico REAL,
+        sconto_pct      REAL,
+        file_pdf        TEXT,
+        drive_file_id   TEXT,
         FOREIGN KEY (pratica_id) REFERENCES pratiche(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS fornitori_sconti (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome_fornitore TEXT NOT NULL,
+        sconto_pct     REAL NOT NULL DEFAULT 0,
+        aggiornato_il  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS righe_ausili (
@@ -326,13 +336,23 @@ _POSTGRES_SCHEMA = """
     );
 
     CREATE TABLE IF NOT EXISTS preventivi (
-        id             SERIAL PRIMARY KEY,
-        pratica_id     INTEGER NOT NULL,
-        nome_fornitore TEXT NOT NULL,
-        importo        REAL NOT NULL,
-        file_pdf       TEXT,
-        drive_file_id  TEXT,
+        id              SERIAL PRIMARY KEY,
+        pratica_id      INTEGER NOT NULL,
+        nome_fornitore  TEXT NOT NULL,
+        importo         REAL NOT NULL,
+        modalita        TEXT NOT NULL DEFAULT 'diretto',
+        prezzo_pubblico REAL,
+        sconto_pct      REAL,
+        file_pdf        TEXT,
+        drive_file_id   TEXT,
         FOREIGN KEY (pratica_id) REFERENCES pratiche(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS fornitori_sconti (
+        id             SERIAL PRIMARY KEY,
+        nome_fornitore TEXT NOT NULL,
+        sconto_pct     REAL NOT NULL DEFAULT 0,
+        aggiornato_il  TIMESTAMPTZ DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS righe_ausili (
@@ -498,6 +518,11 @@ def migrate_db():
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS sign_terapeutico TEXT",
             # Descrizione posturale: testo libero della relazione tecnica.
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS descrizione_posturale TEXT",
+            # Costo fornitore: prezzo al pubblico + sconto %, in alternativa
+            # all'importo netto inserito a mano (vedi _calcola_costo_pubblico in app.py).
+            "ALTER TABLE preventivi ADD COLUMN IF NOT EXISTS modalita TEXT NOT NULL DEFAULT 'diretto'",
+            "ALTER TABLE preventivi ADD COLUMN IF NOT EXISTS prezzo_pubblico REAL",
+            "ALTER TABLE preventivi ADD COLUMN IF NOT EXISTS sconto_pct REAL",
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS iva_percentuale REAL NOT NULL DEFAULT 4",
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS moduli_attivi TEXT",
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS moduli_generati TEXT",
@@ -544,6 +569,11 @@ def migrate_db():
             "ALTER TABLE pratiche ADD COLUMN sign_terapeutico TEXT",
             # Descrizione posturale: testo libero della relazione tecnica.
             "ALTER TABLE pratiche ADD COLUMN descrizione_posturale TEXT",
+            # Costo fornitore: prezzo al pubblico + sconto %, in alternativa
+            # all'importo netto inserito a mano (vedi _calcola_costo_pubblico in app.py).
+            "ALTER TABLE preventivi ADD COLUMN modalita TEXT NOT NULL DEFAULT 'diretto'",
+            "ALTER TABLE preventivi ADD COLUMN prezzo_pubblico REAL",
+            "ALTER TABLE preventivi ADD COLUMN sconto_pct REAL",
             "ALTER TABLE pratiche ADD COLUMN iva_percentuale REAL NOT NULL DEFAULT 4",
             "ALTER TABLE pratiche ADD COLUMN moduli_attivi TEXT",
             "ALTER TABLE pratiche ADD COLUMN moduli_generati TEXT",
@@ -592,6 +622,16 @@ def migrate_db():
                creato_il  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
            )""",
         "CREATE INDEX IF NOT EXISTS idx_contatti_cognome ON contatti_clinici(cognome)",
+        # Sconto ricordato per fornitore (modalità "prezzo pubblico + sconto"):
+        # si ripropone la volta successiva che si inserisce un costo per lo
+        # stesso fornitore. SQL comune a SQLite e PostgreSQL.
+        """CREATE TABLE IF NOT EXISTS fornitori_sconti (
+               id             INTEGER PRIMARY KEY,
+               nome_fornitore TEXT NOT NULL,
+               sconto_pct     REAL NOT NULL DEFAULT 0,
+               aggiornato_il  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+           )""",
+        "CREATE INDEX IF NOT EXISTS idx_fornitori_sconti_nome ON fornitori_sconti(nome_fornitore)",
     ]
 
     for ddl in statements:

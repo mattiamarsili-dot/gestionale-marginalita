@@ -745,6 +745,7 @@ def dettaglio_pratica(pratica_id):
         drive_root_id=drive_archive.radice()[0],
         drive_root_nome=drive_archive.radice()[1],
         drive_browse_root=drive_archive.browse_root() if drive_archive.collegato() else "",
+        fornitori_sconti=_fornitori_sconti_dict(),
     )
 
 
@@ -1185,17 +1186,89 @@ def rinnovo_elimina(rinnovo_id):
 
 # ── Aggiungi / rimuovi fornitore singolo ─────────────────────────────────────
 
+def _calcola_costo_pubblico(prezzo_pubblico: float, sconto_pct: float) -> float:
+    """Costo netto a partire da prezzo di listino + sconto %, arrotondato al
+    centesimo. Sconto limitato a [0, 100] per non ottenere costi assurdi."""
+    prezzo_pubblico = max(prezzo_pubblico or 0, 0)
+    sconto_pct = min(max(sconto_pct or 0, 0), 100)
+    return round(prezzo_pubblico * (1 - sconto_pct / 100), 2)
+
+
+def _salva_sconto_fornitore(conn, nome_fornitore: str, sconto_pct: float) -> None:
+    """Ricorda (o aggiorna) lo sconto usato per questo fornitore, case-insensitive
+    ('Medimec' e 'medimec' sono lo stesso), così si ripropone la prossima volta
+    che si inserisce un costo per lui."""
+    nome = (nome_fornitore or "").strip()
+    if not nome:
+        return
+    cur = conn.cursor()
+    cur.execute(
+        f"SELECT id FROM fornitori_sconti WHERE LOWER(nome_fornitore) = LOWER({_PH})",
+        (nome,),
+    )
+    row = cur.fetchone()
+    if row:
+        cur.execute(
+            f"UPDATE fornitori_sconti SET sconto_pct = {_PH} WHERE id = {_PH}",
+            (sconto_pct, row["id"]),
+        )
+    else:
+        cur.execute(
+            f"INSERT INTO fornitori_sconti (nome_fornitore, sconto_pct) VALUES ({_PH}, {_PH})",
+            (nome, sconto_pct),
+        )
+
+
+def _fornitori_sconti_dict() -> dict:
+    """{nome_fornitore: sconto_pct} per precompilare lo sconto in automatico
+    quando si sceglie un fornitore già visto (autocomplete + prefill JS)."""
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT nome_fornitore, sconto_pct FROM fornitori_sconti ORDER BY nome_fornitore")
+        rows = cur.fetchall()
+    return {r["nome_fornitore"]: float(r["sconto_pct"] or 0) for r in rows}
+
+
 @app.route("/pratica/<int:pratica_id>/fornitore/aggiungi", methods=["POST"])
 def aggiungi_fornitore(pratica_id):
-    nome_f  = request.form.get("nome_fornitore", "").strip()
-    importo = request.form.get("importo", "").strip()
-    torna   = request.form.get("torna", url_for("dettaglio_pratica", pratica_id=pratica_id))
-    if nome_f and importo:
+    nome_f   = request.form.get("nome_fornitore", "").strip()
+    modalita = request.form.get("modalita", "diretto").strip()
+    torna    = request.form.get("torna", url_for("dettaglio_pratica", pratica_id=pratica_id))
+    if not nome_f:
+        return redirect(torna)
+
+    if modalita == "pubblico":
+        try:
+            prezzo_pubblico = float(request.form.get("prezzo_pubblico") or 0)
+        except ValueError:
+            prezzo_pubblico = 0.0
+        try:
+            sconto_pct = float(request.form.get("sconto_pct") or 0)
+        except ValueError:
+            sconto_pct = 0.0
+        sconto_pct = min(max(sconto_pct, 0), 100)
+        importo = _calcola_costo_pubblico(prezzo_pubblico, sconto_pct)
         with get_db() as conn:
-            cur = conn.cursor()
-            cur.execute(
-                f"INSERT INTO preventivi (pratica_id, nome_fornitore, importo) VALUES ({_PH},{_PH},{_PH})",
-                (pratica_id, nome_f, float(importo)),
+            conn.cursor().execute(
+                f"INSERT INTO preventivi "
+                f"(pratica_id, nome_fornitore, importo, modalita, prezzo_pubblico, sconto_pct) "
+                f"VALUES ({_PH},{_PH},{_PH},{_PH},{_PH},{_PH})",
+                (pratica_id, nome_f, importo, "pubblico", prezzo_pubblico, sconto_pct),
+            )
+            _salva_sconto_fornitore(conn, nome_f, sconto_pct)
+    else:
+        importo_raw = request.form.get("importo", "").strip()
+        if not importo_raw:
+            return redirect(torna)
+        try:
+            importo = max(float(importo_raw), 0)
+        except ValueError:
+            return redirect(torna)
+        with get_db() as conn:
+            conn.cursor().execute(
+                f"INSERT INTO preventivi (pratica_id, nome_fornitore, importo, modalita) "
+                f"VALUES ({_PH},{_PH},{_PH},{_PH})",
+                (pratica_id, nome_f, importo, "diretto"),
             )
     return redirect(torna)
 
@@ -1204,7 +1277,10 @@ def aggiungi_fornitore(pratica_id):
 def aggiorna_importo_fornitore(preventivo_id):
     """Modifica l'importo (netto IVA) di un costo fornitore già inserito e
     restituisce il totale costi ricalcolato, per aggiornare il MOL senza
-    ricaricare la pagina (stesso pattern dell'importo ASL / qta ausili)."""
+    ricaricare la pagina (stesso pattern dell'importo ASL / qta ausili).
+    Un costo in modalità 'pubblico' che viene corretto qui a mano torna
+    'diretto': l'importo digitato non deriva più da prezzo+sconto, quindi il
+    legame andrebbe mostrato in modo fuorviante se restasse."""
     try:
         importo = float(request.form.get("importo") or 0)
     except ValueError:
@@ -1218,7 +1294,10 @@ def aggiorna_importo_fornitore(preventivo_id):
         if not row:
             return jsonify({"ok": False}), 404
         pratica_id = row["pratica_id"]
-        cur.execute(f"UPDATE preventivi SET importo = {_PH} WHERE id = {_PH}", (importo, preventivo_id))
+        cur.execute(
+            f"UPDATE preventivi SET importo = {_PH}, modalita = 'diretto' WHERE id = {_PH}",
+            (importo, preventivo_id),
+        )
         cur.execute(
             f"SELECT COALESCE(SUM(importo), 0) AS tot FROM preventivi WHERE pratica_id = {_PH}",
             (pratica_id,),
@@ -1228,6 +1307,48 @@ def aggiorna_importo_fornitore(preventivo_id):
         return jsonify({"ok": True, "importo": importo, "costo_totale": costo_totale})
     torna = request.form.get("torna", url_for("dettaglio_pratica", pratica_id=pratica_id) + "#tab-margine")
     return redirect(torna)
+
+
+@app.route("/preventivo/<int:preventivo_id>/sconto", methods=["POST"])
+def aggiorna_sconto_fornitore(preventivo_id):
+    """Aggiorna un costo fornitore in modalità 'prezzo pubblico + sconto':
+    ricalcola il costo netto e ricorda lo sconto per il fornitore. Stesso
+    contratto JSON di /preventivo/<id>/importo, per riusare lo stesso
+    ricalcolo live del MOL lato JS."""
+    try:
+        prezzo_pubblico = float(request.form.get("prezzo_pubblico") or 0)
+    except ValueError:
+        prezzo_pubblico = 0.0
+    try:
+        sconto_pct = float(request.form.get("sconto_pct") or 0)
+    except ValueError:
+        sconto_pct = 0.0
+    prezzo_pubblico = max(prezzo_pubblico, 0)
+    sconto_pct = min(max(sconto_pct, 0), 100)
+    importo = _calcola_costo_pubblico(prezzo_pubblico, sconto_pct)
+
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT pratica_id, nome_fornitore FROM preventivi WHERE id = {_PH}", (preventivo_id,))
+        row = cur.fetchone()
+        if not row:
+            return jsonify({"ok": False}), 404
+        pratica_id = row["pratica_id"]
+        cur.execute(
+            f"UPDATE preventivi SET importo = {_PH}, modalita = 'pubblico', "
+            f"prezzo_pubblico = {_PH}, sconto_pct = {_PH} WHERE id = {_PH}",
+            (importo, prezzo_pubblico, sconto_pct, preventivo_id),
+        )
+        _salva_sconto_fornitore(conn, row["nome_fornitore"], sconto_pct)
+        cur.execute(
+            f"SELECT COALESCE(SUM(importo), 0) AS tot FROM preventivi WHERE pratica_id = {_PH}",
+            (pratica_id,),
+        )
+        costo_totale = float(cur.fetchone()["tot"] or 0)
+    return jsonify({
+        "ok": True, "importo": importo, "costo_totale": costo_totale,
+        "prezzo_pubblico": prezzo_pubblico, "sconto_pct": sconto_pct,
+    })
 
 
 @app.route("/preventivo/<int:preventivo_id>/elimina", methods=["POST"])
