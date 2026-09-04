@@ -15,13 +15,13 @@
       {% endif %}
     </small>
   </div>
-  <div class="d-flex gap-2">
-    <form method="get" class="d-flex" role="search">
+  <div class="d-flex gap-2 toolbar-lista">
+    <form method="get" class="d-flex cerca-form" role="search">
       {% if centro %}<input type="hidden" name="centro" value="{{ centro }}">{% endif %}
       <div class="input-group">
         <span class="input-group-text"><i class="bi bi-search"></i></span>
         <input type="text" name="q" value="{{ q }}" class="form-control"
-               placeholder="Cerca per paziente, CF o n° pratica…" autofocus>
+               placeholder="Cerca per paziente, CF o n° pratica…" {% if not q %}autofocus{% endif %}>
         {% if q %}
         <a href="{{ url_for('pratiche', centro=centro or None) }}" class="btn btn-outline-secondary" title="Pulisci">
           <i class="bi bi-x-lg"></i>

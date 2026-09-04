@@ -41,6 +41,15 @@ body {
   }
 }
 
+/* Liste (Pratiche/Clienti): su mobile la barra di ricerca era schiacciata in
+   riga coi pulsanti accanto (colonne, Nuovo…). Qui prende tutta la riga da
+   sola e gli altri pulsanti vanno sotto. */
+@media (max-width: 575.98px) {
+  .toolbar-lista { flex-wrap: wrap; }
+  .toolbar-lista .cerca-form { flex: 1 1 100%; min-width: 0; }
+  .toolbar-lista .cerca-form .input-group { width: 100%; }
+}
+
 /* Cards */
 .card { border: none; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
 .card-header { border-radius: 12px 12px 0 0 !important; font-weight: 600; }
