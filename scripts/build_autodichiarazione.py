@@ -3,7 +3,9 @@ Ricostruisce da zero il template `Autodichiarazione Extratariffario.pdf`.
 
 Il PDF fornito in origine aveva i campi AcroForm accavallati alle righe di testo
 e una frase che mescolava 1ª e 3ª persona ("dichiaro ... e richiede ..."). Qui
-si genera un modulo pulito, A4, con 5 campi ben distanziati:
+si genera un modulo pulito, A4, con la stessa carta intestata Sapio degli altri
+moduli (logo + bande + piè di pagina con le diciture legali, ripresi da
+`Modulo Assegno.pdf`) e 5 campi ben distanziati:
 
     firmatario  (testo)   — "Io sottoscritto/a ___"
     ruolo       (tendina) — "in qualità di ___"  → Me medesimo / Tutore o delegato
@@ -14,16 +16,38 @@ si genera un modulo pulito, A4, con 5 campi ben distanziati:
 Uso:
     python scripts/build_autodichiarazione.py
 
-I nomi campo qui definiti sono la fonte per il ramo `autodichiarazione-
-extratariffario` di build_field_map() in pdf_filler.py. Dopo aver rigenerato il
-PDF lanciare anche `python scripts/dump_pdf_fields.py`.
+Serve pymupdf (solo per questo script di build, non a runtime). I nomi campo
+qui definiti sono la fonte per il ramo `autodichiarazione-extratariffario` di
+build_field_map() in pdf_filler.py. Dopo aver rigenerato il PDF lanciare anche
+`python scripts/dump_pdf_fields.py`.
 """
+import io
 import os
 
+import pymupdf
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
+
+TPL_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "assets", "pdf-templates",
+)
+OUT = os.path.join(TPL_DIR, "Autodichiarazione Extratariffario.pdf")
+SAPIO_SRC = os.path.join(TPL_DIR, "Modulo Assegno.pdf")  # da cui prendere carta intestata
+
+W, H = A4  # 595 x 842 pt
+MX = 56.0                      # margine orizzontale
+CW = W - 2 * MX               # larghezza colonna testo
+FONT = "Helvetica"
+FONT_B = "Helvetica-Bold"
+
+# Fasce (in pt dall'alto) della carta intestata Sapio nel modulo sorgente:
+# logo + bande in cima, bande + diciture legali + logo "90°" in fondo.
+HEAD_H = 74.0
+FOOT_TOP = 756.0
 
 # Stile comune dei campi: fondo bianco (i default reportlab sono azzurrini e
 # resterebbero impressi una volta "appiattito" il modulo), solo la riga di base.
@@ -31,16 +55,15 @@ _FIELD = dict(borderStyle="underlined", borderWidth=1, forceBorder=True,
               fillColor=colors.white, borderColor=colors.Color(0.45, 0.45, 0.45),
               fontName="Helvetica", fontSize=10)
 
-OUT = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "assets", "pdf-templates", "Autodichiarazione Extratariffario.pdf",
-)
 
-W, H = A4  # 595 x 842 pt
-MX = 56.0                      # margine orizzontale
-CW = W - 2 * MX               # larghezza colonna testo
-FONT = "Helvetica"
-FONT_B = "Helvetica-Bold"
+def _sapio_strips():
+    """Ritaglia header e footer della carta intestata Sapio come immagini a 300 DPI."""
+    src = pymupdf.open(SAPIO_SRC)[0]
+    head = src.get_pixmap(clip=pymupdf.Rect(0, 0, W, HEAD_H), dpi=300)
+    foot = src.get_pixmap(clip=pymupdf.Rect(0, FOOT_TOP, W, H), dpi=300)
+    return (ImageReader(io.BytesIO(head.tobytes("png"))),
+            ImageReader(io.BytesIO(foot.tobytes("png"))),
+            H - FOOT_TOP)  # altezza fascia footer in pt
 
 
 def _wrap(text, font, size, max_w):
@@ -59,24 +82,27 @@ def _wrap(text, font, size, max_w):
 
 
 def main() -> int:
+    head_img, foot_img, foot_h = _sapio_strips()
+
     c = canvas.Canvas(OUT, pagesize=A4)
     c.setTitle("Autodichiarazione fornitura extratariffario")
     form = c.acroForm
 
-    y = H - 72
+    # ── Carta intestata Sapio (header + footer) ────────────────────────────
+    c.drawImage(head_img, 0, H - HEAD_H, width=W, height=HEAD_H, mask="auto")
+    c.drawImage(foot_img, 0, 0, width=W, height=foot_h, mask="auto")
 
-    # ── Intestazione ────────────────────────────────────────────────────────
+    y = H - HEAD_H - 28
+
+    # ── Intestazione documento ────────────────────────────────────────────
     c.setFont(FONT_B, 15)
     c.drawString(MX, y, "AUTODICHIARAZIONE")
-    y -= 20
+    y -= 19
     c.setFont(FONT, 10.5)
     c.setFillGray(0.35)
     c.drawString(MX, y, "Fornitura di ausili in regime extratariffario")
     c.setFillGray(0)
-    y -= 14
-    c.setLineWidth(0.8)
-    c.line(MX, y, W - MX, y)
-    y -= 34
+    y -= 30
 
     # ── "Io sottoscritto/a ___" ─────────────────────────────────────────────
     c.setFont(FONT, 11)
