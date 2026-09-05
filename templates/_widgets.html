@@ -20,6 +20,43 @@
   </div>
 {% endmacro %}
 
+{# Filtro per centro delle liste (Pratiche/Clienti). Su schermi larghi tutti i
+   centri sono bottoni; su mobile restano bottoni solo i primi `n_rapidi`
+   (ordine di config.CENTRI) e il resto — più "Senza centro" — finisce in una
+   tendina, per occupare meno spazio verticale e vedere subito i risultati.
+   `endpoint` = nome route ('pratiche' | 'clienti'); `tutti_attivo` opzionale
+   per forzare l'evidenziazione di "Tutti i centri". #}
+{% macro filtro_centri(endpoint, centri, centro, q=None, n_rapidi=5, tutti_attivo=None) %}
+  {% set rapidi = centri[:n_rapidi] %}
+  {% set altri = centri[n_rapidi:] %}
+  {% set _tutti = tutti_attivo if tutti_attivo is not none else (not centro) %}
+  <div class="d-flex flex-wrap gap-2 mb-4 filtro-centri">
+    <a href="{{ url_for(endpoint, q=q or None) }}"
+       class="btn btn-sm {{ 'btn-primary' if _tutti else 'btn-outline-secondary' }}">Tutti i centri</a>
+    {% for c in rapidi %}
+    <a href="{{ url_for(endpoint, q=q or None, centro=c) }}"
+       class="btn btn-sm {{ 'btn-primary' if centro == c else 'btn-outline-secondary' }}">{{ c }}</a>
+    {% endfor %}
+    {% for c in altri %}
+    <a href="{{ url_for(endpoint, q=q or None, centro=c) }}"
+       class="btn btn-sm centro-extra {{ 'btn-primary' if centro == c else 'btn-outline-secondary' }}">{{ c }}</a>
+    {% endfor %}
+    <a href="{{ url_for(endpoint, q=q or None, centro='Senza centro') }}"
+       class="btn btn-sm centro-extra {{ 'btn-primary' if centro == 'Senza centro' else 'btn-outline-secondary' }}">Senza centro</a>
+    {# Tendina con gli "altri" centri: visibile solo su mobile (vedi style.css). #}
+    {% set _extra_attivo = (centro in altri) or (centro == 'Senza centro') %}
+    <select class="form-select form-select-sm filtro-centri-select {{ 'border-primary text-primary fw-semibold' if _extra_attivo }}"
+            aria-label="Altri centri"
+            onchange="if (this.value) window.location.href = this.value;">
+      <option value="">Altri centri…</option>
+      {% for c in altri %}
+      <option value="{{ url_for(endpoint, q=q or None, centro=c) }}" {{ 'selected' if centro == c }}>{{ c }}</option>
+      {% endfor %}
+      <option value="{{ url_for(endpoint, q=q or None, centro='Senza centro') }}" {{ 'selected' if centro == 'Senza centro' }}>Senza centro</option>
+    </select>
+  </div>
+{% endmacro %}
+
 {# Selettore delle colonne visibili in una lista. `nome` = chiave del cookie
    (es. 'clienti'), `catalogo` = lista di {key,label,default}, `attive` = chiavi
    attualmente mostrate. Richiede static/colonne.js. #}

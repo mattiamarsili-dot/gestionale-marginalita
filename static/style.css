@@ -46,8 +46,18 @@ body {
    sola e gli altri pulsanti vanno sotto. */
 @media (max-width: 575.98px) {
   .toolbar-lista { flex-wrap: wrap; }
-  .toolbar-lista .cerca-form { flex: 1 1 100%; min-width: 0; }
+  .toolbar-lista .cerca-form { flex: 1 1 100%; min-width: 0; order: -1; }
   .toolbar-lista .cerca-form .input-group { width: 100%; }
+}
+
+/* Filtro centri compatto: su mobile solo i primi 5 come bottoni, gli "altri"
+   in una tendina; su schermi larghi tutti bottoni e niente tendina. */
+.filtro-centri-select { width: auto; max-width: 11rem; flex: 0 0 auto; }
+@media (max-width: 575.98px) {
+  .filtro-centri .centro-extra { display: none; }
+}
+@media (min-width: 576px) {
+  .filtro-centri .filtro-centri-select { display: none; }
 }
 
 /* Cards */

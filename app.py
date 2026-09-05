@@ -386,7 +386,7 @@ def service_worker():
     # Service worker minimale: cache dei soli asset statici (no pagine autenticate),
     # sufficiente a rendere l'app installabile. Servito da root per avere scope "/".
     js = """
-const CACHE = 'gm-v3';
+const CACHE = 'gm-v4';
 const ASSETS = [
   '/static/style.css', '/static/select-add.js',
   '/static/icons/icon-192.png', '/static/icons/icon-512.png',
@@ -403,7 +403,15 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.pathname.startsWith('/static/') || url.pathname === '/manifest.webmanifest') {
-    e.respondWith(caches.match(req).then((r) => r || fetch(req)));
+    // Network-first: quando c'è rete si prende sempre la versione aggiornata
+    // (così i deploy di CSS/JS arrivano subito), con fallback alla cache offline.
+    e.respondWith(
+      fetch(req).then((resp) => {
+        const copy = resp.clone();
+        caches.open(CACHE).then((c) => c.put(req, copy));
+        return resp;
+      }).catch(() => caches.match(req))
+    );
   }
 });
 """

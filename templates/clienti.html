@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_widgets.html" import colonne_picker %}
+{% from "_widgets.html" import colonne_picker, filtro_centri %}
 {% block title %}Clienti — Gestionale Altra Mobilità{% endblock %}
 
 {% block content %}
@@ -37,17 +37,8 @@
 </a>
 {% endif %}
 
-<!-- Filtro per centro -->
-<div class="d-flex flex-wrap gap-2 mb-4">
-  <a href="{{ url_for('clienti', q=q or None) }}"
-     class="btn btn-sm {{ 'btn-primary' if not centro and not solo_verificare else 'btn-outline-secondary' }}">Tutti i centri</a>
-  {% for c in centri %}
-  <a href="{{ url_for('clienti', q=q or None, centro=c) }}"
-     class="btn btn-sm {{ 'btn-primary' if centro == c else 'btn-outline-secondary' }}">{{ c }}</a>
-  {% endfor %}
-  <a href="{{ url_for('clienti', q=q or None, centro='Senza centro') }}"
-     class="btn btn-sm {{ 'btn-primary' if centro == 'Senza centro' else 'btn-outline-secondary' }}">Senza centro</a>
-</div>
+<!-- Filtro per centro (mobile: 5 rapidi + tendina; desktop: tutti i bottoni) -->
+{{ filtro_centri('clienti', centri, centro, q, tutti_attivo=(not centro and not solo_verificare)) }}
 
 <!-- Viste predefinite (cambiano le colonne mostrate) -->
 <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
