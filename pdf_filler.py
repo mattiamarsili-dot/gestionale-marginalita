@@ -196,6 +196,11 @@ _SL_SIGN_RIGHE = 6           # righe del significato Santa Lucia (campo largo 52
 _SL_SIGN_WIDTH_PT = 514.0
 _PREV_MAX_RIGHE = 16         # righe 0..15 sul preventivo generico
 
+# Rientro a sinistra dei valori sul MODULO QUOTA DIFFERENZA (spazi premessi):
+# sul template le caselle iniziano a filo del tratteggio, un po' di spazio
+# stacca il testo. Regolare qui se serve più/meno rientro.
+_QUOTA_INDENT = "   "
+
 
 # ── Formattazione valori ──────────────────────────────────────────────────────
 
@@ -490,15 +495,16 @@ def build_field_map(template_id: str, pratica: dict, cliente: dict, righe: list 
         }
 
     if template_id == "autodichiarazione-extratariffario":
-        # "Io sottoscritto/a ___ in qualità di ___ dell'assistito/a ___":
-        # il firmatario è il tutore/delegato se presente, altrimenti il paziente.
+        # Modulo ricostruito da scripts/build_autodichiarazione.py.
+        # Firmatario = tutore/delegato se presente in anagrafica, altrimenti il
+        # paziente stesso; l'assistito è sempre il paziente.
         ha_tutore = D["ha_tutore"]
         return {
-            "Nome paziente o nome delegante": D["tutore_nome"] if ha_tutore else D["nome"],
-            "Ruolo": "Tutore/ Delegato" if ha_tutore else "Me medesimo",
-            "Cognome e nome paziente": D["nome"],   # sempre l'assistito
-            "Tipologia ausilio": D["ausilio"],
-            "Data attuale": D["oggi"],              # "Roma ___"
+            "firmatario": D["tutore_nome"] if ha_tutore else D["nome"],
+            "ruolo": "Tutore / Delegato" if ha_tutore else "Me medesimo",
+            "assistito": D["nome"],
+            "ausilio": D["ausilio"],
+            "data": D["oggi"],                      # "Roma, ___"
         }
 
     if template_id == "quota-differenza":
@@ -507,7 +513,7 @@ def build_field_map(template_id: str, pratica: dict, cliente: dict, righe: list 
         asl_v = pratica.get("importo_asl")
         priv_v = pratica.get("importo_privato")
         listino = (asl_v or 0) + (priv_v or 0)
-        return {
+        fm = {
             "Data attuale": D["oggi"],
             "Cognome e nome ": D["nome"],           # NB: spazio finale nel nome campo
             "N. pratica": D["numero_preventivo"],
@@ -515,6 +521,9 @@ def build_field_map(template_id: str, pratica: dict, cliente: dict, righe: list 
             "Prezzo ASL": _fmt_euro(asl_v),                    # RIMBORSO ASL
             "Differenza a carico": _fmt_euro(priv_v),          # DIFFERENZA A CARICO
         }
+        # Rientro a sinistra: sul template i campi partono appiccicati al
+        # tratteggio → un filo di spazio li stacca e li "centra" un po'.
+        return {k: (_QUOTA_INDENT + v if v else v) for k, v in fm.items()}
 
     if template_id == "modulo-assegno":
         # Modulo scannerizzato: i due campi larghi "Centro"/"Centro_1" restano

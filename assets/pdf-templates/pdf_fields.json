@@ -6,29 +6,29 @@
     "num_text": 4,
     "campi": [
       {
-        "nome": "Cognome e nome paziente",
+        "nome": "assistito",
         "tipo": "text",
         "valore_default": ""
       },
       {
-        "nome": "Data attuale",
+        "nome": "ausilio",
         "tipo": "text",
         "valore_default": ""
       },
       {
-        "nome": "Nome paziente o nome delegante",
+        "nome": "data",
         "tipo": "text",
         "valore_default": ""
       },
       {
-        "nome": "Ruolo",
+        "nome": "firmatario",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "ruolo",
         "tipo": "choice",
-        "valore_default": "Tutore/ Delegato"
-      },
-      {
-        "nome": "Tipologia ausilio",
-        "tipo": "text",
-        "valore_default": ""
+        "valore_default": "Me medesimo"
       }
     ]
   },
