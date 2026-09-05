@@ -388,16 +388,77 @@
           </div>
         </div>
 
-        <!-- Relazione tecnica (documento Word con carta intestata) -->
-        <div class="card mb-4" id="relazione"
+        <!-- Moduli PDF -->
+        <div class="card" id="moduli" data-moduli-url="{{ url_for('aggiorna_moduli_attivi', pratica_id=pratica.id) }}">
+          <div class="card-header bg-dark text-white py-3 d-flex align-items-center justify-content-between">
+            <span><i class="bi bi-file-earmark-pdf me-2"></i>Moduli da compilare</span>
+            <span class="small text-white-50">Spunta i moduli che servono per questa pratica</span>
+          </div>
+          <div class="card-body">
+            {% if not cliente %}
+            <div class="alert alert-warning py-2 small mb-3">
+              <i class="bi bi-exclamation-triangle-fill me-1"></i>
+              Questa pratica non è collegata a un cliente in anagrafica: i moduli non possono essere
+              precompilati con i dati del paziente.
+              <a href="{{ url_for('modifica_pratica', pratica_id=pratica.id) }}">Collega un cliente</a>.
+            </div>
+            {% endif %}
+            {% if request.args.get('manca_medico') %}
+            <div class="alert alert-danger py-2 small mb-3">
+              <i class="bi bi-exclamation-triangle-fill me-1"></i>
+              Inserisci <strong>Medico / struttura</strong> nella sezione qui sopra prima di generare i moduli.
+            </div>
+            {% endif %}
+            {# In vista solo i consigliati (preventivo / prescrizione / delega) più
+               quelli attivati in automatico o già generati; il resto sotto "Altri moduli". #}
+            {% set _cat_consigliate = ['preventivo', 'prescrizione', 'delega'] %}
+            {% set _ns = namespace(altri=0) %}
+            {% for m in moduli if not (m.categoria in _cat_consigliate or m.id in moduli_auto or m.id in moduli_generati or m.id in moduli_bloccati) %}
+              {% set _ns.altri = _ns.altri + 1 %}
+            {% endfor %}
+            <div class="row g-2" id="moduli-lista">
+              {% for m in moduli if m.categoria in _cat_consigliate or m.id in moduli_auto or m.id in moduli_generati or m.id in moduli_bloccati %}
+                {% include "_modulo_item.html" %}
+              {% endfor %}
+            </div>
+            {% if _ns.altri %}
+            <button class="btn btn-sm btn-outline-secondary mt-2" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#moduli-altri" aria-expanded="false"
+                    aria-controls="moduli-altri">
+              <i class="bi bi-three-dots me-1"></i>Altri moduli ({{ _ns.altri }})
+            </button>
+            <div class="collapse mt-2" id="moduli-altri">
+              <div class="row g-2">
+                {% for m in moduli if not (m.categoria in _cat_consigliate or m.id in moduli_auto or m.id in moduli_generati or m.id in moduli_bloccati) %}
+                  {% include "_modulo_item.html" %}
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+            <div class="text-muted small mt-2" id="moduli-vuoto-hint" {% if moduli_attivi %}style="display:none"{% endif %}>
+              Nessun modulo selezionato: spunta quelli necessari per abilitare la generazione.
+            </div>
+          </div>
+        </div>
+
+        <!-- Relazione tecnica — in fondo e chiusa: si apre dal titolo -->
+        <div class="card mt-4" id="relazione"
              data-testo-url="{{ url_for('aggiorna_testo_pratica', pratica_id=pratica.id) }}">
-          <div class="card-header bg-secondary text-white py-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
-            <span><i class="bi bi-file-earmark-text me-2"></i>Relazione tecnica</span>
+          <div class="card-header bg-secondary text-white py-2 d-flex flex-wrap align-items-center justify-content-between gap-2 collapsed"
+               role="button" style="cursor:pointer"
+               data-bs-toggle="collapse" data-bs-target="#relazione-body"
+               aria-expanded="false" aria-controls="relazione-body">
+            <span>
+              <i class="bi bi-chevron-right chevron-toggle me-1 small"></i>
+              <i class="bi bi-file-earmark-text me-1"></i>Relazione tecnica
+              <span class="text-white-50 small ms-1">— apri per compilarla</span>
+            </span>
             <span class="badge bg-success text-white {% if not relazione_generata %}d-none{% endif %}"
                   id="badge-relazione" title="Relazione già generata">
               <i class="bi bi-check-lg"></i> generata
             </span>
           </div>
+          <div class="collapse" id="relazione-body">
           <div class="card-body">
             {% if not cliente %}
             <div class="alert alert-warning py-2 small mb-3">
@@ -457,78 +518,6 @@
               {% endif %}
             </div>
           </div>
-        </div>
-
-        <!-- Moduli PDF -->
-        <div class="card" id="moduli" data-moduli-url="{{ url_for('aggiorna_moduli_attivi', pratica_id=pratica.id) }}">
-          <div class="card-header bg-dark text-white py-3 d-flex align-items-center justify-content-between">
-            <span><i class="bi bi-file-earmark-pdf me-2"></i>Moduli da compilare</span>
-            <span class="small text-white-50">Spunta i moduli che servono per questa pratica</span>
-          </div>
-          <div class="card-body">
-            {% if not cliente %}
-            <div class="alert alert-warning py-2 small mb-3">
-              <i class="bi bi-exclamation-triangle-fill me-1"></i>
-              Questa pratica non è collegata a un cliente in anagrafica: i moduli non possono essere
-              precompilati con i dati del paziente.
-              <a href="{{ url_for('modifica_pratica', pratica_id=pratica.id) }}">Collega un cliente</a>.
-            </div>
-            {% endif %}
-            {% if request.args.get('manca_medico') %}
-            <div class="alert alert-danger py-2 small mb-3">
-              <i class="bi bi-exclamation-triangle-fill me-1"></i>
-              Inserisci <strong>Medico / struttura</strong> nella sezione qui sopra prima di generare i moduli.
-            </div>
-            {% endif %}
-            <div class="row g-2" id="moduli-lista">
-              {% for m in moduli %}
-              {% set attivo = m.id in moduli_attivi %}
-              {% set bloccato = m.id in moduli_bloccati %}
-              <div class="col-12 col-sm-6">
-                <div class="d-flex align-items-center justify-content-between border rounded p-2 modulo-item {% if not attivo %}opacity-50{% endif %}"
-                     data-modulo-id="{{ m.id }}">
-                  <div class="form-check me-2 mb-0">
-                    <input class="form-check-input modulo-check" type="checkbox" value="{{ m.id }}"
-                           id="chk-{{ m.id }}" {% if attivo %}checked{% endif %}
-                           {% if bloccato %}disabled{% endif %}>
-                    <label class="form-check-label fw-semibold small" for="chk-{{ m.id }}">{{ m.label }}</label>
-                    {% if m.sempre_attivo %}
-                    <span class="badge bg-success-subtle text-success" style="font-size:.65em"><i class="bi bi-pin-angle-fill"></i> sempre attivo</span>
-                    {% elif m.id in moduli_auto %}
-                    <span class="badge bg-info-subtle text-info" style="font-size:.65em"><i class="bi bi-magic"></i> attivo automaticamente</span>
-                    {% endif %}
-                    {% if m.stato == 'parziale' %}
-                    <span class="badge bg-warning-subtle text-warning d-block" style="font-size:.65em">compilazione parziale</span>
-                    {% endif %}
-                    <span class="badge bg-success text-white modulo-generato-badge {% if m.id not in moduli_generati %}d-none{% endif %}"
-                          style="font-size:.65em" title="PDF già generato almeno una volta"><i class="bi bi-check-circle-fill me-1"></i>generato</span>
-                  </div>
-                  {% if m.richiede_cliente and not cliente %}
-                  <button class="btn btn-sm btn-outline-secondary" disabled title="Serve un cliente collegato">
-                    <i class="bi bi-download"></i>
-                  </button>
-                  {% else %}
-                  <div class="d-flex gap-1">
-                    <a href="{{ url_for('genera_modulo', pratica_id=pratica.id, template_id=m.id) }}"
-                       class="btn btn-sm btn-primary text-nowrap modulo-genera {% if not attivo %}d-none{% endif %}">
-                      <i class="bi bi-download me-1"></i>Genera
-                    </a>
-                    {% if m.id in moduli_word %}
-                    <a href="{{ url_for('genera_modulo_word', pratica_id=pratica.id, template_id=m.id) }}"
-                       class="btn btn-sm btn-outline-primary text-nowrap modulo-genera {% if not attivo %}d-none{% endif %}"
-                       title="Scarica in Word (modificabile)">
-                      <i class="bi bi-file-earmark-word me-1"></i>Word
-                    </a>
-                    {% endif %}
-                  </div>
-                  {% endif %}
-                </div>
-              </div>
-              {% endfor %}
-            </div>
-            <div class="text-muted small mt-2" id="moduli-vuoto-hint" {% if moduli_attivi %}style="display:none"{% endif %}>
-              Nessun modulo selezionato: spunta quelli necessari per abilitare la generazione.
-            </div>
           </div>
         </div>
 
@@ -944,6 +933,11 @@
     const trigger = document.querySelector('[data-bs-target="#' + pane.id + '"]');
     if (trigger) new bootstrap.Tab(trigger).show();
     if (target !== pane) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  // Se si punta alla Relazione tecnica (in fondo e chiusa), aprila.
+  if (hash === '#relazione') {
+    const body = document.getElementById('relazione-body');
+    if (body && window.bootstrap) bootstrap.Collapse.getOrCreateInstance(body).show();
   }
 })();
 

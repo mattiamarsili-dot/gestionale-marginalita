@@ -64,6 +64,10 @@ body {
 .card { border: none; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
 .card-header { border-radius: 12px 12px 0 0 !important; font-weight: 600; }
 
+/* Freccia negli header a fisarmonica (es. Relazione tecnica): ruota da chiusa ad aperta */
+.card-header .chevron-toggle { transition: transform .15s ease; }
+.card-header:not(.collapsed) .chevron-toggle { transform: rotate(90deg); }
+
 /* Stat cards */
 .stat-card { border-radius: 12px; padding: 1.2rem 1.4rem; color: #fff; position: relative; overflow: hidden; }
 .stat-card .stat-icon { font-size: 2.2rem; opacity: .25; position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); }
