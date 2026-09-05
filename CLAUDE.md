@@ -119,22 +119,29 @@ per lo scaglione provvigione usa solo l'ASL fatturato (vedi `provvigione_corrent
 
 ## Template PDF e field-map
 
-I PDF compilabili sono in `assets/pdf-templates/`. Tutti e 8 hanno campi AcroForm
+I PDF compilabili sono in `assets/pdf-templates/`. Hanno tutti campi AcroForm
 (verificato con pypdf — la doc `CRM AM/PDF_FIELD_MAP.md` è obsoleta, non fidarsi).
 
 **Fonte di verità per i nomi campo:** `assets/pdf-templates/pdf_fields.json`,
 rigenerabile con `python scripts/dump_pdf_fields.py`.
 
-| File | Campi testo | Pagine |
-|---|---|---|
-| `preventivo-sapio-v1.pdf` | 93 | 1 |
-| `Preventivo.pdf` | 93 | 1 |
-| `Prescrizione Gen.pdf` | 61 | 2 |
-| `Prescrizione HBG.pdf` | 56 | 1 |
-| `PrescrizioneSanta lucia.pdf` | 51 | 2 |
-| `autocert-asl-rm3.pdf` | 23 | 2 |
-| `Delega Generica.pdf` | 40 | 2 |
-| `Delega RM2.pdf` | 18 | 2 |
+Ogni modulo ha una `categoria` in `PDF_TEMPLATES` che decide la modificabilità del
+PDF scaricato: `prescrizione` → editabile, `delega`/`sapio` → parziale (campi con
+dato dal DB fissi, resto compilabile a mano), altri → bloccato.
+
+| File | Campi testo | Pagine | id / categoria |
+|---|---|---|---|
+| `preventivo-sapio-v1.pdf` | 93 | 1 | `preventivo-sapio` (non a registro) |
+| `Preventivo.pdf` | 93 | 1 | `preventivo` |
+| `Prescrizione Gen.pdf` | 61 | 2 | `prescrizione-gen` |
+| `Prescrizione HBG.pdf` | 56 | 1 | `prescrizione-hbg` |
+| `PrescrizioneSanta lucia.pdf` | 51 | 2 | `prescrizione-santalucia` |
+| `autocert-asl-rm3.pdf` | 23 | 2 | `autocert-asl-rm3` |
+| `Delega Generica.pdf` | 40 | 2 | `delega-generica` |
+| `Delega RM2.pdf` | 18 | 2 | `delega-rm2` |
+| `Autodichiarazione Extratariffario.pdf` | 4+1 choice | 1 | `autodichiarazione-extratariffario` / `sapio` |
+| `MODULO QUOTA DIFFERENZA AUSILI-1.pdf` | 6 | 1 | `quota-differenza` / `sapio` (listino = ASL + privato) |
+| `Modulo Assegno.pdf` | 6 | 1 | `modulo-assegno` / `sapio` (scannerizzato; `Centro`/`Centro_1` lasciati vuoti) |
 
 ---
 

@@ -1,4 +1,37 @@
 {
+  "Autodichiarazione Extratariffario.pdf": {
+    "file": "Autodichiarazione Extratariffario.pdf",
+    "pagine": 1,
+    "num_campi": 5,
+    "num_text": 4,
+    "campi": [
+      {
+        "nome": "Cognome e nome paziente",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Data attuale",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Nome paziente o nome delegante",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Ruolo",
+        "tipo": "choice",
+        "valore_default": "Tutore/ Delegato"
+      },
+      {
+        "nome": "Tipologia ausilio",
+        "tipo": "text",
+        "valore_default": ""
+      }
+    ]
+  },
   "Delega Generica.pdf": {
     "file": "Delega Generica.pdf",
     "pagine": 2,
@@ -300,6 +333,82 @@
       },
       {
         "nome": "delega_rm2_delegato_documento_tipo_numero",
+        "tipo": "text",
+        "valore_default": ""
+      }
+    ]
+  },
+  "MODULO QUOTA DIFFERENZA AUSILI-1.pdf": {
+    "file": "MODULO QUOTA DIFFERENZA AUSILI-1.pdf",
+    "pagine": 1,
+    "num_campi": 6,
+    "num_text": 6,
+    "campi": [
+      {
+        "nome": "Cognome e nome ",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Data attuale",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Differenza a carico",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "N. pratica",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo ASL",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Text1",
+        "tipo": "text",
+        "valore_default": ""
+      }
+    ]
+  },
+  "Modulo Assegno.pdf": {
+    "file": "Modulo Assegno.pdf",
+    "pagine": 1,
+    "num_campi": 6,
+    "num_text": 6,
+    "campi": [
+      {
+        "nome": "Centro",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Centro_1",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Data attuale",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Prezzo ASL",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "Tipologia Ausilio",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "cognome e nome",
         "tipo": "text",
         "valore_default": ""
       }

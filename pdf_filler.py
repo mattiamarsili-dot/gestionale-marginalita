@@ -29,6 +29,9 @@ MODULI_ORDINE = [
     "delega-generica",           # Autocertificazione + Delega generica
     "delega-rm2",                # Delega ASL RM2
     "autocert-asl-rm3",          # Autocertificazione + Delega ASL RM3
+    "autodichiarazione-extratariffario",  # Autodichiarazione extratariffario (Sapio)
+    "quota-differenza",          # Modulo quota differenza a carico (Sapio)
+    "modulo-assegno",            # Modulo assegno (Sapio)
 ]
 
 PDF_TEMPLATES = {
@@ -92,6 +95,30 @@ PDF_TEMPLATES = {
         "stato": "ok",
         "richiede_cliente": True,
         "categoria": "autocert",
+    },
+    # ── Moduli Sapio Life ────────────────────────────────────────────────────
+    # categoria "sapio" → modo "parziale": i campi valorizzati dal DB diventano
+    # fissi, gli altri (firme, campi liberi) restano compilabili a mano.
+    "autodichiarazione-extratariffario": {
+        "label": "Autodichiarazione extratariffario (Sapio)",
+        "file": "Autodichiarazione Extratariffario.pdf",
+        "stato": "parziale",  # firmatario/ruolo + ausilio; firma e luogo a mano
+        "richiede_cliente": True,
+        "categoria": "sapio",
+    },
+    "quota-differenza": {
+        "label": "Modulo quota differenza a carico (Sapio)",
+        "file": "MODULO QUOTA DIFFERENZA AUSILI-1.pdf",
+        "stato": "parziale",  # anagrafica + importi (listino = ASL + privato)
+        "richiede_cliente": True,
+        "categoria": "sapio",
+    },
+    "modulo-assegno": {
+        "label": "Modulo assegno (Sapio)",
+        "file": "Modulo Assegno.pdf",
+        "stato": "parziale",  # anagrafica + ausilio + importo ASL; resto a mano
+        "richiede_cliente": True,
+        "categoria": "sapio",
     },
 }
 
@@ -460,6 +487,43 @@ def build_field_map(template_id: str, pratica: dict, cliente: dict, righe: list 
             "delega_rm2_delegante_ausilio": D["ausilio"],
             "delega_rm2_delegante_data_prescrizione": D["data_prescrizione"],
             "delega_rm2_data_firma": D["oggi"],
+        }
+
+    if template_id == "autodichiarazione-extratariffario":
+        # "Io sottoscritto/a ___ in qualità di ___ dell'assistito/a ___":
+        # il firmatario è il tutore/delegato se presente, altrimenti il paziente.
+        ha_tutore = D["ha_tutore"]
+        return {
+            "Nome paziente o nome delegante": D["tutore_nome"] if ha_tutore else D["nome"],
+            "Ruolo": "Tutore/ Delegato" if ha_tutore else "Me medesimo",
+            "Cognome e nome paziente": D["nome"],   # sempre l'assistito
+            "Tipologia ausilio": D["ausilio"],
+            "Data attuale": D["oggi"],              # "Roma ___"
+        }
+
+    if template_id == "quota-differenza":
+        # Importi stampati così come sono in pratica (il modulo scrive "+ IVA"
+        # accanto, ma non scorporiamo). Prezzo di listino = ASL + quota privata.
+        asl_v = pratica.get("importo_asl")
+        priv_v = pratica.get("importo_privato")
+        listino = (asl_v or 0) + (priv_v or 0)
+        return {
+            "Data attuale": D["oggi"],
+            "Cognome e nome ": D["nome"],           # NB: spazio finale nel nome campo
+            "N. pratica": D["numero_preventivo"],
+            "Text1": _fmt_euro(listino) if listino else "",   # PREZZO DEL LISTINO
+            "Prezzo ASL": _fmt_euro(asl_v),                    # RIMBORSO ASL
+            "Differenza a carico": _fmt_euro(priv_v),          # DIFFERENZA A CARICO
+        }
+
+    if template_id == "modulo-assegno":
+        # Modulo scannerizzato: i due campi larghi "Centro"/"Centro_1" restano
+        # vuoti (righe da compilare/firmare a mano).
+        return {
+            "cognome e nome": D["nome"],
+            "Prezzo ASL": _fmt_euro(pratica.get("importo_asl")),
+            "Tipologia Ausilio": D["ausilio"],
+            "Data attuale": D["oggi"],
         }
 
     if template_id == "preventivo-sapio":
@@ -862,7 +926,7 @@ def compila_pdf(template_id: str, pratica: dict, cliente: dict, righe: list = No
     categoria = tpl.get("categoria")
     if categoria == "prescrizione":
         modo = "editabile"
-    elif categoria == "delega":
+    elif categoria in ("delega", "sapio"):
         modo = "parziale"
     else:
         modo = "bloccato"
@@ -1036,6 +1100,8 @@ def nome_file_consigliato(template_id: str, pratica: dict, cliente: dict) -> str
         base = f"Prescrizione - {cognome} - {oggi}"
     elif cat == "delega":
         base = f"Deleghe - {cognome} - {oggi}"
+    elif cat == "sapio":
+        base = f"{tpl.get('label', template_id)} - {cognome} - {oggi}"
     else:
         numero = numero_preventivo(pratica, cliente) or f"pratica-{pratica.get('id', '')}"
         nome = _nome_completo(cliente).upper() or "CLIENTE"
