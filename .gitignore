@@ -31,8 +31,9 @@ backup_*.json
 # vanno versionati: sono l'app, non dati di un paziente).
 !assets/word-templates/*.docx
 
-# Config locale dell'editor / Claude
-.claude/
+# Config locale dell'editor / Claude (ma le skill del progetto si versionano)
+.claude/*
+!.claude/skills/
 
 # Upload PDF locali
 uploads/

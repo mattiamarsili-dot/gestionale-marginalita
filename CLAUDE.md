@@ -1,167 +1,98 @@
 # CLAUDE.md — Gestionale Marginalità / CRM Ausili Sanitari
 
-Questo file orienta Claude Code (e qualsiasi agente AI) prima di toccare il codice.
-Leggerlo interamente prima di fare modifiche.
+Gestionale web (Flask) per pratiche di ausili sanitari: clienti, preventivi
+fornitori, calcolo margine, fatturazione, compilazione moduli PDF/Word.
+**In produzione** su Render (DB PostgreSQL su Neon). In locale: SQLite, porta 5001.
 
-> ⚠️ Da non confondere con `CRM AM/CLAUDE.md`: quello descrive un **vecchio prototipo
-> localStorage** (HTML+JS vanilla) tenuto **solo come riferimento**. L'app reale è questa,
-> in Flask. La cartella `CRM AM/` è materiale di riferimento ed è git-ignored.
-
----
-
-## Cos'è questo progetto
-
-Gestionale web per la gestione di **pratiche di ausili sanitari**: pazienti/clienti,
-preventivi fornitori, calcolo del margine, fatturazione e (in arrivo) compilazione
-automatica di moduli PDF.
-
-**Stato:** in produzione. Deployato su Render con DB PostgreSQL su Neon.
-In sviluppo locale gira su SQLite, porta 5001.
-
-**In corso (branch `feat/crm-anagrafica-pdf`):** consolidamento delle funzioni del vecchio
-prototipo dentro questo Flask — anagrafica clienti strutturata e compilazione moduli PDF.
-Vedi sezione "Roadmap di consolidamento" in fondo.
-
----
+> `CRM AM/` è un vecchio prototipo localStorage tenuto solo come riferimento
+> (git-ignored). L'app reale è questa.
 
 ## Stack
+Flask 3 + Python 3.12 · Bootstrap 5.3 + JS vanilla + Jinja2 · `pdfplumber`/pypdf
+in ingresso, `pypdf`+`reportlab` in uscita · Google Drive via service account /
+OAuth · deploy Render (`Procfile`, `render.yaml`, gunicorn).
 
-- **Backend:** Flask 3 + Python 3.12
-- **DB:** SQLite (locale) / PostgreSQL via Neon (produzione) — vedi pattern dual-DB sotto
-- **Frontend:** Bootstrap 5.3 + JS vanilla, template Jinja2
-- **PDF in (estrazione):** `pdfplumber`/pypdf in `pdf_extractor.py`
-- **PDF out (compilazione):** `pypdf` in `pdf_filler.py` (in costruzione)
-- **Drive:** Service Account Google in `drive_sync.py`
-- **Deploy:** Render (`Procfile`, `render.yaml`, gunicorn)
-
----
-
-## Mappa dei file
-
+## File principali
 | File | Scopo |
 |---|---|
-| `app.py` | Tutte le route Flask (~610 righe) |
-| `config.py` | Costanti di business (provvigioni, soglie) + env var |
-| `database.py` | Layer DB, schema dual SQLite/Postgres, `calcola_margine`, migrazioni |
-| `pdf_extractor.py` | Estrazione importo totale dai PDF fornitori (PDF in entrata) |
-| `pdf_filler.py` | Compilazione moduli PDF (PDF in uscita) — **in costruzione** |
-| `drive_sync.py` | Integrazione Google Drive |
-| `scripts/dump_pdf_fields.py` | Estrae i nomi campo AcroForm dei template → `pdf_fields.json` |
-| `templates/*.html` | Viste Jinja2 (base, dashboard, pratica, fatturati, login) |
-| `assets/pdf-templates/` | PDF template compilabili + `pdf_fields.json` (field-map reale) |
-| `static/style.css` | Stili custom |
-| `CRM AM/` | **Riferimento** — vecchio prototipo + documentazione (git-ignored) |
+| `app.py` | tutte le route Flask |
+| `config.py` | costanti di business + env var |
+| `database.py` | layer DB, schema dual SQLite/Postgres, `calcola_margine`, migrazioni |
+| `pdf_filler.py` | compilazione moduli PDF in uscita (`PDF_TEMPLATES`, `build_field_map`, `compila_pdf`) |
+| `word_filler.py` | moduli Word (motore "celle" + motore segnaposto `{{chiave}}`) |
+| `pdf_extractor.py` | estrazione importo dai PDF fornitori |
+| `drive_sync.py` / `drive_archive` | integrazione Google Drive |
+| `rinnovi.py` | scadenze rinnovi ausili |
+| `assets/pdf-templates/` | PDF compilabili + `pdf_fields.json` (fonte di verità nomi campo) |
+| `scripts/dump_pdf_fields.py` | rigenera `pdf_fields.json` |
+| `import_fatturati_*.py` + `fatturati_common.py` | import mensile pratiche fatturate (untracked) |
 
----
+## REGOLA CRITICA — dual-DB (SQLite locale / PostgreSQL prod)
+Ogni query deve girare su entrambi i dialetti. In `database.py`:
+`_IS_POSTGRES` = `bool(DATABASE_URL)` · `_PH` = placeholder (`%s` / `?`) → **usare
+sempre `{_PH}`, mai `?`/`%s` hardcoded** · `_DATE_FILTER`, `_MONTH_FORMAT`,
+`_FATTURATA_TRUE` = frammenti SQL precalcolati · `last_inserted_id(cur)`.
 
-## Pattern dual-DB (SQLite / PostgreSQL) — REGOLA CRITICA
-
-Tutto il codice DB deve funzionare su entrambi i dialetti. In `database.py`:
-
-- `_IS_POSTGRES` = `bool(DATABASE_URL)` — decide il dialetto all'avvio
-- `_PH` = placeholder parametri: `%s` (Postgres) o `?` (SQLite). **Usare sempre `{_PH}`**, mai `?`/`%s` hardcoded.
-- `_DATE_FILTER`, `_MONTH_FORMAT`, `_FATTURATA_TRUE` = frammenti SQL precalcolati per i due dialetti
-- `last_inserted_id(cur)` astrae `lastrowid` (SQLite) vs `lastval()` (Postgres)
-
-**Quando aggiungi una tabella o colonna:**
-1. Aggiungila a `_SQLITE_SCHEMA` **e** `_POSTGRES_SCHEMA` (tipi corretti per ciascuno).
-2. Aggiungi un `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` (Postgres) e l'equivalente
-   try/except (SQLite) in `migrate_db()` — deve essere **idempotente**.
-3. Non cambiare colonne esistenti in modo distruttivo: i DB in produzione hanno dati.
+**Aggiungere tabella/colonna:**
+1. Aggiungila a `_SQLITE_SCHEMA` **e** `_POSTGRES_SCHEMA` (tipi giusti per ciascuno).
+2. `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` (Postgres) + equivalente try/except
+   (SQLite) in `migrate_db()`, **idempotente**.
+3. Mai modifiche distruttive: i DB in produzione hanno dati reali.
 
 `init_db()` + `migrate_db()` girano a ogni avvio (anche sotto gunicorn).
 
----
+## Tabelle
+`clienti` (anagrafica: CF, nascita, residenza, ASL, centro, medico, tutore…) ·
+`pratiche` (`cliente_id` FK, `importo_asl`, `importo_privato`, `provvigione_pct`,
+`fatturata`, `data_fatturazione`, `stato_lavorazione`, `ausilio`, `sign_terapeutico`,
+`moduli_attivi`/`moduli_generati`, `drive_archivio_id`…) · `preventivi` (costi
+fornitore, `importo` = fonte di verità per margine) · `righe_ausili` (codici ISO
+della pratica) · `utenti` (login email+password, ruoli admin/operatore) ·
+`preset_ausili`/`preset_righe` · `significato_catalogo` · `note`/`note_assegnatari`
+(task multi-utente) · `contatti_clinici` · `rinnovi` · `fornitori_sconti` · `app_config`.
 
-## Schema DB attuale
-
-### `pratiche`
-`id`, `nome_paziente` (TEXT, oggi testo libero), `data_pratica` (DATE),
-`importo_asl` (REAL), `importo_privato` (REAL, default 0), `provvigione_pct` (REAL, default 0.16),
-`note`, `fatturata` (BOOL/INT), `data_fatturazione` (DATE), `creato_il` (TIMESTAMP).
-
-### `preventivi`
-`id`, `pratica_id` (FK → pratiche CASCADE), `nome_fornitore`, `importo` (REAL),
-`file_pdf` (path locale), `drive_file_id`.
-
-> Nota: **non esiste ancora una tabella `clienti`** — `pratiche.nome_paziente` è testo libero.
-> Crearla è il primo passo della roadmap (serve a popolare i moduli PDF con CF, indirizzo, ASL…).
-
----
-
-## Logica di business (config.py)
-
-| Regola | Valore | Costante |
-|---|---|---|
-| Provvigione base | 16% | `PROVVIGIONE_PCT` |
-| Provvigione tier 2 | 17% (fatt. ASL annuo > 250k) | `PROVVIGIONE_PCT_17` / `SOGLIA_PROV_17` |
-| Provvigione tier 3 | 18% (fatt. ASL annuo > 350k) | `PROVVIGIONE_PCT_18` / `SOGLIA_PROV_18` |
-| Provvigione ridotta (Nemo) | 12% | `PROVVIGIONE_PCT_RIDOTTA` |
-| Struttura | 5% sul totale ricavi | `STRUTTURA_PCT` |
-| Soglia margine OK / warning | ≥20% / ≥10% | `MARGINE_SOGLIA_OK` / `_WARN` |
+## Logica di business (`config.py`)
+| Regola | Valore |
+|---|---|
+| Provvigione base / tier2 / tier3 | 16% / 17% (ASL annuo >250k) / 18% (>350k) |
+| Provvigione ridotta (Nemo) | 12% |
+| Struttura | 10% sul totale ricavi (ASL+privato) |
+| Soglia margine OK / warn | ≥20% / ≥10% |
 
 `MOL = (ASL + privato) − costo_fornitori − provvigione − struttura`.
-Provvigione e struttura si calcolano sul totale ricavi (ASL+privato); la **soglia annua**
-per lo scaglione provvigione usa solo l'ASL fatturato (vedi `provvigione_corrente()`).
+Provvigione e struttura sul totale ricavi; la **soglia annua** dello scaglione usa
+solo l'ASL fatturato (`provvigione_corrente()`).
 
----
+## Route (`app.py`)
+Pagine: `dashboard` (`/`), `nuova_pratica`, `dettaglio_pratica`, `modifica_pratica`,
+`pratiche`, `clienti`, `fatturati`, `rinnovi`, `contatti`, `presets`, `panoramica`
+(business, admin-only). POST mirati accettano `torna` per il redirect. API JSON
+sotto `/api/…`. Auth: login multiutente in `before_request` (`controlla_accesso`),
+seed admin da env `ADMIN_EMAIL/PASSWORD/NOME`.
 
-## Convenzioni route (app.py)
+## Moduli PDF (`pdf_filler.py`)
+`PDF_TEMPLATES[id]` ha `categoria` che decide la modificabilità del PDF scaricato:
+`prescrizione`→editabile · `delega`/`sapio`→parziale (campi con dato dal DB fissi,
+resto a mano) · altri→bloccato. Nomi campo = `assets/pdf-templates/pdf_fields.json`
+(rigenerabile con `scripts/dump_pdf_fields.py`). Alcuni template ricostruiti da
+`scripts/build_*.py` (reportlab).
 
-- Pagine: `dashboard` (`/`), `nuova_pratica`, `dettaglio_pratica`, `modifica_pratica`, `fatturati`
-- Azioni POST mirate: `/pratica/<id>/fattura`, `/data-ordine`, `/data-fattura`, `/importo-privato`,
-  `/fornitore/aggiungi`, `/preventivo/<id>/elimina`, `/pratica/<id>/elimina`
-- API JSON: `/api/estrai-pdf`, `/api/sync-drive`, `/api/calcola-margine`, `/api/config`
-- Le azioni POST accettano un campo `torna` per il redirect di ritorno.
-- Auth: `ACCESS_CODE` vuoto = nessun login (sviluppo). `controlla_accesso()` in `before_request`.
-
----
-
-## Template PDF e field-map
-
-I PDF compilabili sono in `assets/pdf-templates/`. Hanno tutti campi AcroForm
-(verificato con pypdf — la doc `CRM AM/PDF_FIELD_MAP.md` è obsoleta, non fidarsi).
-
-**Fonte di verità per i nomi campo:** `assets/pdf-templates/pdf_fields.json`,
-rigenerabile con `python scripts/dump_pdf_fields.py`.
-
-Ogni modulo ha una `categoria` in `PDF_TEMPLATES` che decide la modificabilità del
-PDF scaricato: `prescrizione` → editabile, `delega`/`sapio` → parziale (campi con
-dato dal DB fissi, resto compilabile a mano), altri → bloccato.
-
-| File | Campi testo | Pagine | id / categoria |
-|---|---|---|---|
-| `preventivo-sapio-v1.pdf` | 93 | 1 | `preventivo-sapio` (non a registro) |
-| `Preventivo.pdf` | 93 | 1 | `preventivo` |
-| `Prescrizione Gen.pdf` | 61 | 2 | `prescrizione-gen` |
-| `Prescrizione HBG.pdf` | 56 | 1 | `prescrizione-hbg` |
-| `PrescrizioneSanta lucia.pdf` | 51 | 2 | `prescrizione-santalucia` |
-| `autocert-asl-rm3.pdf` | 23 | 2 | `autocert-asl-rm3` |
-| `Delega Generica.pdf` | 40 | 2 | `delega-generica` |
-| `Delega RM2.pdf` | 18 | 2 | `delega-rm2` |
-| `Autodichiarazione Extratariffario.pdf` | 4+1 choice | 1 | `autodichiarazione-extratariffario` / `sapio` |
-| `MODULO QUOTA DIFFERENZA AUSILI-1.pdf` | 6 | 1 | `quota-differenza` / `sapio` (listino = ASL + privato) |
-| `Modulo Assegno.pdf` | 6 | 1 | `modulo-assegno` / `sapio` (scannerizzato; `Centro`/`Centro_1` lasciati vuoti) |
-
----
-
-## Roadmap di consolidamento (priorità: moduli PDF + anagrafica)
-
-1. **Fase 1 — Anagrafica clienti:** tabella `clienti` (con CF, nascita, residenza, ASL, medico…),
-   `pratiche.cliente_id` FK, migrazione dei `nome_paziente` esistenti, route/template anagrafica,
-   selettore cliente in `nuova_pratica`.
-2. **Fase 2 — Compilazione PDF:** `pdf_filler.py` (`PDF_TEMPLATES`, `build_field_map`, `compila_pdf`
-   con pypdf), route `/pratica/<id>/modulo/<template_id>`, bottoni "Genera modulo".
-3. **Fase 3 — Preset LEA / ausili:** righe ausili sulla pratica + preset terapeutici
-   (dati reali in `CRM AM/therapeutic_presets_seed.json`).
-4. **Fase 4 — Automazioni:** archivio Drive per cliente, ricerche, backup schedulato.
-
----
+## Sviluppo & deploy
+- Locale: `python3` (non `python`), venv in `.venv/`, `python3 app.py` → :5001, SQLite.
+- Test: niente pytest installato; verifiche via script ad hoc / `app.test_client()`
+  con sessione finta (`s['autenticato']=True`).
+- Deploy: **push su `main` → Render fa auto-deploy**. Migrazioni al boot.
+- Import fatturati su Neon: `DATABASE_URL='postgres://…' python import_fatturati_<mese>.py [--apply]`
+  (dry-run di default).
+- Service worker (`/sw.js` in `app.py`): asset in **network-first**; su cambio
+  strategia bumpare `CACHE` (`gm-vN`).
 
 ## Cosa NON fare
-
-- Non usare `?` o `%s` hardcoded nelle query — sempre `{_PH}`.
-- Non aggiungere tabelle/colonne senza aggiornare **entrambi** gli schemi e `migrate_db()`.
-- Non committare `CRM AM/`, `.env`, `*.db`, file di credenziali Google (già in `.gitignore`).
-- Non cambiare in modo distruttivo lo schema: i DB in produzione hanno dati reali.
-- Non reintrodurre `*.json` generico nel `.gitignore`: i preset e `pdf_fields.json` vanno versionati.
+- Niente `?`/`%s` hardcoded nelle query — sempre `{_PH}`.
+- Non toccare uno schema senza aggiornare **entrambi** + `migrate_db()`.
+- Niente modifiche distruttive allo schema (DB prod con dati reali).
+- Non committare `CRM AM/`, `.env`, `*.db`, `*.xlsx`/`*.docx` (dati pazienti),
+  credenziali Google.
+- Non rimettere `*.json` generico nel `.gitignore`: preset e `pdf_fields.json`
+  vanno versionati.
+- `preventivi.importo` resta l'unica fonte per margine/MOL: non calcolarlo altrove.
