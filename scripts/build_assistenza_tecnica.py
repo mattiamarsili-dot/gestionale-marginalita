@@ -10,15 +10,16 @@ altri moduli). Stessa carta intestata Sapio degli altri moduli "sapio"
     paziente               (testo, precompilato) — nome e cognome
     indirizzo_domicilio    (testo, precompilato) — da anagrafica, se presente
     nome_centro            (testo, precompilato) — centro riabilitazione, se presente
+    check_domicilio/check_centro (testo, "X" su uno dei due) — luogo scelto nel form di conferma
     ausilio                (testo, precompilato) — ausilio oggetto dell'intervento
     data_intervento        (testo, precompilato) — data odierna
-    orario_dalle/orario_alle (testo, vuoti)      — orario dell'assistenza, a mano
-    interventi_effettuati  (testo multi-riga, vuoto) — cosa è stato fatto, a mano
+    orario_dalle/orario_alle (testo, precompilati) — ora attuale / +2h, calcolate al momento della generazione
+    interventi_effettuati  (testo multi-riga, precompilato) — scritto nel form di conferma
     data_firma             (testo, precompilato) — data ripetuta in fondo
     (riga per la firma disegnata: non è un campo, si firma a mano sul PDF)
 
-Le caselle "Domicilio"/"Centro" sono quadratini disegnati (non campi modulo):
-si spunta a mano quello che si applica, come su un modulo cartaceo.
+Tutti i campi sopra si valorizzano PRIMA del download (form di conferma in
+app.py) e restano bloccati: l'unica cosa che si fa a mano è la firma.
 
 Uso:
     python scripts/build_assistenza_tecnica.py
@@ -63,6 +64,13 @@ _FIELD = dict(borderStyle="underlined", borderWidth=1, forceBorder=True,
               fillColor=colors.white, borderColor=colors.Color(0.45, 0.45, 0.45),
               fontName="Helvetica", fontSize=10)
 
+# Le due caselle "Domicilio"/"Centro" sono campi testo pieni di bordo (non
+# quadratini disegnati): build_field_map ci scrive una "X" in una delle due
+# in base alla scelta fatta nel form di conferma, prima del download.
+_CHECKFIELD = dict(borderStyle="solid", borderWidth=1, forceBorder=True,
+                    fillColor=colors.white, borderColor=colors.Color(0.45, 0.45, 0.45),
+                    fontName="Helvetica-Bold", fontSize=10)
+
 
 def _sapio_strips():
     """Ritaglia header e footer della carta intestata Sapio come immagini a 300 DPI."""
@@ -72,12 +80,6 @@ def _sapio_strips():
     return (ImageReader(io.BytesIO(head.tobytes("png"))),
             ImageReader(io.BytesIO(foot.tobytes("png"))),
             H - FOOT_TOP)
-
-
-def _checkbox(c, x, y, size=11.0):
-    """Quadratino vuoto da spuntare a mano: non è un campo modulo."""
-    c.setLineWidth(0.8)
-    c.rect(x, y, size, size)
 
 
 def main() -> int:
@@ -116,16 +118,18 @@ def main() -> int:
     c.drawString(MX, y, "Luogo dell'intervento")
     y -= 22
 
-    box = 11.0
+    box = 13.0
     c.setFont(FONT, 11)
-    _checkbox(c, MX, y - 9, box)
+    form.textfield(name="check_domicilio", tooltip="Spuntato se l'intervento è a domicilio",
+                   x=MX, y=y - 9, width=box, height=box, **_CHECKFIELD)
     c.drawString(MX + box + 6, y, "Domicilio del paziente:")
     lbl_w = stringWidth("Domicilio del paziente:  ", FONT, 11)
     form.textfield(name="indirizzo_domicilio", tooltip="Indirizzo di residenza (da anagrafica)",
                    x=MX + box + 6 + lbl_w, y=y - 4, width=CW - box - 6 - lbl_w, height=18, **_FIELD)
     y -= 30
 
-    _checkbox(c, MX, y - 9, box)
+    form.textfield(name="check_centro", tooltip="Spuntato se l'intervento è al centro",
+                   x=MX, y=y - 9, width=box, height=box, **_CHECKFIELD)
     c.drawString(MX + box + 6, y, "Centro di riabilitazione:")
     lbl_w2 = stringWidth("Centro di riabilitazione:  ", FONT, 11)
     form.textfield(name="nome_centro", tooltip="Centro di riabilitazione",

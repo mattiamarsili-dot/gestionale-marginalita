@@ -207,6 +207,11 @@
                 <input type="text" name="ausilio" class="form-control form-control-sm" value="{{ pratica.ausilio or '' }}"
                        placeholder="es. Carrozzina elettronica a sei ruote">
               </div>
+              <div class="col-12 col-sm-6">
+                <label class="form-label form-label-sm mb-1">Numero seriale <span class="text-muted fw-normal">(facoltativo)</span></label>
+                <input type="text" name="numero_seriale" class="form-control form-control-sm" value="{{ pratica.numero_seriale or '' }}"
+                       placeholder="Numero seriale dell'ausilio consegnato">
+              </div>
               <div class="col-12">
                 <label class="form-label form-label-sm mb-1">Diagnosi</label>
                 <input type="text" name="diagnosi" class="form-control form-control-sm" value="{{ pratica.diagnosi or '' }}">

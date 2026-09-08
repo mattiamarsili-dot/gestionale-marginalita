@@ -105,24 +105,16 @@
           <thead class="table-light">
             <tr>
               <th>Data</th>
-              <th class="text-end">Importo ASL</th>
-              <th class="text-end">Costo fornitori</th>
-              <th class="text-center">Stato</th>
+              <th>Ausilio</th>
+              <th>Numero seriale</th>
             </tr>
           </thead>
           <tbody>
             {% for p in pratiche %}
             <tr style="cursor:pointer" onclick="window.location='{{ url_for('dettaglio_pratica', pratica_id=p.id) }}'">
               <td>{{ p.data_pratica }}</td>
-              <td class="text-end">€ {{ '%.2f'|format(p.importo_asl) }}</td>
-              <td class="text-end text-muted">€ {{ '%.2f'|format(p.costo_totale) }}</td>
-              <td class="text-center">
-                {% if p.fatturata %}
-                <span class="badge bg-success-subtle text-success">Fatturata</span>
-                {% else %}
-                <span class="badge bg-secondary-subtle text-secondary">Aperta</span>
-                {% endif %}
-              </td>
+              <td>{{ p.ausilio or '—' }}</td>
+              <td class="text-muted">{{ p.numero_seriale or '—' }}</td>
             </tr>
             {% endfor %}
           </tbody>

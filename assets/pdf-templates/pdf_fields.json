@@ -1754,11 +1754,21 @@
   "Verbale Assistenza Tecnica.pdf": {
     "file": "Verbale Assistenza Tecnica.pdf",
     "pagine": 1,
-    "num_campi": 9,
-    "num_text": 9,
+    "num_campi": 11,
+    "num_text": 11,
     "campi": [
       {
         "nome": "ausilio",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "check_centro",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "check_domicilio",
         "tipo": "text",
         "valore_default": ""
       },

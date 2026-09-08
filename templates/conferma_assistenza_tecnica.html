@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Assistenza tecnica{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-7 col-lg-5">
+
+    <div class="d-flex align-items-center mb-4 gap-3">
+      <a href="{{ annulla_url }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i>
+      </a>
+      <div>
+        <h4 class="fw-bold mb-0">Assistenza tecnica</h4>
+        <small class="text-muted">Verbale Assistenza Tecnica (Sapio)</small>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <p class="text-muted small">
+          Compila questi dati prima di scaricare il verbale: al paziente resterà solo da firmare.
+          L'orario (2 ore) viene calcolato in automatico da adesso.
+        </p>
+        <form method="get" action="{{ azione_url }}">
+          <label class="form-label form-label-sm fw-semibold mb-2 d-block">Luogo dell'intervento</label>
+          <div class="d-flex gap-3 mb-3">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="at_luogo" id="luogo-domicilio" value="domicilio" required
+                     {% if luogo_default == 'domicilio' %}checked{% endif %}>
+              <label class="form-check-label" for="luogo-domicilio">Domicilio del paziente</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="at_luogo" id="luogo-centro" value="centro" required
+                     {% if luogo_default == 'centro' %}checked{% endif %}>
+              <label class="form-check-label" for="luogo-centro">Centro di riabilitazione</label>
+            </div>
+          </div>
+
+          <label class="form-label form-label-sm fw-semibold mb-1">Tipologia ausilio</label>
+          <input type="text" name="at_ausilio" class="form-control mb-3" value="{{ ausilio_default }}"
+                 placeholder="es. Carrozzina elettronica a sei ruote" required>
+
+          <label class="form-label form-label-sm fw-semibold mb-1">Interventi effettuati sull'ausilio</label>
+          <textarea name="at_interventi" class="form-control mb-3" rows="4" required
+                    placeholder="Descrivi cosa è stato fatto…">{{ interventi_default }}</textarea>
+
+          <div class="d-flex gap-2">
+            <a href="{{ annulla_url }}" class="btn btn-outline-secondary">Annulla</a>
+            <button type="submit" class="btn btn-primary flex-grow-1">
+              <i class="bi bi-download me-1"></i>Genera verbale
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

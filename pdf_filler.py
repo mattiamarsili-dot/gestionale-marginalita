@@ -9,7 +9,7 @@ I nomi dei campi PDF sono la fonte di verità in assets/pdf-templates/pdf_fields
 """
 import io
 import os
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from pypdf import PdfReader, PdfWriter
 
@@ -215,6 +215,17 @@ _QUOTA_INDENT = "   "
 
 
 # ── Formattazione valori ──────────────────────────────────────────────────────
+
+def _ora_locale() -> datetime:
+    """Ora corrente in fuso Europe/Rome. Se il database IANA dei fusi non è
+    disponibile sul sistema (immagini minimali), ripiega sull'ora del server:
+    non deve mai far fallire la generazione di un modulo."""
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo("Europe/Rome"))
+    except Exception:
+        return datetime.now()
+
 
 def _fmt_data(val) -> str:
     """ISO 'YYYY-MM-DD' (o date/datetime) → 'gg/mm/aaaa'. Vuoto → ''."""
@@ -548,18 +559,28 @@ def build_field_map(template_id: str, pratica: dict, cliente: dict, righe: list 
         }
 
     if template_id == "assistenza-tecnica":
-        # Modulo ricostruito da scripts/build_assistenza_tecnica.py. Le due
-        # caselle "Domicilio"/"Centro" sono quadratini disegnati (non campi):
-        # si precompilano solo gli indirizzi/nomi, la spunta resta a mano.
-        # Orario, interventi effettuati e firma restano sempre vuoti/a mano.
+        # Modulo ricostruito da scripts/build_assistenza_tecnica.py. Luogo,
+        # ausilio e interventi effettuati arrivano dal form di conferma
+        # (app.py, chiavi "at_luogo"/"at_ausilio"/"at_interventi" iniettate
+        # nel dict pratica prima di chiamare compila_pdf) — l'orario si
+        # calcola qui: 2 ore a partire dal momento della generazione. Tutto
+        # resta bloccato: l'unica cosa a mano è la firma.
         citta_cap = f"{D['citta']} {D['cap']}".strip()
         indirizzo = ", ".join(p for p in (D["via"], citta_cap) if p)
+        luogo = (pratica.get("at_luogo") or "").strip().lower()
+        ausilio = (pratica.get("at_ausilio") or "").strip() or D["ausilio"]
+        ora = _ora_locale()
         return {
             "paziente": D["nome"],
             "indirizzo_domicilio": indirizzo,
             "nome_centro": D["centro"],
-            "ausilio": D["ausilio"],
+            "check_domicilio": "X" if luogo == "domicilio" else "",
+            "check_centro": "X" if luogo == "centro" else "",
+            "ausilio": ausilio,
             "data_intervento": D["oggi"],
+            "orario_dalle": ora.strftime("%H:%M"),
+            "orario_alle": (ora + timedelta(hours=2)).strftime("%H:%M"),
+            "interventi_effettuati": (pratica.get("at_interventi") or "").strip(),
             "data_firma": D["oggi"],
         }
 

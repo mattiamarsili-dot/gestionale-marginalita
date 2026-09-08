@@ -1724,7 +1724,7 @@ def api_config():
 
 # Campi testo dei moduli (iva_percentuale gestita a parte perché numerica)
 _PRATICA_MODULO_FIELDS = [
-    "numero_pratica", "ausilio", "asl_destinataria", "medico_struttura",
+    "numero_pratica", "ausilio", "numero_seriale", "asl_destinataria", "medico_struttura",
     "diagnosi", "sign_terapeutico",
 ]
 
@@ -1936,8 +1936,9 @@ def genera_modulo(pratica_id, template_id):
         # Senza cliente collegato non c'è anagrafica da inserire nel modulo
         return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) + "#moduli")
 
-    # Medico / struttura obbligatorio prima di generare qualsiasi modulo.
-    if not medico_struttura_effettivo(pratica_d, cliente_d):
+    # Medico / struttura obbligatorio prima di generare qualsiasi modulo, tranne
+    # il Verbale Assistenza Tecnica: non lo cita, non deve bloccarne il download.
+    if template_id != "assistenza-tecnica" and not medico_struttura_effettivo(pratica_d, cliente_d):
         return redirect(
             url_for("dettaglio_pratica", pratica_id=pratica_id, manca_medico=1) + "#moduli")
 
@@ -1954,6 +1955,25 @@ def genera_modulo(pratica_id, template_id):
                 data_default=str(pratica_d.get("data_pratica") or "")[:10],
             )
         pratica_d["data_pratica"] = data_conf
+
+    # Per l'ASSISTENZA TECNICA chiediamo prima luogo/ausilio/interventi: senza
+    # questi parametri mostriamo il form di conferma (orario calcolato al volo
+    # alla generazione, non c'è da chiederlo).
+    if template_id == "assistenza-tecnica":
+        at_luogo = (request.args.get("at_luogo") or "").strip().lower()
+        at_interventi = (request.args.get("at_interventi") or "").strip()
+        at_ausilio = (request.args.get("at_ausilio") or "").strip()
+        if at_luogo not in ("domicilio", "centro") or not at_interventi:
+            return render_template(
+                "conferma_assistenza_tecnica.html",
+                azione_url=url_for("genera_modulo", pratica_id=pratica_id, template_id=template_id),
+                annulla_url=url_for("dettaglio_pratica", pratica_id=pratica_id) + "#moduli",
+                ausilio_default=at_ausilio or pratica_d.get("ausilio") or "",
+                luogo_default=at_luogo, interventi_default=at_interventi,
+            )
+        pratica_d["at_luogo"] = at_luogo
+        pratica_d["at_interventi"] = at_interventi
+        pratica_d["at_ausilio"] = at_ausilio
 
     # Alla generazione del PREVENTIVO:
     #  - genera il N° pratica se manca (poi resta stabile, salvato sulla pratica);
@@ -3551,7 +3571,7 @@ def cliente_assistenza_tecnica(cliente_id):
     """Scarica il Verbale di Assistenza Tecnica direttamente dalla scheda
     cliente, senza passare da una pratica specifica: comodo per un
     intervento al volo. Paziente/luogo/data si precompilano dall'anagrafica;
-    l'ausilio resta vuoto (non legato a una pratica), da scrivere a mano."""
+    luogo, ausilio e interventi si confermano nel form prima del download."""
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute(f"SELECT * FROM clienti WHERE id = {_PH}", (cliente_id,))
@@ -3560,8 +3580,22 @@ def cliente_assistenza_tecnica(cliente_id):
             return "Cliente non trovato", 404
 
     cliente_d = dict(cliente)
-    pdf_bytes = compila_pdf("assistenza-tecnica", {}, cliente_d, [])
-    filename = nome_file_consigliato("assistenza-tecnica", {}, cliente_d)
+
+    at_luogo = (request.args.get("at_luogo") or "").strip().lower()
+    at_interventi = (request.args.get("at_interventi") or "").strip()
+    at_ausilio = (request.args.get("at_ausilio") or "").strip()
+    if at_luogo not in ("domicilio", "centro") or not at_interventi:
+        return render_template(
+            "conferma_assistenza_tecnica.html",
+            azione_url=url_for("cliente_assistenza_tecnica", cliente_id=cliente_id),
+            annulla_url=url_for("cliente_dettaglio", cliente_id=cliente_id),
+            ausilio_default=at_ausilio,
+            luogo_default=at_luogo, interventi_default=at_interventi,
+        )
+
+    pratica_d = {"at_luogo": at_luogo, "at_interventi": at_interventi, "at_ausilio": at_ausilio}
+    pdf_bytes = compila_pdf("assistenza-tecnica", pratica_d, cliente_d, [])
+    filename = nome_file_consigliato("assistenza-tecnica", pratica_d, cliente_d)
 
     return Response(
         pdf_bytes,
