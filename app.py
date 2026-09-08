@@ -3546,6 +3546,30 @@ def cliente_dettaglio(cliente_id):
                            NOTE_TIPI=NOTE_TIPI, NOTE_PRIORITA=NOTE_PRIORITA)
 
 
+@app.route("/cliente/<int:cliente_id>/assistenza-tecnica")
+def cliente_assistenza_tecnica(cliente_id):
+    """Scarica il Verbale di Assistenza Tecnica direttamente dalla scheda
+    cliente, senza passare da una pratica specifica: comodo per un
+    intervento al volo. Paziente/luogo/data si precompilano dall'anagrafica;
+    l'ausilio resta vuoto (non legato a una pratica), da scrivere a mano."""
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT * FROM clienti WHERE id = {_PH}", (cliente_id,))
+        cliente = cur.fetchone()
+        if not cliente:
+            return "Cliente non trovato", 404
+
+    cliente_d = dict(cliente)
+    pdf_bytes = compila_pdf("assistenza-tecnica", {}, cliente_d, [])
+    filename = nome_file_consigliato("assistenza-tecnica", {}, cliente_d)
+
+    return Response(
+        pdf_bytes,
+        mimetype="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @app.route("/cliente/<int:cliente_id>/modifica", methods=["GET", "POST"])
 def cliente_modifica(cliente_id):
     if request.method == "POST":

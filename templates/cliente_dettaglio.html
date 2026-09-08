@@ -45,6 +45,10 @@
           </button>
         </form>
         {% endif %}
+        <a href="{{ url_for('cliente_assistenza_tecnica', cliente_id=cliente.id) }}"
+           class="btn btn-outline-secondary" title="Scarica il verbale da far firmare al paziente per un intervento di assistenza tecnica">
+          <i class="bi bi-tools me-1"></i>Assistenza tecnica
+        </a>
         <a href="{{ url_for('cliente_modifica', cliente_id=cliente.id) }}" class="btn btn-outline-primary">
           <i class="bi bi-pencil me-1"></i>Modifica
         </a>
