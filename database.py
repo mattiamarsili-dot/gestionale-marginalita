@@ -626,6 +626,17 @@ def migrate_db():
                creato_il  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
            )""",
         "CREATE INDEX IF NOT EXISTS idx_contatti_cognome ON contatti_clinici(cognome)",
+        # Su PostgreSQL "id INTEGER PRIMARY KEY" (a differenza di SQLite) NON
+        # genera un valore da solo: senza sequenza ogni INSERT che non passa
+        # l'id fallisce in silenzio (per il NOT NULL della PK). Qui si crea la
+        # sequenza e la si aggancia come DEFAULT — idempotente, non applicabile
+        # su SQLite (fallisce ed è ignorato dal try/except del loop qui sotto).
+        # Stesso motivo per fornitori_sconti/assistenze_tecniche più sotto.
+        "CREATE SEQUENCE IF NOT EXISTS contatti_clinici_id_seq OWNED BY contatti_clinici.id",
+        "ALTER TABLE contatti_clinici ALTER COLUMN id SET DEFAULT "
+        "nextval('contatti_clinici_id_seq')",
+        "SELECT setval('contatti_clinici_id_seq', "
+        "COALESCE((SELECT MAX(id) FROM contatti_clinici), 0) + 1, false)",
         # Sconto ricordato per fornitore (modalità "prezzo pubblico + sconto"):
         # si ripropone la volta successiva che si inserisce un costo per lo
         # stesso fornitore. SQL comune a SQLite e PostgreSQL.
@@ -636,6 +647,12 @@ def migrate_db():
                aggiornato_il  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
            )""",
         "CREATE INDEX IF NOT EXISTS idx_fornitori_sconti_nome ON fornitori_sconti(nome_fornitore)",
+        # Vedi il commento su contatti_clinici_id_seq più sopra: stesso motivo.
+        "CREATE SEQUENCE IF NOT EXISTS fornitori_sconti_id_seq OWNED BY fornitori_sconti.id",
+        "ALTER TABLE fornitori_sconti ALTER COLUMN id SET DEFAULT "
+        "nextval('fornitori_sconti_id_seq')",
+        "SELECT setval('fornitori_sconti_id_seq', "
+        "COALESCE((SELECT MAX(id) FROM fornitori_sconti), 0) + 1, false)",
         # Storico assistenze tecniche per cliente: una riga per ogni Verbale
         # Assistenza Tecnica generato (da pratica o direttamente dalla scheda
         # cliente) — SQL comune a SQLite e PostgreSQL.
@@ -650,11 +667,7 @@ def migrate_db():
                creato_il    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
            )""",
         "CREATE INDEX IF NOT EXISTS idx_assistenze_cliente ON assistenze_tecniche(cliente_id)",
-        # Su PostgreSQL "id INTEGER PRIMARY KEY" (a differenza di SQLite) NON
-        # genera un valore da solo: senza sequenza ogni INSERT che non passa
-        # l'id fallisce in silenzio (per il NOT NULL della PK). Qui si crea la
-        # sequenza e la si aggancia come DEFAULT — idempotente, non applicabile
-        # su SQLite (fallisce ed è ignorato dal try/except del loop qui sotto).
+        # Vedi il commento su contatti_clinici_id_seq più sopra: stesso motivo.
         "CREATE SEQUENCE IF NOT EXISTS assistenze_tecniche_id_seq OWNED BY assistenze_tecniche.id",
         "ALTER TABLE assistenze_tecniche ALTER COLUMN id SET DEFAULT "
         "nextval('assistenze_tecniche_id_seq')",
