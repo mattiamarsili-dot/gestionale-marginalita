@@ -127,15 +127,17 @@ _SQLITE_SCHEMA = """
     );
 
     CREATE TABLE IF NOT EXISTS preventivi (
-        id              INTEGER PRIMARY KEY AUTOINCREMENT,
-        pratica_id      INTEGER NOT NULL,
-        nome_fornitore  TEXT NOT NULL,
-        importo         REAL NOT NULL,
-        modalita        TEXT NOT NULL DEFAULT 'diretto',
-        prezzo_pubblico REAL,
-        sconto_pct      REAL,
-        file_pdf        TEXT,
-        drive_file_id   TEXT,
+        id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+        pratica_id          INTEGER NOT NULL,
+        nome_fornitore      TEXT NOT NULL,
+        importo             REAL NOT NULL,
+        modalita            TEXT NOT NULL DEFAULT 'diretto',
+        prezzo_pubblico     REAL,
+        sconto_pct          REAL,
+        file_pdf            TEXT,
+        drive_file_id       TEXT,
+        promemoria_admin    INTEGER NOT NULL DEFAULT 0,
+        promemoria_paziente TEXT,
         FOREIGN KEY (pratica_id) REFERENCES pratiche(id) ON DELETE CASCADE
     );
 
@@ -338,15 +340,17 @@ _POSTGRES_SCHEMA = """
     );
 
     CREATE TABLE IF NOT EXISTS preventivi (
-        id              SERIAL PRIMARY KEY,
-        pratica_id      INTEGER NOT NULL,
-        nome_fornitore  TEXT NOT NULL,
-        importo         REAL NOT NULL,
-        modalita        TEXT NOT NULL DEFAULT 'diretto',
-        prezzo_pubblico REAL,
-        sconto_pct      REAL,
-        file_pdf        TEXT,
-        drive_file_id   TEXT,
+        id                  SERIAL PRIMARY KEY,
+        pratica_id          INTEGER NOT NULL,
+        nome_fornitore      TEXT NOT NULL,
+        importo             REAL NOT NULL,
+        modalita            TEXT NOT NULL DEFAULT 'diretto',
+        prezzo_pubblico     REAL,
+        sconto_pct          REAL,
+        file_pdf            TEXT,
+        drive_file_id       TEXT,
+        promemoria_admin    BOOLEAN NOT NULL DEFAULT FALSE,
+        promemoria_paziente TEXT,
         FOREIGN KEY (pratica_id) REFERENCES pratiche(id) ON DELETE CASCADE
     );
 
@@ -526,6 +530,8 @@ def migrate_db():
             "ALTER TABLE preventivi ADD COLUMN IF NOT EXISTS modalita TEXT NOT NULL DEFAULT 'diretto'",
             "ALTER TABLE preventivi ADD COLUMN IF NOT EXISTS prezzo_pubblico REAL",
             "ALTER TABLE preventivi ADD COLUMN IF NOT EXISTS sconto_pct REAL",
+            "ALTER TABLE preventivi ADD COLUMN IF NOT EXISTS promemoria_admin BOOLEAN NOT NULL DEFAULT FALSE",
+            "ALTER TABLE preventivi ADD COLUMN IF NOT EXISTS promemoria_paziente TEXT",
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS iva_percentuale REAL NOT NULL DEFAULT 4",
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS moduli_attivi TEXT",
             "ALTER TABLE pratiche ADD COLUMN IF NOT EXISTS moduli_generati TEXT",
@@ -578,6 +584,8 @@ def migrate_db():
             "ALTER TABLE preventivi ADD COLUMN modalita TEXT NOT NULL DEFAULT 'diretto'",
             "ALTER TABLE preventivi ADD COLUMN prezzo_pubblico REAL",
             "ALTER TABLE preventivi ADD COLUMN sconto_pct REAL",
+            "ALTER TABLE preventivi ADD COLUMN promemoria_admin INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE preventivi ADD COLUMN promemoria_paziente TEXT",
             "ALTER TABLE pratiche ADD COLUMN iva_percentuale REAL NOT NULL DEFAULT 4",
             "ALTER TABLE pratiche ADD COLUMN moduli_attivi TEXT",
             "ALTER TABLE pratiche ADD COLUMN moduli_generati TEXT",

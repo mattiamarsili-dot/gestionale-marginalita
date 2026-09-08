@@ -615,6 +615,7 @@
                     <tr>
                       <th>Fornitore</th>
                       <th class="text-end">Importo (netto IVA)</th>
+                      {% if is_admin %}<th title="Traccia un articolo di questo ordine destinato a un altro paziente">Promemoria</th>{% endif %}
                       <th></th>
                     </tr>
                   </thead>
@@ -667,6 +668,19 @@
                         </div>
                         <small class="text-success fornitore-importo-stato d-block text-end" style="min-height:1em"></small>
                       </td>
+                      {% if is_admin %}
+                      <td class="fornitore-promemoria" data-url="{{ url_for('aggiorna_promemoria_fornitore', preventivo_id=pv.id) }}"
+                          style="min-width:180px">
+                        <div class="form-check mb-1">
+                          <input class="form-check-input promemoria-check" type="checkbox" id="promemoria-{{ pv.id }}"
+                                 {% if pv.promemoria_admin %}checked{% endif %}>
+                          <label class="form-check-label small" for="promemoria-{{ pv.id }}">per un altro paziente</label>
+                        </div>
+                        <input type="text" class="form-control form-control-sm promemoria-paziente {% if not pv.promemoria_admin %}d-none{% endif %}"
+                               placeholder="Nome paziente reale" value="{{ pv.promemoria_paziente or '' }}">
+                        <small class="text-success promemoria-stato d-block" style="min-height:1em"></small>
+                      </td>
+                      {% endif %}
                       <td class="text-end" style="width:40px">
                         <form method="post" action="{{ url_for('elimina_fornitore', preventivo_id=pv.id) }}"
                               onsubmit="return confirm('Rimuovere {{ pv.nome_fornitore }}?')">
@@ -1671,6 +1685,37 @@ function eurPlain(n) {
     info.querySelector('.fornitore-sconto-apri').classList.remove('d-none');
     info.querySelector('.fornitore-sconto-editor').classList.add('d-none');
   };
+})();
+
+// ── Promemoria fornitore (solo admin): spunta "per un altro paziente" ───────
+(function () {
+  document.querySelectorAll('.fornitore-promemoria').forEach((cella) => {
+    const check   = cella.querySelector('.promemoria-check');
+    const paziente = cella.querySelector('.promemoria-paziente');
+    const stato   = cella.querySelector('.promemoria-stato');
+
+    async function salva() {
+      const attivo = check.checked;
+      paziente.classList.toggle('d-none', !attivo);
+      try {
+        const body = new URLSearchParams({ attivo: attivo ? '1' : '0', paziente: paziente.value.trim() });
+        const res = await fetch(cella.dataset.url, {
+          method: 'POST', headers: { 'X-Requested-With': 'fetch' }, body,
+        });
+        const d = await res.json();
+        if (!d.ok) throw new Error();
+        stato.textContent = '✓ salvato';
+        setTimeout(() => { stato.textContent = ''; }, 1500);
+      } catch (_) {
+        stato.className = 'text-danger promemoria-stato d-block';
+        stato.textContent = '⚠️ non salvato';
+      }
+    }
+
+    check.addEventListener('change', salva);
+    paziente.addEventListener('change', salva);
+    paziente.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); paziente.blur(); } });
+  });
 })();
 
 // ── Prezzo pubblico + sconto: righe già inserite (editor inline per riga) ───

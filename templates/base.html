@@ -76,6 +76,9 @@
         <a class="nav-link {% if request.endpoint == 'panoramica' %}active{% endif %}" href="{{ url_for('panoramica') }}">
           <i class="bi bi-speedometer2 me-1"></i>Panoramica
         </a>
+        <a class="nav-link {% if request.endpoint == 'promemoria_fornitori' %}active{% endif %}" href="{{ url_for('promemoria_fornitori') }}">
+          <i class="bi bi-bookmark-star me-1"></i>Promemoria
+        </a>
         {% endif %}
         <a class="nav-link {% if request.endpoint in ['clienti', 'cliente_nuovo', 'cliente_dettaglio', 'cliente_modifica'] %}active{% endif %}" href="{{ lista_clienti_url }}">
           <i class="bi bi-people-fill me-1"></i>Clienti

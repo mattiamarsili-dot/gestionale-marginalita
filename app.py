@@ -491,6 +491,27 @@ def panoramica():
     return _vista_panoramica()
 
 
+@app.route("/promemoria-fornitori")
+@admin_required
+def promemoria_fornitori():
+    """Elenco (solo admin) dei costi fornitore spuntati come 'promemoria':
+    articoli ordinati insieme a una pratica ma destinati a un altro
+    paziente, da tenere traccia e ritrovare facilmente in seguito."""
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"""SELECT pv.id, pv.nome_fornitore, pv.importo, pv.promemoria_paziente,
+                       p.id AS pratica_id, p.nome_paziente AS pratica_paziente,
+                       p.data_pratica, p.numero_pratica
+                FROM preventivi pv
+                JOIN pratiche p ON p.id = pv.pratica_id
+                WHERE pv.promemoria_admin = {_FATTURATA_TRUE}
+                ORDER BY p.data_pratica DESC, pv.id DESC"""
+        )
+        righe = cur.fetchall()
+    return render_template("promemoria_fornitori.html", righe=righe)
+
+
 def _vista_panoramica():
     periodo = request.args.get("periodo", "mensile")
     if periodo not in _DURATA_MESI and periodo != "intervallo":
@@ -1371,6 +1392,28 @@ def elimina_fornitore(preventivo_id):
     if torna:
         return redirect(torna)
     return redirect(url_for("dettaglio_pratica", pratica_id=pratica_id) if pratica_id else url_for("dashboard"))
+
+
+@app.route("/preventivo/<int:preventivo_id>/promemoria", methods=["POST"])
+@admin_required
+def aggiorna_promemoria_fornitore(preventivo_id):
+    """Spunta/togli un costo fornitore dall'elenco 'Promemoria fornitori'
+    (visibile solo all'admin): serve per tracciare articoli ordinati insieme
+    a una pratica ma destinati ad un altro paziente. Solo admin può leggere
+    e scrivere questo campo — un operatore non vede nemmeno la spunta."""
+    attivo = (request.form.get("attivo") or "") in ("1", "true", "on")
+    paziente = (request.form.get("paziente") or "").strip()
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"UPDATE preventivi SET promemoria_admin = {_PH}, promemoria_paziente = {_PH} "
+            f"WHERE id = {_PH}",
+            (attivo, paziente, preventivo_id),
+        )
+    if request.headers.get("X-Requested-With") == "fetch":
+        return jsonify({"ok": True, "attivo": attivo, "paziente": paziente})
+    torna = request.form.get("torna", url_for("dashboard"))
+    return redirect(torna)
 
 
 # ── Righe ausili (LEA) ────────────────────────────────────────────────────────

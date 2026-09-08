@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Promemoria fornitori — Gestionale{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div>
+    <h4 class="fw-bold mb-0"><i class="bi bi-bookmark-star me-2 text-primary"></i>Promemoria fornitori</h4>
+    <small class="text-muted">
+      Costi fornitore spuntati da una pratica perché relativi (in tutto o in parte) a un altro
+      paziente — visibile solo a te. Spunta/rimuovi dalla scheda pratica, tab Marginalità.
+    </small>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    {% if righe %}
+    <table class="table table-hover mb-0 align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Data pratica</th>
+          <th>Pratica</th>
+          <th>Fornitore</th>
+          <th class="text-end">Importo</th>
+          <th>Paziente reale</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in righe %}
+        <tr style="cursor:pointer" onclick="window.location='{{ url_for('dettaglio_pratica', pratica_id=r.pratica_id) }}#tab-margine'">
+          <td>{{ r.data_pratica }}</td>
+          <td>
+            {{ r.numero_pratica or ('#' ~ r.pratica_id) }}
+            <div class="small text-muted">{{ r.pratica_paziente }}</div>
+          </td>
+          <td>{{ r.nome_fornitore }}</td>
+          <td class="text-end">€ {{ "%.2f"|format(r.importo) }}</td>
+          <td class="fw-semibold">{{ r.promemoria_paziente or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="text-center text-muted py-5">
+      <i class="bi bi-bookmark-star opacity-25 fs-1 d-block mb-2"></i>
+      Nessun promemoria attivo. Spunta un costo fornitore dalla scheda pratica per aggiungerlo qui.
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
