@@ -21,7 +21,7 @@
           Compila questi dati prima di scaricare il verbale: al paziente resterà solo da firmare.
           L'orario (2 ore, fino ad adesso) viene calcolato in automatico.
         </p>
-        <form method="get" action="{{ azione_url }}">
+        <form method="get" action="{{ azione_url }}" id="form-assistenza-tecnica" target="at-download-frame">
           <label class="form-label form-label-sm fw-semibold mb-2 d-block">Luogo dell'intervento</label>
           <div class="d-flex gap-3 mb-3">
             <div class="form-check">
@@ -46,7 +46,7 @@
 
           <div class="d-flex gap-2">
             <a href="{{ annulla_url }}" class="btn btn-outline-secondary">Annulla</a>
-            <button type="submit" class="btn btn-primary flex-grow-1">
+            <button type="submit" id="btn-genera-assistenza" class="btn btn-primary flex-grow-1">
               <i class="bi bi-download me-1"></i>Genera verbale
             </button>
           </div>
@@ -56,4 +56,19 @@
 
   </div>
 </div>
+
+<!-- Il download avviene in un iframe nascosto (grazie a Content-Disposition:
+     attachment il browser lo scarica comunque): la pagina visibile intanto
+     torna da sola alla scheda, dove l'assistenza è già registrata. -->
+<iframe name="at-download-frame" style="display:none" aria-hidden="true"></iframe>
+<script>
+  document.getElementById('form-assistenza-tecnica').addEventListener('submit', function () {
+    var btn = document.getElementById('btn-genera-assistenza');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Generazione…';
+    setTimeout(function () {
+      window.location.href = '{{ annulla_url }}';
+    }, 900);
+  });
+</script>
 {% endblock %}

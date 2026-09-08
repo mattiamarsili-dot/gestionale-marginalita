@@ -650,6 +650,16 @@ def migrate_db():
                creato_il    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
            )""",
         "CREATE INDEX IF NOT EXISTS idx_assistenze_cliente ON assistenze_tecniche(cliente_id)",
+        # Su PostgreSQL "id INTEGER PRIMARY KEY" (a differenza di SQLite) NON
+        # genera un valore da solo: senza sequenza ogni INSERT che non passa
+        # l'id fallisce in silenzio (per il NOT NULL della PK). Qui si crea la
+        # sequenza e la si aggancia come DEFAULT — idempotente, non applicabile
+        # su SQLite (fallisce ed è ignorato dal try/except del loop qui sotto).
+        "CREATE SEQUENCE IF NOT EXISTS assistenze_tecniche_id_seq OWNED BY assistenze_tecniche.id",
+        "ALTER TABLE assistenze_tecniche ALTER COLUMN id SET DEFAULT "
+        "nextval('assistenze_tecniche_id_seq')",
+        "SELECT setval('assistenze_tecniche_id_seq', "
+        "COALESCE((SELECT MAX(id) FROM assistenze_tecniche), 0) + 1, false)",
     ]
 
     for ddl in statements:
