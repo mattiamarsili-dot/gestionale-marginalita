@@ -1908,6 +1908,25 @@ def _segna_modulo_generato(pratica_id, template_id):
         print("WARN impossibile segnare modulo generato:", e, file=sys.stderr)
 
 
+def _registra_assistenza_tecnica(cliente_id, pratica_id, ausilio, luogo, interventi):
+    """Aggiunge una riga allo storico assistenze tecniche del cliente, ogni
+    volta che il Verbale Assistenza Tecnica viene generato (da pratica o
+    direttamente dalla scheda cliente). Best-effort: un errore qui non deve
+    impedire il download del PDF."""
+    try:
+        with get_db() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                f"INSERT INTO assistenze_tecniche "
+                f"(cliente_id, pratica_id, data, ausilio, luogo, interventi) "
+                f"VALUES ({_PH}, {_PH}, {_PH}, {_PH}, {_PH}, {_PH})",
+                (cliente_id, pratica_id, date.today().isoformat(), ausilio, luogo, interventi),
+            )
+    except Exception as e:
+        import sys
+        print("WARN impossibile registrare assistenza tecnica:", e, file=sys.stderr)
+
+
 @app.route("/pratica/<int:pratica_id>/modulo/<template_id>")
 def genera_modulo(pratica_id, template_id):
     if template_id not in PDF_TEMPLATES:
@@ -2013,6 +2032,15 @@ def genera_modulo(pratica_id, template_id):
     # Segna il modulo come "generato" (spunta ✅ nella scheda): aggiunge l'id
     # all'elenco moduli_generati della pratica, senza duplicati.
     _segna_modulo_generato(pratica_id, template_id)
+
+    # Assistenza tecnica: ogni generazione finisce nello storico del cliente
+    # (sezione "Assistenze" nella scheda cliente).
+    if template_id == "assistenza-tecnica" and cliente_d:
+        _registra_assistenza_tecnica(
+            cliente_d["id"], pratica_id,
+            pratica_d.get("at_ausilio") or pratica_d.get("ausilio") or "",
+            pratica_d.get("at_luogo") or "", pratica_d.get("at_interventi") or "",
+        )
 
     # Archiviazione su Google Drive (best-effort: non blocca mai il download).
     # Alcuni moduli (es. assistenza tecnica) sono pensati per il solo download
@@ -3561,8 +3589,15 @@ def cliente_dettaglio(cliente_id):
             (cliente_id,),
         )
         note = cur.fetchall()
+        cur.execute(
+            f"""SELECT * FROM assistenze_tecniche
+                WHERE cliente_id = {_PH}
+                ORDER BY data DESC, id DESC""",
+            (cliente_id,),
+        )
+        assistenze = cur.fetchall()
     return render_template("cliente_dettaglio.html", cliente=cliente,
-                           pratiche=pratiche, note=note,
+                           pratiche=pratiche, note=note, assistenze=assistenze,
                            NOTE_TIPI=NOTE_TIPI, NOTE_PRIORITA=NOTE_PRIORITA)
 
 
@@ -3596,6 +3631,8 @@ def cliente_assistenza_tecnica(cliente_id):
     pratica_d = {"at_luogo": at_luogo, "at_interventi": at_interventi, "at_ausilio": at_ausilio}
     pdf_bytes = compila_pdf("assistenza-tecnica", pratica_d, cliente_d, [])
     filename = nome_file_consigliato("assistenza-tecnica", pratica_d, cliente_d)
+
+    _registra_assistenza_tecnica(cliente_id, None, at_ausilio, at_luogo, at_interventi)
 
     return Response(
         pdf_bytes,

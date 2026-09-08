@@ -128,6 +128,43 @@
       </div>
     </div>
 
+    <!-- Assistenze tecniche -->
+    <div class="card mt-3">
+      <div class="card-header bg-light fw-semibold py-3 d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-tools me-2"></i>Assistenze</span>
+        <a href="{{ url_for('cliente_assistenza_tecnica', cliente_id=cliente.id) }}" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-plus-circle me-1"></i>Nuova assistenza
+        </a>
+      </div>
+      <div class="card-body p-0">
+        {% if assistenze %}
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Data</th>
+              <th>Ausilio</th>
+              <th>Luogo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in assistenze %}
+            <tr>
+              <td>{{ a.data }}</td>
+              <td>{{ a.ausilio or '—' }}</td>
+              <td class="text-muted text-capitalize">{{ a.luogo or '—' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="text-center text-muted py-4">
+          <i class="bi bi-tools opacity-25 fs-3 d-block mb-1"></i>
+          Nessuna assistenza tecnica registrata per questo cliente.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
     <!-- Note / Promemoria collegate -->
     <div class="card mt-3">
       <div class="card-header bg-light fw-semibold py-3 d-flex align-items-center justify-content-between">

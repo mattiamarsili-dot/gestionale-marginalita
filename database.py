@@ -636,6 +636,20 @@ def migrate_db():
                aggiornato_il  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
            )""",
         "CREATE INDEX IF NOT EXISTS idx_fornitori_sconti_nome ON fornitori_sconti(nome_fornitore)",
+        # Storico assistenze tecniche per cliente: una riga per ogni Verbale
+        # Assistenza Tecnica generato (da pratica o direttamente dalla scheda
+        # cliente) — SQL comune a SQLite e PostgreSQL.
+        """CREATE TABLE IF NOT EXISTS assistenze_tecniche (
+               id           INTEGER PRIMARY KEY,
+               cliente_id   INTEGER NOT NULL REFERENCES clienti(id),
+               pratica_id   INTEGER REFERENCES pratiche(id),
+               data         DATE NOT NULL,
+               ausilio      TEXT,
+               luogo        TEXT,
+               interventi   TEXT,
+               creato_il    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+           )""",
+        "CREATE INDEX IF NOT EXISTS idx_assistenze_cliente ON assistenze_tecniche(cliente_id)",
     ]
 
     for ddl in statements:
