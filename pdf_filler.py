@@ -131,6 +131,10 @@ PDF_TEMPLATES = {
         # immediata del paziente: a differenza degli altri moduli non va
         # archiviato in automatico su Drive (si archivia a mano, se serve).
         "skip_drive": True,
+        # Interventi effettuati: font più grande del default 10pt del modulo,
+        # per restare leggibile nel box grande dedicato alla descrizione
+        # (deve combaciare con _AT_INTERVENTI_FONT_SIZE più sotto).
+        "size_overrides": {"interventi_effettuati": 12},
     },
 }
 
@@ -207,6 +211,15 @@ _SL_MAX_RIGHE = 12            # righe 0..11 sul modulo Santa Lucia
 _SL_SIGN_RIGHE = 6           # righe del significato Santa Lucia (campo largo 520 pt)
 _SL_SIGN_WIDTH_PT = 514.0
 _PREV_MAX_RIGHE = 16         # righe 0..15 sul preventivo generico
+
+# Interventi effettuati (assistenza tecnica): campo multi-riga largo 483pt e
+# alto ~261pt (vedi scripts/build_assistenza_tecnica.py). Font più grande
+# (12pt, vs i 10pt standard) per leggibilità: la mandata a capo qui è
+# manuale (righe unite con "\n") perché pypdf non fa wrap automatico dei
+# campi AcroForm in fase di compilazione.
+_AT_INTERVENTI_FONT_SIZE = 12
+_AT_INTERVENTI_WIDTH_PT = 471.0
+_AT_INTERVENTI_RIGHE = 16
 
 # Rientro a sinistra dei valori sul MODULO QUOTA DIFFERENZA (spazi premessi):
 # sul template le caselle iniziano a filo del tratteggio, un po' di spazio
@@ -570,6 +583,12 @@ def build_field_map(template_id: str, pratica: dict, cliente: dict, righe: list 
         luogo = (pratica.get("at_luogo") or "").strip().lower()
         ausilio = (pratica.get("at_ausilio") or "").strip() or D["ausilio"]
         ora = _ora_locale()
+        # pypdf non fa wrap automatico nei campi AcroForm in fase di
+        # compilazione: la mandata a capo si calcola qui, riga per riga, in
+        # base alla larghezza reale del campo (vedi _wrap_lines_pt).
+        interventi_righe = _wrap_lines_pt(
+            pratica.get("at_interventi") or "", _AT_INTERVENTI_WIDTH_PT, _AT_INTERVENTI_RIGHE,
+            size=_AT_INTERVENTI_FONT_SIZE)
         return {
             "paziente": D["nome"],
             "indirizzo_domicilio": indirizzo,
@@ -580,7 +599,7 @@ def build_field_map(template_id: str, pratica: dict, cliente: dict, righe: list 
             "data_intervento": D["oggi"],
             "orario_dalle": ora.strftime("%H:%M"),
             "orario_alle": (ora + timedelta(hours=2)).strftime("%H:%M"),
-            "interventi_effettuati": (pratica.get("at_interventi") or "").strip(),
+            "interventi_effettuati": "\n".join(interventi_righe),
             "data_firma": D["oggi"],
         }
 
@@ -1023,7 +1042,8 @@ def compila_pdf(template_id: str, pratica: dict, cliente: dict, righe: list = No
         # 1) stile (font/allineamento) sui campi rimanenti (tabella, totali…)
         # 2) compilazione: pypdf genera l'/AP con quello stile → visibile ovunque
         _prepara_stile_campi(writer, set(field_map.keys()), center_hints=_CENTER_HINTS,
-                             font_size=tpl.get("font_size", _FORM_FONT_SIZE))
+                             font_size=tpl.get("font_size", _FORM_FONT_SIZE),
+                             size_overrides=tpl.get("size_overrides"))
         # Con flatten il valore viene fuso nel contenuto di pagina (poi il campo
         # sarà bloccato). In modalità "editabile" NON si fa flatten: il campo resta
         # compilabile col valore pre-inserito.
