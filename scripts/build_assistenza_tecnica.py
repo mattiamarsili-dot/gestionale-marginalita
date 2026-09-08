@@ -13,7 +13,7 @@ altri moduli). Stessa carta intestata Sapio degli altri moduli "sapio"
     check_domicilio/check_centro (testo, "X" su uno dei due) — luogo scelto nel form di conferma
     ausilio                (testo, precompilato) — ausilio oggetto dell'intervento
     data_intervento        (testo, precompilato) — data odierna
-    orario_dalle/orario_alle (testo, precompilati) — ora attuale / +2h, calcolate al momento della generazione
+    orario_dalle/orario_alle (testo, precompilati) — ora attuale -2h / ora attuale, calcolate al momento della generazione
     interventi_effettuati  (testo multi-riga, precompilato) — scritto nel form di conferma
     data_firma             (testo, precompilato) — data ripetuta in fondo
     (riga per la firma disegnata: non è un campo, si firma a mano sul PDF)

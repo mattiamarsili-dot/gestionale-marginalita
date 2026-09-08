@@ -576,8 +576,9 @@ def build_field_map(template_id: str, pratica: dict, cliente: dict, righe: list 
         # ausilio e interventi effettuati arrivano dal form di conferma
         # (app.py, chiavi "at_luogo"/"at_ausilio"/"at_interventi" iniettate
         # nel dict pratica prima di chiamare compila_pdf) — l'orario si
-        # calcola qui: 2 ore a partire dal momento della generazione. Tutto
-        # resta bloccato: l'unica cosa a mano è la firma.
+        # calcola qui: 2 ore che finiscono nel momento della generazione
+        # (es. generato alle 15:00 → 13:00-15:00). Tutto resta bloccato:
+        # l'unica cosa a mano è la firma.
         citta_cap = f"{D['citta']} {D['cap']}".strip()
         indirizzo = ", ".join(p for p in (D["via"], citta_cap) if p)
         luogo = (pratica.get("at_luogo") or "").strip().lower()
@@ -597,8 +598,8 @@ def build_field_map(template_id: str, pratica: dict, cliente: dict, righe: list 
             "check_centro": "X" if luogo == "centro" else "",
             "ausilio": ausilio,
             "data_intervento": D["oggi"],
-            "orario_dalle": ora.strftime("%H:%M"),
-            "orario_alle": (ora + timedelta(hours=2)).strftime("%H:%M"),
+            "orario_dalle": (ora - timedelta(hours=2)).strftime("%H:%M"),
+            "orario_alle": ora.strftime("%H:%M"),
             "interventi_effettuati": "\n".join(interventi_righe),
             "data_firma": D["oggi"],
         }
