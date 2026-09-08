@@ -1994,8 +1994,10 @@ def genera_modulo(pratica_id, template_id):
     # all'elenco moduli_generati della pratica, senza duplicati.
     _segna_modulo_generato(pratica_id, template_id)
 
-    # Archiviazione su Google Drive (best-effort: non blocca mai il download)
-    if drive_archive.collegato():
+    # Archiviazione su Google Drive (best-effort: non blocca mai il download).
+    # Alcuni moduli (es. assistenza tecnica) sono pensati per il solo download
+    # e vanno esclusi dall'archiviazione automatica (flag "skip_drive").
+    if drive_archive.collegato() and not PDF_TEMPLATES[template_id].get("skip_drive"):
         try:
             _archivia_su_drive(pdf_bytes, filename, pratica_d, cliente_d)
         except Exception as e:

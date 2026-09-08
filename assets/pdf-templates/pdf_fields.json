@@ -1751,6 +1751,59 @@
       }
     ]
   },
+  "Verbale Assistenza Tecnica.pdf": {
+    "file": "Verbale Assistenza Tecnica.pdf",
+    "pagine": 1,
+    "num_campi": 9,
+    "num_text": 9,
+    "campi": [
+      {
+        "nome": "ausilio",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "data_firma",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "data_intervento",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "indirizzo_domicilio",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "interventi_effettuati",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "nome_centro",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "orario_alle",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "orario_dalle",
+        "tipo": "text",
+        "valore_default": ""
+      },
+      {
+        "nome": "paziente",
+        "tipo": "text",
+        "valore_default": ""
+      }
+    ]
+  },
   "autocert-asl-rm3.pdf": {
     "file": "autocert-asl-rm3.pdf",
     "pagine": 2,

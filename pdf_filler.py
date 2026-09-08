@@ -32,6 +32,7 @@ MODULI_ORDINE = [
     "autodichiarazione-extratariffario",  # Autodichiarazione extratariffario (Sapio)
     "quota-differenza",          # Modulo quota differenza a carico (Sapio)
     "modulo-assegno",            # Modulo assegno (Sapio)
+    "assistenza-tecnica",        # Verbale assistenza tecnica (Sapio)
 ]
 
 PDF_TEMPLATES = {
@@ -119,6 +120,17 @@ PDF_TEMPLATES = {
         "stato": "parziale",  # anagrafica + ausilio + importo ASL; resto a mano
         "richiede_cliente": True,
         "categoria": "sapio",
+    },
+    "assistenza-tecnica": {
+        "label": "Verbale Assistenza Tecnica (Sapio)",
+        "file": "Verbale Assistenza Tecnica.pdf",
+        "stato": "parziale",  # paziente/luogo/ausilio/data precompilati; orario, interventi e firma a mano
+        "richiede_cliente": True,
+        "categoria": "sapio",
+        # Modulo pensato per il download rapido da tablet/cellulare e la firma
+        # immediata del paziente: a differenza degli altri moduli non va
+        # archiviato in automatico su Drive (si archivia a mano, se serve).
+        "skip_drive": True,
     },
 }
 
@@ -533,6 +545,22 @@ def build_field_map(template_id: str, pratica: dict, cliente: dict, righe: list 
             "Prezzo ASL": _fmt_euro(pratica.get("importo_asl")),
             "Tipologia Ausilio": D["ausilio"],
             "Data attuale": D["oggi"],
+        }
+
+    if template_id == "assistenza-tecnica":
+        # Modulo ricostruito da scripts/build_assistenza_tecnica.py. Le due
+        # caselle "Domicilio"/"Centro" sono quadratini disegnati (non campi):
+        # si precompilano solo gli indirizzi/nomi, la spunta resta a mano.
+        # Orario, interventi effettuati e firma restano sempre vuoti/a mano.
+        citta_cap = f"{D['citta']} {D['cap']}".strip()
+        indirizzo = ", ".join(p for p in (D["via"], citta_cap) if p)
+        return {
+            "paziente": D["nome"],
+            "indirizzo_domicilio": indirizzo,
+            "nome_centro": D["centro"],
+            "ausilio": D["ausilio"],
+            "data_intervento": D["oggi"],
+            "data_firma": D["oggi"],
         }
 
     if template_id == "preventivo-sapio":
