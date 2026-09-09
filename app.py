@@ -1604,6 +1604,42 @@ def aggiorna_importo_asl(pratica_id):
     return redirect(torna)
 
 
+@app.route("/pratica/<int:pratica_id>/finalizza-provvigione", methods=["POST"])
+def finalizza_provvigione(pratica_id):
+    """Chiamata da 'Copia per mail' nella scheda Marginalità: lo scaglione di
+    provvigione (16/17/18%) si decide qui, alla chiusura/invio della pratica,
+    non alla sua apertura — così una pratica aperta prima di scattare la
+    soglia annua (vedi provvigione_corrente) prende comunque lo scaglione
+    corrente se lo si finalizza dopo averla superata. La tariffa ridotta
+    Nemo (12%) non viene mai toccata, e lo scaglione non retrocede mai."""
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"SELECT provvigione_pct, importo_asl, importo_privato FROM pratiche WHERE id = {_PH}",
+            (pratica_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return jsonify({"ok": False}), 404
+        attuale = row["provvigione_pct"] or PROVVIGIONE_PCT
+        _, aliquota_corrente = provvigione_corrente(conn)
+        if abs(attuale - PROVVIGIONE_PCT_RIDOTTA) > 1e-9 and attuale < aliquota_corrente - 1e-9:
+            cur.execute(
+                f"UPDATE pratiche SET provvigione_pct = {_PH} WHERE id = {_PH}",
+                (aliquota_corrente, pratica_id),
+            )
+            nuovo_pct = aliquota_corrente
+        else:
+            nuovo_pct = attuale
+        cur.execute(
+            f"SELECT COALESCE(SUM(importo), 0) AS tot FROM preventivi WHERE pratica_id = {_PH}",
+            (pratica_id,),
+        )
+        costo_totale = float(cur.fetchone()["tot"] or 0)
+    margine = calcola_margine(row["importo_asl"], costo_totale, nuovo_pct, row["importo_privato"] or 0)
+    return jsonify({"ok": True, **margine})
+
+
 @app.route("/pratica/<int:pratica_id>/moduli-attivi", methods=["POST"])
 def aggiorna_moduli_attivi(pratica_id):
     """Salva quali moduli PDF sono attivi per la pratica (selezione manuale)."""

@@ -728,6 +728,7 @@
             <div class="card" id="card-margine"
                  data-asl-url="{{ url_for('aggiorna_importo_asl', pratica_id=pratica.id) }}"
                  data-priv-url="{{ url_for('aggiorna_importo_privato', pratica_id=pratica.id) }}"
+                 data-finalizza-url="{{ url_for('finalizza_provvigione', pratica_id=pratica.id) }}"
                  data-prov-pct="{{ pratica.provvigione_pct }}"
                  data-strutt-pct="{{ margine.struttura_pct / 100 }}"
                  data-privato="{{ margine.importo_privato }}"
@@ -1374,7 +1375,7 @@ function eurPlain(n) {
   const statoPriv = document.getElementById('priv-stato');
   const aslUrl  = card.dataset.aslUrl;
   const privUrl = card.dataset.privUrl;
-  const provPct = parseFloat(card.dataset.provPct) || 0.16;
+  let provPct = parseFloat(card.dataset.provPct) || 0.16;
   const sogliaOk   = parseFloat(card.dataset.sogliaOk) || 20;
   const sogliaWarn = parseFloat(card.dataset.sogliaWarn) || 10;
   const struttPct  = parseFloat(card.dataset.struttPct) || 0.10;
@@ -1484,6 +1485,9 @@ function eurPlain(n) {
 
   // Esposta così l'editing degli importi fornitori può rilanciare il calcolo MOL.
   window.ricalcolaMargine = ricalcola;
+  // Esposta per aggiornare l'aliquota dopo /finalizza-provvigione (vedi "Copia
+  // per mail"), così i ricalcoli successivi usano la nuova percentuale.
+  window.aggiornaProvvigionePct = function (nuovoPct) { provPct = nuovoPct; };
 })();
 
 // ── Copia riepilogo margine formattato (per incollare in mail) ───────────────
@@ -1604,7 +1608,26 @@ function eurPlain(n) {
     return righe.join('\n');
   }
 
+  // La provvigione (16/17/18%) si decide qui, alla finalizzazione della
+  // marginalità per la mail, non all'apertura della pratica: prima di
+  // copiare, chiede al server lo scaglione corrente (mai la tariffa ridotta
+  // Nemo, mai una retrocessione) e aggiorna a schermo prima di leggerlo.
+  async function finalizzaProvvigione() {
+    try {
+      const res = await fetch(card.dataset.finalizzaUrl, {
+        method: 'POST', headers: { 'X-Requested-With': 'fetch' },
+      });
+      const d = await res.json();
+      if (!d.ok) return;
+      document.getElementById('m-prov-label').textContent =
+        'Provvigione ' + Math.round(d.provvigione_pct) + '%';
+      if (window.aggiornaProvvigionePct) window.aggiornaProvvigionePct(d.provvigione_pct / 100);
+      if (window.ricalcolaMargine) await window.ricalcolaMargine();
+    } catch (_) { /* rete assente: si copia comunque coi valori già a schermo */ }
+  }
+
   async function copia() {
+    await finalizzaProvvigione();
     const html = costruisciHtml();
     const testo = costruisciTesto();
     try {
