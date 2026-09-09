@@ -1607,11 +1607,16 @@ def aggiorna_importo_asl(pratica_id):
 @app.route("/pratica/<int:pratica_id>/finalizza-provvigione", methods=["POST"])
 def finalizza_provvigione(pratica_id):
     """Chiamata da 'Copia per mail' nella scheda Marginalità: lo scaglione di
-    provvigione (16/17/18%) si decide qui, alla chiusura/invio della pratica,
-    non alla sua apertura — così una pratica aperta prima di scattare la
-    soglia annua (vedi provvigione_corrente) prende comunque lo scaglione
-    corrente se lo si finalizza dopo averla superata. La tariffa ridotta
-    Nemo (12%) non viene mai toccata, e lo scaglione non retrocede mai."""
+    provvigione si decide qui, alla chiusura/invio della pratica, non alla
+    sua apertura — così una pratica aperta prima di scattare la soglia dei
+    250k (vedi provvigione_corrente) prende comunque il 17% se la si
+    finalizza dopo averla superata. La tariffa ridotta Nemo (12%) non viene
+    mai toccata, e lo scaglione non retrocede mai.
+
+    Tetto al 17%: il passaggio al 18% oltre i 350k resta solo nello
+    'specchietto' del fatturato annuo (dashboard) e nelle pratiche fatturate
+    a mano a quell'aliquota — qui e nel testo copiato per mail si resta al
+    17% fino a fine anno, per decisione esplicita dell'utente."""
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute(
@@ -1623,6 +1628,7 @@ def finalizza_provvigione(pratica_id):
             return jsonify({"ok": False}), 404
         attuale = row["provvigione_pct"] or PROVVIGIONE_PCT
         _, aliquota_corrente = provvigione_corrente(conn)
+        aliquota_corrente = min(aliquota_corrente, PROVVIGIONE_PCT_17)
         if abs(attuale - PROVVIGIONE_PCT_RIDOTTA) > 1e-9 and attuale < aliquota_corrente - 1e-9:
             cur.execute(
                 f"UPDATE pratiche SET provvigione_pct = {_PH} WHERE id = {_PH}",
