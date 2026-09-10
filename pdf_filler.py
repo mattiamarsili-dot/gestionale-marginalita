@@ -795,6 +795,49 @@ def _prepara_stile_campi(writer, filled_names: set, center_hints=(), font_size: 
                 o[NameObject("/Q")] = NumberObject(1)
 
 
+# Colonne della tabella "Offerta" del preventivo generico (Preventivo.pdf):
+# prefisso del nome qualificato del campo → celle della colonna.
+_PREVENTIVO_COLONNE = (
+    "Codici ISO.", "Descrizione.", "Q.tà.", "Prezzo Uni.", "Prezzo Tot.",
+)
+_PREVENTIVO_TOTALI = ("Tot. Imponib", "Iva", "Tot. Lordo")
+
+
+def _uniforma_dimensioni_preventivo(field_map: dict, reader, base_size: float,
+                                    floor: float = 7.5) -> dict:
+    """Per il preventivo generico: calcola una dimensione font UNIFORME per ogni
+    colonna della tabella (e per il blocco totali), pari al corpo più grande
+    (≤ base_size) che fa entrare in larghezza OGNI valore di quella colonna nella
+    rispettiva cella. Così i codici (e gli importi) restano tutti della stessa
+    misura e non sforano il bordo, come già fa l'overlay dell'intestazione.
+    Restituisce {nome_campo: size} da passare a `_prepara_stile_campi`."""
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+
+    rects = _field_rects(reader)
+    # margine interno: 4pt come _draw_fit + ~2pt che pypdf aggiunge generando l'/AP
+    PAD = 6.0
+
+    def corpo_che_entra(testo: str, larghezza: float) -> float:
+        s = base_size
+        while s > floor and stringWidth(testo, "Helvetica", s) > larghezza - PAD:
+            s -= 0.25
+        return s
+
+    gruppi = [(p,) for p in _PREVENTIVO_COLONNE] + [_PREVENTIVO_TOTALI]
+    overrides: dict = {}
+    for prefissi in gruppi:
+        celle = [(n, v) for n, v in field_map.items()
+                 if v not in ("", None) and n in rects
+                 and any(n.startswith(p) for p in prefissi)]
+        if not celle:
+            continue
+        size = min(corpo_che_entra(str(v), rects[n][2] - rects[n][0]) for n, v in celle)
+        if size < base_size:
+            for n, _ in celle:
+                overrides[n] = size
+    return overrides
+
+
 # ── Overlay tabella preventivo (resa uniforme) ────────────────────────────────
 
 def _field_rects(reader) -> dict:
@@ -1042,9 +1085,16 @@ def compila_pdf(template_id: str, pratica: dict, cliente: dict, righe: list = No
 
         # 1) stile (font/allineamento) sui campi rimanenti (tabella, totali…)
         # 2) compilazione: pypdf genera l'/AP con quello stile → visibile ovunque
+        base_size = tpl.get("font_size", _FORM_FONT_SIZE)
+        # Preventivo generico: dimensione uniforme per colonna così i codici ISO
+        # (e gli importi lunghi) non sforano le celle strette e restano omogenei.
+        # Gli altri template usano gli override statici dichiarati in PDF_TEMPLATES.
+        if template_id == "preventivo":
+            size_overrides = _uniforma_dimensioni_preventivo(field_map, reader, base_size)
+        else:
+            size_overrides = tpl.get("size_overrides")
         _prepara_stile_campi(writer, set(field_map.keys()), center_hints=_CENTER_HINTS,
-                             font_size=tpl.get("font_size", _FORM_FONT_SIZE),
-                             size_overrides=tpl.get("size_overrides"))
+                             font_size=base_size, size_overrides=size_overrides)
         # Con flatten il valore viene fuso nel contenuto di pagina (poi il campo
         # sarà bloccato). In modalità "editabile" NON si fa flatten: il campo resta
         # compilabile col valore pre-inserito.
